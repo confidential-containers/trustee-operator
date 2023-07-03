@@ -1,0 +1,12 @@
+apiVersion: confidentialcontainers.org/v1alpha1
+kind: KbsConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: kbsconfig
+    app.kubernetes.io/instance: kbsconfig-sample
+    app.kubernetes.io/part-of: kbs-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kbs-operator
+  name: kbsconfig-sample
+spec:
+  # TODO(user): Add fields here
