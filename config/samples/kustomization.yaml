@@ -1,4 +1,6 @@
 ## Append samples you want in your CSV to this file as resources ##
 resources:
-- _v1alpha1_kbsconfig.yaml
+- kbsconfig_sample.yaml
+- kbs-config.yaml
+- as-config.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
