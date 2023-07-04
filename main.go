@@ -1,5 +1,5 @@
 /*
-Copyright 2023.
+Copyright Confidential Containers Contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
@@ -24,15 +25,19 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	confidentialcontainersorgv1alpha1 "github.com/confidential-containers/kbs-operator/api/v1alpha1"
 	"github.com/confidential-containers/kbs-operator/controllers"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -89,6 +94,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	namespace := os.Getenv("POD_NAMESPACE")
+	if namespace == "" {
+		namespace = controllers.KbsOperatorNamespace
+	}
+
+	err = labelNamespace(context.TODO(), mgr, namespace)
+	if err != nil {
+		setupLog.Error(err, "unable to add labels to namespace")
+		os.Exit(1)
+	}
+
 	if err = (&controllers.KbsConfigReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -112,4 +128,27 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func labelNamespace(ctx context.Context, mgr manager.Manager, nsName string) error {
+
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nsName,
+		},
+	}
+	err := mgr.GetAPIReader().Get(ctx, client.ObjectKeyFromObject(ns), ns)
+	if err != nil {
+		setupLog.Error(err, "Unable to retrieve namespace details. Can't add label to the namespace")
+		return err
+	}
+
+	setupLog.Info("Labelling Namespace")
+	setupLog.Info("Labels: ", "Labels", ns.ObjectMeta.Labels)
+	// Add namespace label to allow privilege pods via Pod Security Admission controller
+	ns.ObjectMeta.Labels["pod-security.kubernetes.io/enforce"] = "privileged"
+	ns.ObjectMeta.Labels["pod-security.kubernetes.io/audit"] = "privileged"
+	ns.ObjectMeta.Labels["pod-security.kubernetes.io/warn"] = "privileged"
+
+	return mgr.GetClient().Update(ctx, ns)
 }

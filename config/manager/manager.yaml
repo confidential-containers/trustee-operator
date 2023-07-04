@@ -9,6 +9,9 @@ metadata:
     app.kubernetes.io/created-by: kbs-operator
     app.kubernetes.io/part-of: kbs-operator
     app.kubernetes.io/managed-by: kustomize
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: privileged
   name: system
 ---
 apiVersion: apps/v1
@@ -72,6 +75,16 @@ spec:
         - --leader-elect
         image: controller:latest
         name: manager
+        # Add the following environment variables to the manager container
+        # POD_NAMESPACE
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        # KBS_IMAGE_NAME
+        - name: KBS_IMAGE_NAME
+          value: ghcr.io/confidential-containers/key-broker-service:latest
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
