@@ -28,14 +28,26 @@ type KbsConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of KbsConfig. Edit kbsconfig_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// KbsConfigMapName is the name of the configmap that contains the KBS configuration
+	KbsConfigMapName string `json:"kbsConfigMapName,omitempty"`
+
+	// KbsAsConfigMapName is the name of the configmap that contains the KBS AS configuration
+	KbsAsConfigMapName string `json:"kbsAsConfigMapName,omitempty"`
+
+	// KbsRvpsConfigMapName is the name of the configmap that contains the KBS RVPS configuration
+	KbsRvpsConfigMapName string `json:"kbsRvpsConfigMapName,omitempty"`
+
+	// KbsAuthSecretName is the name of the secret that contains the KBS auth secret
+	KbsAuthSecretName string `json:"kbsAuthSecretName,omitempty"`
 }
 
 // KbsConfigStatus defines the observed state of KbsConfig
 type KbsConfigStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// IsReady is true when the KBS configuration is ready
+	IsReady bool `json:"isReady,omitempty"`
 }
 
 //+kubebuilder:object:root=true
