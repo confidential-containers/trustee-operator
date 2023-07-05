@@ -74,10 +74,20 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Get the KbsConfig instance
 	r.kbsConfig = &confidentialcontainersorgv1alpha1.KbsConfig{}
 	err := r.Client.Get(ctx, req.NamespacedName, r.kbsConfig)
+	// If the KbsConfig instance is not found, then just return
+	// and do nothing
+	if err != nil && errors.IsNotFound(err) {
+		r.log.Info("KbsConfig not found")
+		return ctrl.Result{}, nil
+	}
+	// If there is an error other than the KbsConfig instance not found,
+	// then return with the error
 	if err != nil {
 		r.log.Error(err, "Failed to get KbsConfig")
 		return ctrl.Result{}, err
 	}
+
+	// KbsConfig instance is found, so continue with rest of the processing
 
 	// Check if the KbsConfig object is marked to be deleted, which is
 	// indicated by the deletion timestamp being set.
