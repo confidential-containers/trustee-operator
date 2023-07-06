@@ -1,30 +1,134 @@
 # kbs-operator
-// TODO(user): Add simple overview of use/purpose
+
+The `kbs-operator` manages the lifecycle of `kbs` along with it's configuration when deployed
+in a Kubernetes cluster
+
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+
+The operator manages a Kubernetes custom resource named: `KbsConfig`. Following are the key fields of the
+`KbsConfig` custom resource definition
+```
+type KbsConfigSpec struct {
+
+	// KbsConfigMapName is the name of the configmap that contains the KBS configuration
+	KbsConfigMapName string `json:"kbsConfigMapName,omitempty"`
+
+	// KbsAsConfigMapName is the name of the configmap that contains the KBS AS configuration
+	KbsAsConfigMapName string `json:"kbsAsConfigMapName,omitempty"`
+
+	// KbsRvpsConfigMapName is the name of the configmap that contains the KBS RVPS configuration
+	KbsRvpsConfigMapName string `json:"kbsRvpsConfigMapName,omitempty"`
+
+	// KbsAuthSecretName is the name of the secret that contains the KBS auth secret
+	KbsAuthSecretName string `json:"kbsAuthSecretName,omitempty"`
+
+  // KbsServiceType is the type of service to create for KBS
+	KbsServiceType corev1.ServiceType `json:"kbsServiceType,omitempty"`
+
+}
+```
+
+An example configmap for the KBS configuration looks like this:
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kbs-config
+  namespace: kbs-operator-system
+data:
+  kbs-config.json: |
+    {
+        "repository_type": "LocalFs",
+        "repository_description": {
+            "dir_path": "/opt/confidential-containers/kbs/repository"
+        },
+        "attestation_token_type": "Simple",
+        "as_config_file_path": "/etc/as-config/as-config.json"
+    }
+```
+
+An example configmap for AS config looks like this:
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: as-config
+  namespace: kbs-operator-system
+data:
+  as-config.json: |
+    {
+        "work_dir": "/opt/confidential-containers/attestation-service",
+        "policy_engine": "opa",
+        "rvps_store_type": "LocalFs"
+    }
+```
+Currently these configmaps needs to be created during deployment.
+In subsequent releases we'll look into having these configmaps created by the operator based on user inputs.
+
+A sample `KbsConfig` custom resource
+```
+apiVersion: confidentialcontainers.org/v1alpha1
+kind: KbsConfig
+metadata:  
+  name: kbsconfig-sample
+  namespace: kbs-operator-system
+spec:
+  kbsConfigMapName: kbs-config
+  kbsAsConfigMapName: as-config  
+  kbsAuthSecretName: kbs-auth-public-key
+```
+
 
 ## Getting Started
 You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
 **Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
 
 ### Running on the cluster
-1. Install Instances of Custom Resources:
 
+1. Export env variables
+
+Set `REGISTRY` environment variable to point to your container registry.
+For example:
 ```sh
-kubectl apply -f config/samples/
+export REGISTRY=quay.io/user
 ```
 
 2. Build and push your image to the location specified by `IMG`:
 
 ```sh
-make docker-build docker-push IMG=<some-registry>/kbs-operator:tag
+make docker-build docker-push IMG=${REGISTRY}/kbs-operator:latest
 ```
+
+Change the tag from `latest` to any other based on your requirements.
+Also ensure that the image is public.
 
 3. Deploy the controller to the cluster with the image specified by `IMG`:
 
 ```sh
-make deploy IMG=<some-registry>/kbs-operator:tag
+make deploy IMG=${REGISTRY}/kbs-operator:latest
+```
+
+4. Create KBS auth secret
+
+```sh
+openssl genpkey -algorithm ed25519 > kbs.key
+openssl pkey -in kbs.key -pubout -out kbs.pem
+
+kubectl create secret generic kbs-auth-public-key --from-file=kbs.pem -n kbs-operator-system
+```
+
+5. Create the KBS and AS configmaps
+
+```sh
+kubectl apply -f config/samples/kbs-config.yaml
+kubectl apply -f config/samples/as-config.yaml
+```
+
+6. Create Custom Resource:
+
+```sh
+kubectl apply -f config/samples/kbsconfig_sample.yaml
 ```
 
 ### Uninstall CRDs
@@ -42,7 +146,7 @@ make undeploy
 ```
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
+Contributions are most welcome. Please take a look at the [guide](https://github.com/confidential-containers/confidential-containers/blob/main/CONTRIBUTING.md) for more details.
 
 ### How it works
 This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/).
@@ -78,7 +182,7 @@ More information can be found via the [Kubebuilder Documentation](https://book.k
 
 ## License
 
-Copyright 2023.
+Copyright Confidential Containers Contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
