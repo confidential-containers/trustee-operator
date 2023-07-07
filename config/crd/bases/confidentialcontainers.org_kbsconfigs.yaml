@@ -51,6 +51,9 @@ spec:
                 description: KbsRvpsConfigMapName is the name of the configmap that
                   contains the KBS RVPS configuration
                 type: string
+              kbsServiceType:
+                description: KbsServiceType is the type of service to create for KBS
+                type: string
             type: object
           status:
             description: KbsConfigStatus defines the observed state of KbsConfig

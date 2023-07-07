@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,6 +40,9 @@ type KbsConfigSpec struct {
 
 	// KbsAuthSecretName is the name of the secret that contains the KBS auth secret
 	KbsAuthSecretName string `json:"kbsAuthSecretName,omitempty"`
+
+	// KbsServiceType is the type of service to create for KBS
+	KbsServiceType corev1.ServiceType `json:"kbsServiceType,omitempty"`
 }
 
 // KbsConfigStatus defines the observed state of KbsConfig

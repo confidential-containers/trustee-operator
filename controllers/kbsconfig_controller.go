@@ -56,6 +56,7 @@ type KbsConfigReconciler struct {
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;update
+//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -120,6 +121,13 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
+	// Create or update the KBS service
+	err = r.deployOrUpdateKbsService(ctx)
+	if err != nil {
+		r.log.Error(err, "Failed to create KBS service")
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -143,6 +151,92 @@ func (r *KbsConfigReconciler) finalizeKbsConfig(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+// deployOrUpdateKbsService returns a new service for the KBS instance
+func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) error {
+
+	// Check if the service name kbs-service in r.namespace already exists
+	// If it does, update the service
+	// If it does not, create the service
+	found := &corev1.Service{}
+
+	err := r.Client.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      KbsServiceName,
+	}, found)
+
+	if err != nil && errors.IsNotFound(err) {
+		// Create the service
+		r.log.Info("Creating a new service", "Service.Namespace", r.namespace, "Service.Name", KbsServiceName)
+		service := r.newKbsService(ctx)
+		// If service object is nil, return error
+		if service == nil {
+			r.log.Error(err, "Failed to get the KBS service definition")
+			return err
+		}
+		err = r.Client.Create(ctx, service)
+		if err != nil {
+			r.log.Error(err, "Failed to create the KBS service")
+			return err
+		}
+		// Service created successfully - return and requeue
+		return nil
+	} else if err != nil {
+		r.log.Error(err, "Failed to get the KBS service")
+		return err
+	}
+
+	// Service already exists, so update the service
+	r.log.Info("Updating the service", "Service.Namespace", r.namespace, "Service.Name", KbsServiceName)
+	service := r.newKbsService(ctx)
+	// If service object is nil, return error
+	if service == nil {
+		r.log.Error(err, "Failed to get the KBS service definition")
+		return err
+	}
+	err = r.Client.Update(ctx, service)
+	if err != nil {
+		r.log.Error(err, "Failed to update the KBS service")
+		return err
+	}
+	// Service updated successfully - ret
+	return nil
+}
+
+// newKbsService returns a new service for the KBS instance
+func (r *KbsConfigReconciler) newKbsService(ctx context.Context) *corev1.Service {
+	// Get the service type from the KbsConfig instance
+	serviceType := r.kbsConfig.Spec.KbsServiceType
+	// if the service type is not provided, default to ClusterIP
+	if serviceType == "" {
+		serviceType = corev1.ServiceTypeClusterIP
+	}
+
+	// Create a new service
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: r.namespace,
+			Name:      KbsServiceName,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{
+				"app": "kbs",
+			},
+			Type: serviceType,
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "kbs-port",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       8080,
+					TargetPort: intstr.FromInt(8080),
+				},
+			},
+		},
+	}
+	// Set KbsConfig instance as the owner and controller
+	ctrl.SetControllerReference(r.kbsConfig, service, r.Scheme)
+	return service
 }
 
 // deployOrUpdateKbsDeployment returns a new deployment for the KBS instance

@@ -29,6 +29,9 @@ const (
 
 	// Default KBS image name
 	DefaultKbsImageName = "ghcr.io/confidential-containers/key-broker-service:latest"
+
+	// KBS service name
+	KbsServiceName = "kbs-service"
 )
 
 func contains(list []string, s string) bool {
