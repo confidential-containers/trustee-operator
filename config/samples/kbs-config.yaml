@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kbs-config
+  namespace: kbs-operator-system
+data:
+  kbs-config.json: |
+    {
+        "repository_type": "LocalFs",
+        "repository_description": {
+            "dir_path": "/opt/confidential-containers/kbs/repository"
+        },
+        "attestation_token_type": "Simple",
+        "as_config_file_path": "/etc/as-config/as-config.json"
+    }
