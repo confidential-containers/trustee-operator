@@ -455,13 +455,8 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 	// command array for the KBS container
 	command := []string{
 		"/usr/local/bin/kbs",
-		"--socket",
-		"0.0.0.0:8080",
-		"--config",
+		"--config-file",
 		"/etc/kbs-config/kbs-config.json",
-		"--auth-public-key",
-		"/etc/auth-secret/kbs.pem",
-		"--insecure-http",
 	}
 
 	// RunAsUser (root) 0

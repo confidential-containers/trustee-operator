@@ -11,7 +11,7 @@ metadata:
   namespace: kbs-operator-system
 spec:
   kbsConfigMapName: kbs-config
-  kbsAsConfigMapName: as-config
+  #kbsAsConfigMapName: as-config
   #kbsRvpsConfigMapName: rvps-config
   kbsAuthSecretName: kbs-auth-public-key
 
