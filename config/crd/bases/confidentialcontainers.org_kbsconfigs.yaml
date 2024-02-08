@@ -47,6 +47,12 @@ spec:
                 description: KbsConfigMapName is the name of the configmap that contains
                   the KBS configuration
                 type: string
+              kbsDeploymentType:
+                description: 'KbsDeploymentType is the type of KBS deployment It can
+                  assume one of the following values: AllInOneDeployment: all the
+                  KBS components will be deployed in the same container MicroservicesDeployment:
+                  all the KBS components will be deployed in separate containers'
+                type: string
               kbsRvpsConfigMapName:
                 description: KbsRvpsConfigMapName is the name of the configmap that
                   contains the KBS RVPS configuration

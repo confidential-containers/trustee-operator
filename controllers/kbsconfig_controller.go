@@ -318,21 +318,33 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 		"app": "kbs",
 	}
 
-	// Create corev1.Volume array based on whether KbsConfigMapName, KbsAsConfigMapName, KbsAuthSecretName, and KbsRvpsConfigMapName are set
+	// deployment type defaulted to microservices
+	kbsDeploymentType := r.kbsConfig.Spec.KbsDeploymentType
+	if kbsDeploymentType == "" {
+		kbsDeploymentType = confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices
+	}
+
+	// Create corev1.Volume array based on the deployment type and
+	// whether KbsConfigMapName, KbsAsConfigMapName, KbsAuthSecretName, and KbsRvpsConfigMapName are set
 	// in the KbsConfig CR and whether the corresponding resources exist
 	var volumes []corev1.Volume
 	volumes, err := r.processKbsConfigMap(ctx, volumes)
 	if err != nil {
 		return nil
 	}
-	volumes, err = r.processRvpsConfigMap(ctx, volumes)
-	if err != nil {
-		return nil
+
+	if kbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices {
+		volumes, err = r.processAsConfigMap(ctx, volumes)
+		if err != nil {
+			return nil
+		}
+		volumes, err = r.processRvpsConfigMap(ctx, volumes)
+		if err != nil {
+			return nil
+		}
+
 	}
-	volumes, err = r.processAsConfigMap(ctx, volumes)
-	if err != nil {
-		return nil
-	}
+
 	volumes, err = r.processAuthSecret(ctx, volumes)
 	if err != nil {
 		return nil
@@ -352,6 +364,10 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 	runAsUser := int64(0)
 
 	containers := []corev1.Container{r.buildKbsContainer(volumeMounts, runAsUser)}
+	if kbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices {
+		containers = append(containers, r.buildAsContainer(volumeMounts, runAsUser))
+		containers = append(containers, r.buildRvpsContainer(volumeMounts, runAsUser))
+	}
 
 	// Create the deployment
 	deployment := &appsv1.Deployment{
@@ -382,6 +398,74 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 		},
 	}
 	return deployment
+}
+
+func (r *KbsConfigReconciler) buildAsContainer(volumeMounts []corev1.VolumeMount, runAsUser int64) corev1.Container {
+	asImageName := os.Getenv("AS_IMAGE_NAME")
+	if asImageName == "" {
+		asImageName = DefaultAsImageName
+	}
+
+	// command array for the Attestation Server container
+	asCommand := []string{
+		"/usr/local/bin/grpc-as",
+		"--socket",
+		"0.0.0.0:50004",
+		"--config-file",
+		"/etc/as-config/as-config.json",
+	}
+
+	return corev1.Container{
+		Name:  "as",
+		Image: asImageName,
+		Ports: []corev1.ContainerPort{
+			{
+				ContainerPort: 50004,
+				Name:          "as",
+			},
+		},
+		// Add command to start AS
+		Command: asCommand,
+		// Add SecurityContext
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser: &runAsUser,
+		},
+		// Add volume mount for config
+		VolumeMounts: volumeMounts,
+	}
+}
+
+func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMount, runAsUser int64) corev1.Container {
+	rvpsImageName := os.Getenv("RVPS_IMAGE_NAME")
+	if rvpsImageName == "" {
+		rvpsImageName = DefaultRvpsImageName
+	}
+
+	// command array for the RVPS container
+	rvpsCommand := []string{
+		"/usr/local/bin/rvps",
+		"--socket",
+		"0.0.0.0:50003",
+	}
+
+	return corev1.Container{
+		Name:  "rvps",
+		Image: rvpsImageName,
+		Ports: []corev1.ContainerPort{
+			{
+				ContainerPort: 50003,
+				Name:          "rvps",
+			},
+		},
+		// Add command to start RVPS
+		Command: rvpsCommand,
+		// Add SecurityContext
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser: &runAsUser,
+		},
+		// Add volume mount for config
+		VolumeMounts: volumeMounts,
+	}
 }
 
 func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMount, runAsUser int64) corev1.Container {

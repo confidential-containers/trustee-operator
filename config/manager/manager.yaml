@@ -85,6 +85,10 @@ spec:
         # KBS_IMAGE_NAME
         - name: KBS_IMAGE_NAME
           value: ghcr.io/confidential-containers/key-broker-service:latest
+        - name: AS_IMAGE_NAME
+          value: ghcr.io/confidential-containers/attestation-service:latest
+        - name: RVPS_IMAGE_NAME
+          value: ghcr.io/confidential-containers/reference-value-provider-service:latest
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

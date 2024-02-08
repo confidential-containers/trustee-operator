@@ -10,11 +10,13 @@ metadata:
   name: kbsconfig-sample
   namespace: kbs-operator-system
 spec:
-  kbsConfigMapName: kbs-config
-  #kbsAsConfigMapName: as-config
-  #kbsRvpsConfigMapName: rvps-config
+  kbsConfigMapName: kbs-config-grpc
+  kbsAsConfigMapName: as-config-grpc
   kbsAuthSecretName: kbs-auth-public-key
-
-
-
-
+  kbsServiceType: ClusterIP
+  #kbsServiceType: NodePort
+  #kbsServiceType: LoadBalancer
+  #kbsServiceType: ExternalName
+  kbsDeploymentType: MicroservicesDeployment
+  #kbsHttpsKeySecretName: kbs-https-key
+  #kbsHttpsCertSecretName: kbs-https-certificate
