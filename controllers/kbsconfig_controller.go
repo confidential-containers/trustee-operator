@@ -318,128 +318,24 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 		"app": "kbs",
 	}
 
-	// Get Image Name from env variable if set
-	imageName := os.Getenv("KBS_IMAGE_NAME")
-	if imageName == "" {
-		imageName = DefaultKbsImageName
-	}
-
 	// Create corev1.Volume array based on whether KbsConfigMapName, KbsAsConfigMapName, KbsAuthSecretName, and KbsRvpsConfigMapName are set
 	// in the KbsConfig CR and whether the corresponding resources exist
 	var volumes []corev1.Volume
-	if r.kbsConfig.Spec.KbsConfigMapName != "" {
-		// Check if the config map exists
-		foundConfigMap := &corev1.ConfigMap{}
-		err := r.Client.Get(ctx, client.ObjectKey{
-			Namespace: r.namespace,
-			Name:      r.kbsConfig.Spec.KbsConfigMapName,
-		}, foundConfigMap)
-		if err != nil && errors.IsNotFound(err) {
-			// ConfigMap does not exist
-			r.log.Error(err, "KbsConfigMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", r.kbsConfig.Spec.KbsConfigMapName)
-			return nil
-		} else if err != nil {
-			// Unknown error
-			r.log.Error(err, "Failed to get KBS ConfigMap")
-			return nil
-		}
-		// ConfigMap exists
-		// Create the volume
-		volumes = append(volumes, corev1.Volume{
-			Name: "kbs-config",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: r.kbsConfig.Spec.KbsConfigMapName,
-					},
-				},
-			},
-		})
+	volumes, err := r.processKbsConfigMap(ctx, volumes)
+	if err != nil {
+		return nil
 	}
-	if r.kbsConfig.Spec.KbsRvpsConfigMapName != "" {
-		// Check if the config map exists
-		foundConfigMap := &corev1.ConfigMap{}
-		err := r.Client.Get(ctx, client.ObjectKey{
-			Namespace: r.namespace,
-			Name:      r.kbsConfig.Spec.KbsRvpsConfigMapName,
-		}, foundConfigMap)
-		if err != nil && errors.IsNotFound(err) {
-			// ConfigMap does not exist
-			r.log.Error(err, "KbsRvpsConfigMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", r.kbsConfig.Spec.KbsRvpsConfigMapName)
-			return nil
-		} else if err != nil {
-			// Unknown error
-			r.log.Error(err, "Failed to get KBS RVPS ConfigMap")
-			return nil
-		}
-		// ConfigMap exists
-		// Create the volume
-		volumes = append(volumes, corev1.Volume{
-			Name: "rvps-config",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: r.kbsConfig.Spec.KbsRvpsConfigMapName,
-					},
-				},
-			},
-		})
+	volumes, err = r.processRvpsConfigMap(ctx, volumes)
+	if err != nil {
+		return nil
 	}
-	if r.kbsConfig.Spec.KbsAsConfigMapName != "" {
-		// Check if the config map exists
-		foundConfigMap := &corev1.ConfigMap{}
-		err := r.Client.Get(ctx, client.ObjectKey{
-			Namespace: r.namespace,
-			Name:      r.kbsConfig.Spec.KbsAsConfigMapName,
-		}, foundConfigMap)
-		if err != nil && errors.IsNotFound(err) {
-			// ConfigMap does not exist
-			r.log.Error(err, "KbsAsConfigMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", r.kbsConfig.Spec.KbsAsConfigMapName)
-			return nil
-		} else if err != nil {
-			// Unknown error
-			r.log.Error(err, "Failed to get KBS AS ConfigMap")
-			return nil
-		}
-		// ConfigMap exists
-		// Create the volume
-		volumes = append(volumes, corev1.Volume{
-			Name: "as-config",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: r.kbsConfig.Spec.KbsAsConfigMapName,
-					},
-				},
-			},
-		})
+	volumes, err = r.processAsConfigMap(ctx, volumes)
+	if err != nil {
+		return nil
 	}
-	if r.kbsConfig.Spec.KbsAuthSecretName != "" {
-		// Check if the secret exists
-		foundSecret := &corev1.Secret{}
-		err := r.Client.Get(ctx, client.ObjectKey{
-			Namespace: r.namespace,
-			Name:      r.kbsConfig.Spec.KbsAuthSecretName,
-		}, foundSecret)
-		if err != nil && errors.IsNotFound(err) {
-			// Secret does not exist
-			r.log.Error(err, "KbsAuthSecretName does not exist", "Secret.Namespace", r.namespace, "Secret.Name", r.kbsConfig.Spec.KbsAuthSecretName)
-			return nil
-		} else if err != nil {
-			// Unknown error
-			r.log.Error(err, "Failed to get KBS Auth Secret")
-			return nil
-		}
-		// Secret exists
-		// Create the volume
-		volumes = append(volumes, corev1.Volume{
-			Name: "auth-secret",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: r.kbsConfig.Spec.KbsAuthSecretName,
-				},
-			},
-		})
+	volumes, err = r.processAuthSecret(ctx, volumes)
+	if err != nil {
+		return nil
 	}
 
 	// Create corev1.VolumeMount array for the KBS container based on the volumes.
@@ -452,15 +348,10 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 		})
 	}
 
-	// command array for the KBS container
-	command := []string{
-		"/usr/local/bin/kbs",
-		"--config-file",
-		"/etc/kbs-config/kbs-config.json",
-	}
-
 	// RunAsUser (root) 0
 	runAsUser := int64(0)
+
+	containers := []corev1.Container{r.buildKbsContainer(volumeMounts, runAsUser)}
 
 	// Create the deployment
 	deployment := &appsv1.Deployment{
@@ -483,27 +374,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 				},
 				// Add the KBS container
 				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:  "kbs",
-							Image: imageName,
-							Ports: []corev1.ContainerPort{
-								{
-									ContainerPort: 8080,
-									Name:          "kbs",
-								},
-							},
-							// Add command to start KBS
-							Command: command,
-							// Add SecurityContext
-							SecurityContext: &corev1.SecurityContext{
-								// Run as root user
-								RunAsUser: &runAsUser,
-							},
-							// Add volume mount for KBS config
-							VolumeMounts: volumeMounts,
-						},
-					},
+					Containers: containers,
 					// Add volumes
 					Volumes: volumes,
 				},
@@ -511,6 +382,154 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 		},
 	}
 	return deployment
+}
+
+func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMount, runAsUser int64) corev1.Container {
+	// Get Image Name from env variable if set
+	imageName := os.Getenv("KBS_IMAGE_NAME")
+	if imageName == "" {
+		imageName = DefaultKbsImageName
+	}
+
+	// command array for the KBS container
+	command := []string{
+		"/usr/local/bin/kbs",
+		"--config-file",
+		"/etc/kbs-config/kbs-config.json",
+	}
+
+	return corev1.Container{
+		Name:  "kbs",
+		Image: imageName,
+		Ports: []corev1.ContainerPort{
+			{
+				ContainerPort: 8080,
+				Name:          "kbs",
+			},
+		},
+		// Add command to start KBS
+		Command: command,
+		// Add SecurityContext
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser: &runAsUser,
+		},
+		// Add volume mount for KBS config
+		VolumeMounts: volumeMounts,
+	}
+}
+
+func (r *KbsConfigReconciler) processAuthSecret(ctx context.Context, volumes []corev1.Volume) ([]corev1.Volume, error) {
+	if r.kbsConfig.Spec.KbsAuthSecretName != "" {
+		foundSecret := &corev1.Secret{}
+		err := r.Client.Get(ctx, client.ObjectKey{
+			Namespace: r.namespace,
+			Name:      r.kbsConfig.Spec.KbsAuthSecretName,
+		}, foundSecret)
+		if err != nil && errors.IsNotFound(err) {
+			r.log.Error(err, "KbsAuthSecretName does not exist", "Secret.Namespace", r.namespace, "Secret.Name", r.kbsConfig.Spec.KbsAuthSecretName)
+			return nil, err
+		} else if err != nil {
+			r.log.Error(err, "Failed to get KBS Auth Secret")
+			return nil, err
+		}
+
+		volumes = append(volumes, corev1.Volume{
+			Name: "auth-secret",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: r.kbsConfig.Spec.KbsAuthSecretName,
+				},
+			},
+		})
+	}
+	return volumes, nil
+}
+
+func (r *KbsConfigReconciler) processAsConfigMap(ctx context.Context, volumes []corev1.Volume) ([]corev1.Volume, error) {
+	if r.kbsConfig.Spec.KbsAsConfigMapName != "" {
+		foundConfigMap := &corev1.ConfigMap{}
+		err := r.Client.Get(ctx, client.ObjectKey{
+			Namespace: r.namespace,
+			Name:      r.kbsConfig.Spec.KbsAsConfigMapName,
+		}, foundConfigMap)
+		if err != nil && errors.IsNotFound(err) {
+			r.log.Error(err, "KbsAsConfigMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", r.kbsConfig.Spec.KbsAsConfigMapName)
+			return nil, err
+		} else if err != nil {
+			r.log.Error(err, "Failed to get KBS AS ConfigMap")
+			return nil, err
+		}
+
+		volumes = append(volumes, corev1.Volume{
+			Name: "as-config",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: r.kbsConfig.Spec.KbsAsConfigMapName,
+					},
+				},
+			},
+		})
+	}
+	return volumes, nil
+}
+
+func (r *KbsConfigReconciler) processRvpsConfigMap(ctx context.Context, volumes []corev1.Volume) ([]corev1.Volume, error) {
+	if r.kbsConfig.Spec.KbsRvpsConfigMapName != "" {
+		foundConfigMap := &corev1.ConfigMap{}
+		err := r.Client.Get(ctx, client.ObjectKey{
+			Namespace: r.namespace,
+			Name:      r.kbsConfig.Spec.KbsRvpsConfigMapName,
+		}, foundConfigMap)
+		if err != nil && errors.IsNotFound(err) {
+			r.log.Error(err, "KbsRvpsConfigMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", r.kbsConfig.Spec.KbsRvpsConfigMapName)
+			return nil, err
+		} else if err != nil {
+			r.log.Error(err, "Failed to get KBS RVPS ConfigMap")
+			return nil, err
+		}
+
+		volumes = append(volumes, corev1.Volume{
+			Name: "rvps-config",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: r.kbsConfig.Spec.KbsRvpsConfigMapName,
+					},
+				},
+			},
+		})
+	}
+	return volumes, nil
+}
+
+func (r *KbsConfigReconciler) processKbsConfigMap(ctx context.Context, volumes []corev1.Volume) ([]corev1.Volume, error) {
+	if r.kbsConfig.Spec.KbsConfigMapName != "" {
+		foundConfigMap := &corev1.ConfigMap{}
+		err := r.Client.Get(ctx, client.ObjectKey{
+			Namespace: r.namespace,
+			Name:      r.kbsConfig.Spec.KbsConfigMapName,
+		}, foundConfigMap)
+		if err != nil && errors.IsNotFound(err) {
+			r.log.Error(err, "KbsConfigMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", r.kbsConfig.Spec.KbsConfigMapName)
+			return nil, err
+		} else if err != nil {
+			r.log.Error(err, "Failed to get KBS ConfigMap")
+			return nil, err
+		}
+
+		volumes = append(volumes, corev1.Volume{
+			Name: "kbs-config",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: r.kbsConfig.Spec.KbsConfigMapName,
+					},
+				},
+			},
+		})
+	}
+	return volumes, nil
 }
 
 // updateKbsDeployment updates an existing deployment for the KBS instance
