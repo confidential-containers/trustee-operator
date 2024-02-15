@@ -31,6 +31,12 @@ type KbsConfigSpec struct {
 	//    AllInOneDeployment: all the KBS components will be deployed in the same container
 	//    MicroservicesDeployment: all the KBS components will be deployed in separate containers (part of the same Kubernetes pod)
 	KbsDeploymentType DeploymentType `json:"kbsDeploymentType,omitempty"`
+
+	// KbsHttpsKeySecretName is the name of the secret that contains the KBS https private key
+	KbsHttpsKeySecretName string `json:"kbsHttpsKeySecretName,omitempty"`
+
+	// KbsHttpsCertSecretName is the name of the secret that contains the KBS https certificate
+	KbsHttpsCertSecretName string `json:"kbsHttpsCertSecretName,omitempty"`
 }
 ```
 
@@ -47,9 +53,11 @@ metadata:
 data:
   kbs-config.json: |
     {
-        "insecure_http" : true,
+        "insecure_http" : false,
         "sockets": ["0.0.0.0:8080"],
         "auth_public_key": "/etc/auth-secret/kbs.pem",
+        "private_key": "/etc/https-key/key.pem",
+        "certificate": "/etc/https-cert/cert.pem",
         "attestation_token_config": {
           "attestation_token_type": "CoCo"
         },
@@ -58,6 +66,8 @@ data:
         }
     }
 ```
+
+If HTTPS support is not needed, please set ```insecure_http=true``` and no need to specify the attributes ```private_key``` and ```certificate```.
 
 An example configmap for AS config looks like this:
 ```
@@ -97,6 +107,9 @@ spec:
   kbsAuthSecretName: kbs-auth-public-key
   kbsServiceType: ClusterIP
   kbsDeploymentType: MicroservicesDeployment
+  # HTTPS support
+  kbsHttpsKeySecretName: kbs-https-key
+  kbsHttpsCertSecretName: kbs-https-certificate
 ```
 
 

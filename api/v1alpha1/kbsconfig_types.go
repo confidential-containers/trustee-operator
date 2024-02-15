@@ -61,6 +61,12 @@ type KbsConfigSpec struct {
 	//    AllInOneDeployment: all the KBS components will be deployed in the same container
 	//    MicroservicesDeployment: all the KBS components will be deployed in separate containers
 	KbsDeploymentType DeploymentType `json:"kbsDeploymentType,omitempty"`
+
+	// KbsHttpsKeySecretName is the name of the secret that contains the KBS https private key
+	KbsHttpsKeySecretName string `json:"kbsHttpsKeySecretName,omitempty"`
+
+	// KbsHttpsCertSecretName is the name of the secret that contains the KBS https certificate
+	KbsHttpsCertSecretName string `json:"kbsHttpsCertSecretName,omitempty"`
 }
 
 // KbsConfigStatus defines the observed state of KbsConfig

@@ -18,12 +18,13 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -77,7 +78,7 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	err := r.Client.Get(ctx, req.NamespacedName, r.kbsConfig)
 	// If the KbsConfig instance is not found, then just return
 	// and do nothing
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && k8serrors.IsNotFound(err) {
 		r.log.Info("KbsConfig not found")
 		return ctrl.Result{}, nil
 	}
@@ -166,7 +167,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 		Name:      KbsServiceName,
 	}, found)
 
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && k8serrors.IsNotFound(err) {
 		// Create the service
 		r.log.Info("Creating a new service", "Service.Namespace", r.namespace, "Service.Name", KbsServiceName)
 		service := r.newKbsService(ctx)
@@ -252,7 +253,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) e
 		Name:      KbsDeploymentName,
 	}, found)
 
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && k8serrors.IsNotFound(err) {
 		// Create the deployment
 		r.log.Info("Creating a new deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
 		deployment := r.newKbsDeployment(ctx)
@@ -346,6 +347,11 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 	}
 
 	volumes, err = r.processAuthSecret(ctx, volumes)
+	if err != nil {
+		return nil
+	}
+
+	volumes, err = r.processHttpsSecret(ctx, volumes)
 	if err != nil {
 		return nil
 	}
@@ -509,7 +515,7 @@ func (r *KbsConfigReconciler) processAuthSecret(ctx context.Context, volumes []c
 			Namespace: r.namespace,
 			Name:      r.kbsConfig.Spec.KbsAuthSecretName,
 		}, foundSecret)
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && k8serrors.IsNotFound(err) {
 			r.log.Error(err, "KbsAuthSecretName does not exist", "Secret.Namespace", r.namespace, "Secret.Name", r.kbsConfig.Spec.KbsAuthSecretName)
 			return nil, err
 		} else if err != nil {
@@ -529,6 +535,71 @@ func (r *KbsConfigReconciler) processAuthSecret(ctx context.Context, volumes []c
 	return volumes, nil
 }
 
+func (r *KbsConfigReconciler) httpsConfigPresent() (bool, error) {
+	if r.kbsConfig.Spec.KbsHttpsKeySecretName == "" && r.kbsConfig.Spec.KbsHttpsCertSecretName == "" {
+		return false, nil
+	} else if r.kbsConfig.Spec.KbsHttpsKeySecretName != "" && r.kbsConfig.Spec.KbsHttpsCertSecretName != "" {
+		return true, nil
+	} else {
+		return false, errors.New("invalid https parameters, missing key or certificate")
+	}
+}
+
+func (r *KbsConfigReconciler) processHttpsSecret(ctx context.Context, volumes []corev1.Volume) ([]corev1.Volume, error) {
+	httpsConfigPresent, err := r.httpsConfigPresent()
+	if err != nil {
+		r.log.Error(err, "Failed to get KBS HTTPS secrets")
+		return nil, err
+	}
+	if httpsConfigPresent {
+		// get the https key and append to volumes
+		foundHttpsKeySecret := &corev1.Secret{}
+		err := r.Client.Get(ctx, client.ObjectKey{
+			Namespace: r.namespace,
+			Name:      r.kbsConfig.Spec.KbsHttpsKeySecretName,
+		}, foundHttpsKeySecret)
+		if err != nil && k8serrors.IsNotFound(err) {
+			r.log.Error(err, "KbsHttpsKeySecretName does not exist", "Secret.Namespace", r.namespace, "Secret.Name", r.kbsConfig.Spec.KbsHttpsKeySecretName)
+			return nil, err
+		} else if err != nil {
+			r.log.Error(err, "Failed to get KBS HTTPS key Secret")
+			return nil, err
+		}
+
+		volumes = append(volumes, corev1.Volume{
+			Name: "https-key",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: r.kbsConfig.Spec.KbsHttpsKeySecretName,
+				},
+			},
+		})
+		// get the https certificate and append to volumes
+		foundHttpsCertSecret := &corev1.Secret{}
+		err = r.Client.Get(ctx, client.ObjectKey{
+			Namespace: r.namespace,
+			Name:      r.kbsConfig.Spec.KbsHttpsCertSecretName,
+		}, foundHttpsCertSecret)
+		if err != nil && k8serrors.IsNotFound(err) {
+			r.log.Error(err, "KbsHttpsCertSecretName does not exist", "Secret.Namespace", r.namespace, "Secret.Name", r.kbsConfig.Spec.KbsHttpsCertSecretName)
+			return nil, err
+		} else if err != nil {
+			r.log.Error(err, "Failed to get KBS HTTPS Cert Secret")
+			return nil, err
+		}
+
+		volumes = append(volumes, corev1.Volume{
+			Name: "https-cert",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: r.kbsConfig.Spec.KbsHttpsCertSecretName,
+				},
+			},
+		})
+	}
+	return volumes, nil
+}
+
 func (r *KbsConfigReconciler) processAsConfigMap(ctx context.Context, volumes []corev1.Volume) ([]corev1.Volume, error) {
 	if r.kbsConfig.Spec.KbsAsConfigMapName != "" {
 		foundConfigMap := &corev1.ConfigMap{}
@@ -536,7 +607,7 @@ func (r *KbsConfigReconciler) processAsConfigMap(ctx context.Context, volumes []
 			Namespace: r.namespace,
 			Name:      r.kbsConfig.Spec.KbsAsConfigMapName,
 		}, foundConfigMap)
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && k8serrors.IsNotFound(err) {
 			r.log.Error(err, "KbsAsConfigMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", r.kbsConfig.Spec.KbsAsConfigMapName)
 			return nil, err
 		} else if err != nil {
@@ -565,7 +636,7 @@ func (r *KbsConfigReconciler) processRvpsConfigMap(ctx context.Context, volumes 
 			Namespace: r.namespace,
 			Name:      r.kbsConfig.Spec.KbsRvpsConfigMapName,
 		}, foundConfigMap)
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && k8serrors.IsNotFound(err) {
 			r.log.Error(err, "KbsRvpsConfigMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", r.kbsConfig.Spec.KbsRvpsConfigMapName)
 			return nil, err
 		} else if err != nil {
@@ -594,7 +665,7 @@ func (r *KbsConfigReconciler) processKbsConfigMap(ctx context.Context, volumes [
 			Namespace: r.namespace,
 			Name:      r.kbsConfig.Spec.KbsConfigMapName,
 		}, foundConfigMap)
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && k8serrors.IsNotFound(err) {
 			r.log.Error(err, "KbsConfigMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", r.kbsConfig.Spec.KbsConfigMapName)
 			return nil, err
 		} else if err != nil {
