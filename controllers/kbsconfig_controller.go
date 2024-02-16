@@ -303,6 +303,58 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) e
 
 }
 
+func (r *KbsConfigReconciler) buildKbsVolumeMounts(ctx context.Context, volumes []corev1.Volume) ([]corev1.Volume, []corev1.VolumeMount, error) {
+	var kbsVolumes []corev1.Volume
+	kbsVolumes, err := r.processKbsConfigMap(ctx, kbsVolumes)
+	if err != nil {
+		return nil, nil, err
+	}
+	kbsVolumes, err = r.processAuthSecret(ctx, kbsVolumes)
+	if err != nil {
+		return nil, nil, err
+	}
+	kbsVolumes, err = r.processHttpsSecret(ctx, kbsVolumes)
+	if err != nil {
+		return nil, nil, err
+	}
+	volumeMounts := volumesToVolumeMounts(kbsVolumes)
+	volumes = append(volumes, kbsVolumes...)
+	return volumes, volumeMounts, nil
+}
+
+func (r *KbsConfigReconciler) buildAsVolumesMounts(ctx context.Context, volumes []corev1.Volume) ([]corev1.Volume, []corev1.VolumeMount, error) {
+	var asVolumes []corev1.Volume
+	asVolumes, err := r.processAsConfigMap(ctx, asVolumes)
+	if err != nil {
+		return nil, nil, err
+	}
+	volumeMounts := volumesToVolumeMounts(asVolumes)
+	volumes = append(volumes, asVolumes...)
+	return volumes, volumeMounts, nil
+}
+
+func (r *KbsConfigReconciler) buildRvpsVolumesMounts(ctx context.Context, volumes []corev1.Volume) ([]corev1.Volume, []corev1.VolumeMount, error) {
+	var rvpsVolumes []corev1.Volume
+	rvpsVolumes, err := r.processRvpsConfigMap(ctx, rvpsVolumes)
+	if err != nil {
+		return nil, nil, err
+	}
+	volumeMounts := volumesToVolumeMounts(rvpsVolumes)
+	volumes = append(volumes, rvpsVolumes...)
+	return volumes, volumeMounts, nil
+}
+
+func volumesToVolumeMounts(volumes []corev1.Volume) []corev1.VolumeMount {
+	volumeMounts := []corev1.VolumeMount{}
+	for _, volume := range volumes {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      volume.Name,
+			MountPath: "/etc/" + volume.Name,
+		})
+	}
+	return volumeMounts
+}
+
 // newKbsDeployment returns a new deployment for the KBS instance
 func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Deployment {
 	// Set replica count
@@ -325,54 +377,32 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 		kbsDeploymentType = confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices
 	}
 
-	// Create corev1.Volume array based on the deployment type and
-	// whether KbsConfigMapName, KbsAsConfigMapName, KbsAuthSecretName, and KbsRvpsConfigMapName are set
-	// in the KbsConfig CR and whether the corresponding resources exist
-	var volumes []corev1.Volume
-	volumes, err := r.processKbsConfigMap(ctx, volumes)
-	if err != nil {
-		return nil
-	}
-
-	if kbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices {
-		volumes, err = r.processAsConfigMap(ctx, volumes)
-		if err != nil {
-			return nil
-		}
-		volumes, err = r.processRvpsConfigMap(ctx, volumes)
-		if err != nil {
-			return nil
-		}
-
-	}
-
-	volumes, err = r.processAuthSecret(ctx, volumes)
-	if err != nil {
-		return nil
-	}
-
-	volumes, err = r.processHttpsSecret(ctx, volumes)
-	if err != nil {
-		return nil
-	}
-
-	// Create corev1.VolumeMount array for the KBS container based on the volumes.
-	// Use the same mountpath as the volume name
-	volumeMounts := []corev1.VolumeMount{}
-	for _, volume := range volumes {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      volume.Name,
-			MountPath: "/etc/" + volume.Name,
-		})
-	}
-
 	// RunAsUser (root) 0
 	runAsUser := int64(0)
+	var volumes []corev1.Volume
 
-	containers := []corev1.Container{r.buildKbsContainer(volumeMounts, runAsUser)}
+	// build KBS container
+	volumes, kbsVolumeMounts, err := r.buildKbsVolumeMounts(ctx, volumes)
+	if err != nil {
+		return nil
+	}
+	containers := []corev1.Container{r.buildKbsContainer(kbsVolumeMounts, runAsUser)}
+
 	if kbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices {
-		containers = append(containers, r.buildAsContainer(volumeMounts, runAsUser))
-		containers = append(containers, r.buildRvpsContainer(volumeMounts, runAsUser))
+		// build AS container
+		var asVolumeMounts []corev1.VolumeMount
+		volumes, asVolumeMounts, err = r.buildAsVolumesMounts(ctx, volumes)
+		if err != nil {
+			return nil
+		}
+		containers = append(containers, r.buildAsContainer(asVolumeMounts, runAsUser))
+		// build RVPS container
+		var rvpsVolumeMounts []corev1.VolumeMount
+		volumes, rvpsVolumeMounts, err = r.buildRvpsVolumesMounts(ctx, volumes)
+		if err != nil {
+			return nil
+		}
+		containers = append(containers, r.buildRvpsContainer(rvpsVolumeMounts, runAsUser))
 	}
 
 	// Create the deployment
