@@ -24,6 +24,18 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// Deployment Type string determines the way to deploy the KBS
+// +enum
+type DeploymentType string
+
+const (
+	// DeploymentTypeAllInOne: all the KBS components will be deployed in the same container
+	DeploymentTypeAllInOne DeploymentType = "AllInOneDeployment"
+
+	// DeploymentTypeMicroservices: all the KBS components will be deployed in separate containers
+	DeploymentTypeMicroservices DeploymentType = "MicroservicesDeployment"
+)
+
 // KbsConfigSpec defines the desired state of KbsConfig
 type KbsConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -43,6 +55,18 @@ type KbsConfigSpec struct {
 
 	// KbsServiceType is the type of service to create for KBS
 	KbsServiceType corev1.ServiceType `json:"kbsServiceType,omitempty"`
+
+	// KbsDeploymentType is the type of KBS deployment
+	// It can assume one of the following values:
+	//    AllInOneDeployment: all the KBS components will be deployed in the same container
+	//    MicroservicesDeployment: all the KBS components will be deployed in separate containers
+	KbsDeploymentType DeploymentType `json:"kbsDeploymentType,omitempty"`
+
+	// KbsHttpsKeySecretName is the name of the secret that contains the KBS https private key
+	KbsHttpsKeySecretName string `json:"kbsHttpsKeySecretName,omitempty"`
+
+	// KbsHttpsCertSecretName is the name of the secret that contains the KBS https certificate
+	KbsHttpsCertSecretName string `json:"kbsHttpsCertSecretName,omitempty"`
 }
 
 // KbsConfigStatus defines the observed state of KbsConfig

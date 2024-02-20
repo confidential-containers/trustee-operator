@@ -30,6 +30,12 @@ const (
 	// Default KBS image name
 	DefaultKbsImageName = "ghcr.io/confidential-containers/key-broker-service:latest"
 
+	// Default AS image name
+	DefaultAsImageName = "ghcr.io/confidential-containers/attestation-service:latest"
+
+	// Default RVPS image name
+	DefaultRvpsImageName = "ghcr.io/confidential-containers/reference-value-provider-service:latest"
+
 	// KBS service name
 	KbsServiceName = "kbs-service"
 )

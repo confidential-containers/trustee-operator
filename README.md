@@ -23,44 +23,72 @@ type KbsConfigSpec struct {
 	// KbsAuthSecretName is the name of the secret that contains the KBS auth secret
 	KbsAuthSecretName string `json:"kbsAuthSecretName,omitempty"`
 
-  // KbsServiceType is the type of service to create for KBS
+	// KbsServiceType is the type of service to create for KBS
 	KbsServiceType corev1.ServiceType `json:"kbsServiceType,omitempty"`
 
+	// KbsDeploymentType is the type of KBS deployment
+	// It can assume one of the following values:
+	//    AllInOneDeployment: all the KBS components will be deployed in the same container
+	//    MicroservicesDeployment: all the KBS components will be deployed in separate containers (part of the same Kubernetes pod)
+	KbsDeploymentType DeploymentType `json:"kbsDeploymentType,omitempty"`
+
+	// KbsHttpsKeySecretName is the name of the secret that contains the KBS https private key
+	KbsHttpsKeySecretName string `json:"kbsHttpsKeySecretName,omitempty"`
+
+	// KbsHttpsCertSecretName is the name of the secret that contains the KBS https certificate
+	KbsHttpsCertSecretName string `json:"kbsHttpsCertSecretName,omitempty"`
 }
 ```
+
+Note: the default deployment type is ```MicroservicesDeployment```.
+The examples below apply to this mode.
 
 An example configmap for the KBS configuration looks like this:
 ```
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: kbs-config
+  name: kbs-config-grpc
   namespace: kbs-operator-system
 data:
   kbs-config.json: |
     {
-        "repository_type": "LocalFs",
-        "repository_description": {
-            "dir_path": "/opt/confidential-containers/kbs/repository"
+        "insecure_http" : false,
+        "sockets": ["0.0.0.0:8080"],
+        "auth_public_key": "/etc/auth-secret/kbs.pem",
+        "private_key": "/etc/https-key/key.pem",
+        "certificate": "/etc/https-cert/cert.pem",
+        "attestation_token_config": {
+          "attestation_token_type": "CoCo"
         },
-        "attestation_token_type": "Simple",
-        "as_config_file_path": "/etc/as-config/as-config.json"
+        "grpc_config" : {
+          "as_addr": "http://127.0.0.1:50004"
+        }
     }
 ```
+
+If HTTPS support is not needed, please set ```insecure_http=true``` and no need to specify the attributes ```private_key``` and ```certificate```.
 
 An example configmap for AS config looks like this:
 ```
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: as-config
+  name: as-config-grpc
   namespace: kbs-operator-system
 data:
   as-config.json: |
     {
         "work_dir": "/opt/confidential-containers/attestation-service",
         "policy_engine": "opa",
-        "rvps_store_type": "LocalFs"
+        "rvps_store_type": "LocalFs",
+        "rvps_config": {
+        	"remote_addr":"http://127.0.0.1:50003"
+        },
+        "attestation_token_broker": "Simple",
+        "attestation_token_config": {
+          "duration_min": 5
+        }
     }
 ```
 Currently these configmaps needs to be created during deployment.
@@ -77,6 +105,11 @@ spec:
   kbsConfigMapName: kbs-config
   kbsAsConfigMapName: as-config  
   kbsAuthSecretName: kbs-auth-public-key
+  kbsServiceType: ClusterIP
+  kbsDeploymentType: MicroservicesDeployment
+  # HTTPS support
+  kbsHttpsKeySecretName: kbs-https-key
+  kbsHttpsCertSecretName: kbs-https-certificate
 ```
 
 
@@ -120,15 +153,15 @@ kubectl create secret generic kbs-auth-public-key --from-file=kbs.pem -n kbs-ope
 
 5. Create the KBS and AS configmaps
 
-```sh
-kubectl apply -f config/samples/kbs-config.yaml
-kubectl apply -f config/samples/as-config.yaml
+``` sh
+kubectl apply -f config/samples/microservices/kbs-config.yaml
+kubectl apply -f config/samples/microservices/as-config.yaml
 ```
 
 6. Create Custom Resource:
 
 ```sh
-kubectl apply -f config/samples/kbsconfig_sample.yaml
+kubectl apply -f config/samples/microservices/kbsconfig_sample.yaml
 ```
 
 ### Uninstall CRDs
