@@ -1,0 +1,23 @@
+name: gofmt
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  gofmt:
+    name: gofmt
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+          check-latest: true
+      - name: gofmt
+        run : |
+          gofmt -s -w .
+          git diff --exit-code
