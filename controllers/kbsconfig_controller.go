@@ -236,7 +236,11 @@ func (r *KbsConfigReconciler) newKbsService(ctx context.Context) *corev1.Service
 		},
 	}
 	// Set KbsConfig instance as the owner and controller
-	ctrl.SetControllerReference(r.kbsConfig, service, r.Scheme)
+	err := ctrl.SetControllerReference(r.kbsConfig, service, r.Scheme)
+	if err != nil {
+		r.log.Error(err, "Failed to create the KBS service")
+		return nil
+	}
 	return service
 }
 
