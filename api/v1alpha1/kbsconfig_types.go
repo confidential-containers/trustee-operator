@@ -67,6 +67,9 @@ type KbsConfigSpec struct {
 
 	// KbsHttpsCertSecretName is the name of the secret that contains the KBS https certificate
 	KbsHttpsCertSecretName string `json:"kbsHttpsCertSecretName,omitempty"`
+
+	// KbsSecretResources is an array of secret names that contain the keys required by clients
+	KbsSecretResources []string `json:"kbsSecretResources,omitempty"`
 }
 
 // KbsConfigStatus defines the observed state of KbsConfig

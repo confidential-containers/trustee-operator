@@ -20,3 +20,4 @@ spec:
   kbsDeploymentType: MicroservicesDeployment
   #kbsHttpsKeySecretName: kbs-https-key
   #kbsHttpsCertSecretName: kbs-https-certificate
+  kbsSecretResources: []
