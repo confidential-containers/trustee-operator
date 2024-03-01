@@ -2,7 +2,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: "[]"
+    alm-examples: '[]'
     capabilities: Basic Install
   name: kbs-operator.v0.0.0
   namespace: placeholder
@@ -10,42 +10,42 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-      - description: KbsConfig is the Schema for the kbsconfigs API
-        displayName: Kbs Config
-        kind: KbsConfig
-        name: kbsconfigs.confidentialcontainers.org
-        version: v1alpha1
+    - description: KbsConfig is the Schema for the kbsconfigs API
+      displayName: Kbs Config
+      kind: KbsConfig
+      name: kbsconfigs.confidentialcontainers.org
+      version: v1alpha1
   description: Operator to manage the lifecycle of Key Broker Service (KBS)
   displayName: KBS Operator
   icon:
-    - base64data: ""
-      mediatype: ""
+  - base64data: ""
+    mediatype: ""
   install:
     spec:
       deployments: null
     strategy: ""
   installModes:
-    - supported: false
-      type: OwnNamespace
-    - supported: false
-      type: SingleNamespace
-    - supported: false
-      type: MultiNamespace
-    - supported: true
-      type: AllNamespaces
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
   keywords:
-    - kbs
-    - kbs-operator
-    - attestation-service
-    - rvps
+  - kbs
+  - kbs-operator
+  - attestation-service
+  - rvps
   links:
-    - name: Kbs Operator
-      url: https://kbs-operator.domain
+  - name: Kbs Operator
+    url: https://github.com/confidential-containers/kbs-operator
   maintainers:
-    - email: cncf-ccontainers-maintainers@lists.cncf.io
-      name: Pradipta Banerjee
-    - email: cncf-ccontainers-maintainers@lists.cncf.io
-      name: Jens Freimann
+  - email: cncf-ccontainers-maintainers@lists.cncf.io
+    name: Pradipta Banerjee
+  - email: cncf-ccontainers-maintainers@lists.cncf.io
+    name: Jens Freimann
   maturity: alpha
   provider:
     name: Confidential Containers Community
