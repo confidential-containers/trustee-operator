@@ -323,7 +323,7 @@ func (r *KbsConfigReconciler) buildKbsVolumeMounts(ctx context.Context, volumes 
 		return nil, nil, err
 	}
 	// All the above kbsVolumes gets mounted under "/etc" directory
-	volumeMounts := volumesToVolumeMounts(kbsEtcVolumes)
+	volumeMounts := volumesToVolumeMounts(kbsEtcVolumes, kbsDefaultConfigPath)
 	volumes = append(volumes, kbsEtcVolumes...)
 
 	kbsSecretResourceVolumes, err = r.processKbsSecretResources(ctx, kbsSecretResourceVolumes)
@@ -331,7 +331,7 @@ func (r *KbsConfigReconciler) buildKbsVolumeMounts(ctx context.Context, volumes 
 		return nil, nil, err
 	}
 	// Add the kbsSecretResourceVolumes to the volumesMounts
-	volumeMounts = append(volumeMounts, volumesToVolumeMountsCustom(kbsSecretResourceVolumes, kbsResourcesPath)...)
+	volumeMounts = append(volumeMounts, volumesToVolumeMounts(kbsSecretResourceVolumes, kbsResourcesPath)...)
 	volumes = append(volumes, kbsSecretResourceVolumes...)
 
 	return volumes, volumeMounts, nil
@@ -343,7 +343,7 @@ func (r *KbsConfigReconciler) buildAsVolumesMounts(ctx context.Context, volumes 
 	if err != nil {
 		return nil, nil, err
 	}
-	volumeMounts := volumesToVolumeMounts(asVolumes)
+	volumeMounts := volumesToVolumeMounts(asVolumes, asDefaultConfigPath)
 	volumes = append(volumes, asVolumes...)
 	return volumes, volumeMounts, nil
 }
@@ -354,25 +354,13 @@ func (r *KbsConfigReconciler) buildRvpsVolumesMounts(ctx context.Context, volume
 	if err != nil {
 		return nil, nil, err
 	}
-	volumeMounts := volumesToVolumeMounts(rvpsVolumes)
+	volumeMounts := volumesToVolumeMounts(rvpsVolumes, rvpsDefaultConfigPath)
 	volumes = append(volumes, rvpsVolumes...)
 	return volumes, volumeMounts, nil
 }
 
-// Method to add volumeMounts for KBS under "/etc" directory
-func volumesToVolumeMounts(volumes []corev1.Volume) []corev1.VolumeMount {
-	volumeMounts := []corev1.VolumeMount{}
-	for _, volume := range volumes {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      volume.Name,
-			MountPath: "/etc/" + volume.Name,
-		})
-	}
-	return volumeMounts
-}
-
 // Method to add volumeMounts for KBS under custom directory
-func volumesToVolumeMountsCustom(volumes []corev1.Volume, mountPath string) []corev1.VolumeMount {
+func volumesToVolumeMounts(volumes []corev1.Volume, mountPath string) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{}
 	for _, volume := range volumes {
 		// Create MountPath ensuring file path separators are handled correctly
