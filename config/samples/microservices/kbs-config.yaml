@@ -16,5 +16,9 @@ data:
         },
         "grpc_config" : {
           "as_addr": "http://127.0.0.1:50004"
+        },
+        "repository_config": {
+          "type": "LocalFs",
+          "dir_path": "/opt/confidential-containers/kbs/repository"
         }
     }

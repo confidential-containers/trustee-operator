@@ -38,6 +38,18 @@ const (
 
 	// KBS service name
 	KbsServiceName = "kbs-service"
+
+	// Default KBS Resources Path
+	kbsResourcesPath = "/opt/confidential-containers/kbs/repository/default"
+
+	// Default KBS config path
+	kbsDefaultConfigPath = "/etc"
+
+	// Default AS config path
+	asDefaultConfigPath = "/etc"
+
+	// Default RVPS config path
+	rvpsDefaultConfigPath = "/etc"
 )
 
 func contains(list []string, s string) bool {

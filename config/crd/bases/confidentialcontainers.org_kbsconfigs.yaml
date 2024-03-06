@@ -65,6 +65,12 @@ spec:
                 description: KbsRvpsConfigMapName is the name of the configmap that
                   contains the KBS RVPS configuration
                 type: string
+              kbsSecretResources:
+                description: KbsSecretResources is an array of secret names that contain
+                  the keys required by clients
+                items:
+                  type: string
+                type: array
               kbsServiceType:
                 description: KbsServiceType is the type of service to create for KBS
                 type: string

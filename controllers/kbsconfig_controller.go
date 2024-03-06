@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -206,7 +207,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 }
 
 // newKbsService returns a new service for the KBS instance
-func (r *KbsConfigReconciler) newKbsService(ctx context.Context) *corev1.Service {
+func (r *KbsConfigReconciler) newKbsService(_ context.Context) *corev1.Service {
 	// Get the service type from the KbsConfig instance
 	serviceType := r.kbsConfig.Spec.KbsServiceType
 	// if the service type is not provided, default to ClusterIP
@@ -308,21 +309,31 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) e
 }
 
 func (r *KbsConfigReconciler) buildKbsVolumeMounts(ctx context.Context, volumes []corev1.Volume) ([]corev1.Volume, []corev1.VolumeMount, error) {
-	var kbsVolumes []corev1.Volume
-	kbsVolumes, err := r.processKbsConfigMap(ctx, kbsVolumes)
+	var kbsEtcVolumes, kbsSecretResourceVolumes []corev1.Volume
+	kbsEtcVolumes, err := r.processKbsConfigMap(ctx, kbsEtcVolumes)
 	if err != nil {
 		return nil, nil, err
 	}
-	kbsVolumes, err = r.processAuthSecret(ctx, kbsVolumes)
+	kbsEtcVolumes, err = r.processAuthSecret(ctx, kbsEtcVolumes)
 	if err != nil {
 		return nil, nil, err
 	}
-	kbsVolumes, err = r.processHttpsSecret(ctx, kbsVolumes)
+	kbsEtcVolumes, err = r.processHttpsSecret(ctx, kbsEtcVolumes)
 	if err != nil {
 		return nil, nil, err
 	}
-	volumeMounts := volumesToVolumeMounts(kbsVolumes)
-	volumes = append(volumes, kbsVolumes...)
+	// All the above kbsVolumes gets mounted under "/etc" directory
+	volumeMounts := volumesToVolumeMounts(kbsEtcVolumes, kbsDefaultConfigPath)
+	volumes = append(volumes, kbsEtcVolumes...)
+
+	kbsSecretResourceVolumes, err = r.processKbsSecretResources(ctx, kbsSecretResourceVolumes)
+	if err != nil {
+		return nil, nil, err
+	}
+	// Add the kbsSecretResourceVolumes to the volumesMounts
+	volumeMounts = append(volumeMounts, volumesToVolumeMounts(kbsSecretResourceVolumes, kbsResourcesPath)...)
+	volumes = append(volumes, kbsSecretResourceVolumes...)
+
 	return volumes, volumeMounts, nil
 }
 
@@ -332,7 +343,7 @@ func (r *KbsConfigReconciler) buildAsVolumesMounts(ctx context.Context, volumes 
 	if err != nil {
 		return nil, nil, err
 	}
-	volumeMounts := volumesToVolumeMounts(asVolumes)
+	volumeMounts := volumesToVolumeMounts(asVolumes, asDefaultConfigPath)
 	volumes = append(volumes, asVolumes...)
 	return volumes, volumeMounts, nil
 }
@@ -343,17 +354,20 @@ func (r *KbsConfigReconciler) buildRvpsVolumesMounts(ctx context.Context, volume
 	if err != nil {
 		return nil, nil, err
 	}
-	volumeMounts := volumesToVolumeMounts(rvpsVolumes)
+	volumeMounts := volumesToVolumeMounts(rvpsVolumes, rvpsDefaultConfigPath)
 	volumes = append(volumes, rvpsVolumes...)
 	return volumes, volumeMounts, nil
 }
 
-func volumesToVolumeMounts(volumes []corev1.Volume) []corev1.VolumeMount {
+// Method to add volumeMounts for KBS under custom directory
+func volumesToVolumeMounts(volumes []corev1.Volume, mountPath string) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{}
 	for _, volume := range volumes {
+		// Create MountPath ensuring file path separators are handled correctly
+		mountPath := filepath.Join(mountPath, volume.Name)
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      volume.Name,
-			MountPath: "/etc/" + volume.Name,
+			MountPath: mountPath,
 		})
 	}
 	return volumeMounts
@@ -719,6 +733,38 @@ func (r *KbsConfigReconciler) processKbsConfigMap(ctx context.Context, volumes [
 		})
 	}
 	return volumes, nil
+}
+
+// Method to add KbsSecretResources to the KBS volumes
+
+func (r *KbsConfigReconciler) processKbsSecretResources(ctx context.Context, volumes []corev1.Volume) ([]corev1.Volume, error) {
+	if r.kbsConfig.Spec.KbsSecretResources != nil {
+		for _, secretResource := range r.kbsConfig.Spec.KbsSecretResources {
+			foundSecret := &corev1.Secret{}
+			err := r.Client.Get(ctx, client.ObjectKey{
+				Namespace: r.namespace,
+				Name:      secretResource,
+			}, foundSecret)
+			if err != nil && k8serrors.IsNotFound(err) {
+				r.log.Error(err, "KbsSecretResource does not exist", "Secret.Namespace", r.namespace, "Secret.Name", secretResource)
+				return nil, err
+			} else if err != nil {
+				r.log.Error(err, "Failed to get KBS Secret Resource")
+				return nil, err
+			}
+
+			volumes = append(volumes, corev1.Volume{
+				Name: secretResource,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: secretResource,
+					},
+				},
+			})
+		}
+	}
+	return volumes, nil
+
 }
 
 // updateKbsDeployment updates an existing deployment for the KBS instance
