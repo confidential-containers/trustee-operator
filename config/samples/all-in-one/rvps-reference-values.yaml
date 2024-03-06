@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rvps-reference-values
+  namespace: kbs-operator-system
+data:
+  reference-values.json: |
+    [
+      {
+        "name": "sample.svn",
+        "expired": "2025-01-01T00:00:00Z",
+        "hash-value": [
+          {
+            "alg": "sha256",
+            "value": "1"
+          }
+        ]
+      }
+    ]

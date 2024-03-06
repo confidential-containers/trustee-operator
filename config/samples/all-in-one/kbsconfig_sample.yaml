@@ -13,4 +13,5 @@ spec:
   kbsConfigMapName: kbs-config
   kbsAuthSecretName: kbs-auth-public-key
   kbsDeploymentType: AllInOneDeployment
-  kbsSecretResources: []
+  kbsRvpsRefValuesConfigMapName: rvps-reference-values
+  #kbsSecretResources: ["kbsres1"]

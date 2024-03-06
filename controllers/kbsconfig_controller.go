@@ -207,7 +207,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 }
 
 // newKbsService returns a new service for the KBS instance
-func (r *KbsConfigReconciler) newKbsService(_ context.Context) *corev1.Service {
+func (r *KbsConfigReconciler) newKbsService(ctx context.Context) *corev1.Service {
 	// Get the service type from the KbsConfig instance
 	serviceType := r.kbsConfig.Spec.KbsServiceType
 	// if the service type is not provided, default to ClusterIP
@@ -330,9 +330,22 @@ func (r *KbsConfigReconciler) buildKbsVolumeMounts(ctx context.Context, volumes 
 	if err != nil {
 		return nil, nil, err
 	}
+
 	// Add the kbsSecretResourceVolumes to the volumesMounts
 	volumeMounts = append(volumeMounts, volumesToVolumeMounts(kbsSecretResourceVolumes, kbsResourcesPath)...)
 	volumes = append(volumes, kbsSecretResourceVolumes...)
+
+	// For the DeploymentTypeAllInOne case, if reference-values.json file is provided must be mounted as a kbs volume
+	if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
+		var rvpsRefValuesVolumes []corev1.Volume
+		rvpsRefValuesVolumes, err = r.processRvpsRefValuesConfigMap(ctx, rvpsRefValuesVolumes)
+		if err != nil {
+			return nil, nil, err
+		}
+		volumeMounts = append(volumeMounts, volumesToVolumeMounts(rvpsRefValuesVolumes, rvpsReferenceValuesPath)...)
+		volumes = append(volumes, rvpsRefValuesVolumes...)
+
+	}
 
 	return volumes, volumeMounts, nil
 }
@@ -354,8 +367,16 @@ func (r *KbsConfigReconciler) buildRvpsVolumesMounts(ctx context.Context, volume
 	if err != nil {
 		return nil, nil, err
 	}
+	var referenceValuesVolumes []corev1.Volume
+	referenceValuesVolumes, err = r.processRvpsRefValuesConfigMap(ctx, referenceValuesVolumes)
+	if err != nil {
+		return nil, nil, err
+	}
 	volumeMounts := volumesToVolumeMounts(rvpsVolumes, rvpsDefaultConfigPath)
+	volumeRefValuesMounts := volumesToVolumeMounts(referenceValuesVolumes, rvpsReferenceValuesPath)
+	volumeMounts = append(volumeMounts, volumeRefValuesMounts...)
 	volumes = append(volumes, rvpsVolumes...)
+	volumes = append(volumes, referenceValuesVolumes...)
 	return volumes, volumeMounts, nil
 }
 
@@ -498,8 +519,8 @@ func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMou
 	// command array for the RVPS container
 	rvpsCommand := []string{
 		"/usr/local/bin/rvps",
-		"--socket",
-		"0.0.0.0:50003",
+		"-c",
+		"/etc/rvps-config/rvps-config.json",
 	}
 
 	return corev1.Container{
@@ -553,6 +574,14 @@ func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMoun
 		},
 		// Add volume mount for KBS config
 		VolumeMounts: volumeMounts,
+		/* TODO commented out because not configurable yet
+		Env: []corev1.EnvVar{
+			{
+				Name:  "RUST_LOG",
+				Value: "debug",
+			},
+		},
+		*/
 	}
 }
 
@@ -698,6 +727,36 @@ func (r *KbsConfigReconciler) processRvpsConfigMap(ctx context.Context, volumes 
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: r.kbsConfig.Spec.KbsRvpsConfigMapName,
+					},
+				},
+			},
+		})
+	}
+	return volumes, nil
+}
+
+func (r *KbsConfigReconciler) processRvpsRefValuesConfigMap(ctx context.Context, volumes []corev1.Volume) ([]corev1.Volume, error) {
+	referenceValuesMapName := r.kbsConfig.Spec.KbsRvpsRefValuesConfigMapName
+	if referenceValuesMapName != "" {
+		foundConfigMap := &corev1.ConfigMap{}
+		err := r.Client.Get(ctx, client.ObjectKey{
+			Namespace: r.namespace,
+			Name:      referenceValuesMapName,
+		}, foundConfigMap)
+		if err != nil && k8serrors.IsNotFound(err) {
+			r.log.Error(err, "KbsRvpsReferenceValuesMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", referenceValuesMapName)
+			return nil, err
+		} else if err != nil {
+			r.log.Error(err, "Failed to get KBS RVPS ReferenceValuesMap")
+			return nil, err
+		}
+
+		volumes = append(volumes, corev1.Volume{
+			Name: "reference-values",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: referenceValuesMapName,
 					},
 				},
 			},

@@ -1,6 +1,6 @@
 # kbs-operator
 
-The `kbs-operator` manages the lifecycle of `kbs` along with it's configuration when deployed
+The `kbs-operator` manages the lifecycle of [trustee](https://github.com/confidential-containers/trustee) along with it's configuration when deployed
 in a Kubernetes cluster
 
 ## Description
@@ -19,6 +19,9 @@ type KbsConfigSpec struct {
 
   // KbsRvpsConfigMapName is the name of the configmap that contains the KBS RVPS configuration
   KbsRvpsConfigMapName string `json:"kbsRvpsConfigMapName,omitempty"`
+
+  // kbsRvpsRefValuesConfigMapName is the name of the configmap that contains the RVPS reference values
+  KbsRvpsRefValuesConfigMapName string `json:"kbsRvpsRefValuesConfigMapName,omitempty"`
 
   // KbsAuthSecretName is the name of the secret that contains the KBS auth secret
   KbsAuthSecretName string `json:"kbsAuthSecretName,omitempty"`
@@ -89,7 +92,6 @@ data:
     {
         "work_dir": "/opt/confidential-containers/attestation-service",
         "policy_engine": "opa",
-        "rvps_store_type": "LocalFs",
         "rvps_config": {
            "remote_addr":"http://127.0.0.1:50003"
         },
@@ -112,14 +114,25 @@ metadata:
   name: kbsconfig-sample
   namespace: kbs-operator-system
 spec:
+  # KBS configuration
   kbsConfigMapName: kbs-config
+  # AS configuration
   kbsAsConfigMapName: as-config  
+  # RVPS configuration
+  kbsRvpsConfigMapName: rvps-config-grpc
+  # reference values config map
+  kbsRvpsReferenceValuesMapName: rvps-reference-values
+  # authentication secret
   kbsAuthSecretName: kbs-auth-public-key
+  # service type
   kbsServiceType: ClusterIP
+  # deployment type
   kbsDeploymentType: MicroservicesDeployment
   # HTTPS support
   kbsHttpsKeySecretName: kbs-https-key
   kbsHttpsCertSecretName: kbs-https-certificate
+  # K8s Secrets to be made available to KBS clients
+  kbsSecretResources: ["kbsres1"]
 ```
 
 Another sample `KbsConfig` with secret resources:
@@ -180,38 +193,20 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
   make deploy IMG=${REGISTRY}/kbs-operator:latest
   ```
 
-- Create KBS auth secret.
-
-  ```sh
-  openssl genpkey -algorithm ed25519 > kbs.key
-  openssl pkey -in kbs.key -pubout -out kbs.pem
-
-  kubectl create secret generic kbs-auth-public-key --from-file=kbs.pem -n kbs-operator-system
-  ```
-
-- Create the KBS and AS configmaps.
-
-  ```sh
-  kubectl apply -f config/samples/microservices/kbs-config.yaml
-  kubectl apply -f config/samples/microservices/as-config.yaml
-  ```
-
-- Create the K8s secrets
+- Deployment of CRDs, ConfigMaps and Secrets
 
   This is an example. Change it to real values as per your requirements.
-  Also remember to update the `kbsSecretResources` attribute in the `KbsConfig`
-  CRD with the correct secret name.
+  ```sh
+  cd config/samples/microservices
+  # or config/samples/all-in-one for the integrated mode
+
+  # create authentication keys
+  openssl genpkey -algorithm ed25519 > kbs.key
+  openssl pkey -in kbs.key -pubout -out kbs.pem
   
-  ```sh
-  kubectl create secret generic kbsres1 --from-literal key1=res1val1 --from-literal key2=res1val2 -n kbs-operator-system
-  ```
-
-- Create Custom Resource.
-
-  ```sh
-  kubectl apply -f config/samples/microservices/kbsconfig_sample.yaml
-  ```
-
+  # create all the needed resources
+  kubectl apply -k .
+  
 ### Uninstall CRDs
 
 To delete the CRDs from the cluster:

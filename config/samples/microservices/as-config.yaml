@@ -8,7 +8,6 @@ data:
     {
         "work_dir": "/opt/confidential-containers/attestation-service",
         "policy_engine": "opa",
-        "rvps_store_type": "LocalFs",
         "rvps_config": {
             "remote_addr":"http://127.0.0.1:50003"
         },

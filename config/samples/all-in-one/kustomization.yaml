@@ -1,5 +1,18 @@
 ## Append samples you want in your CSV to this file as resources ##
+generatorOptions:
+ disableNameSuffixHash: true
+
+secretGenerator:
+- name: kbs-auth-public-key
+  files:
+  - kbs.pem
+#- name: kbsres1
+#  literals:
+#  - key1=res1val1
+#  - key2=res1val2
+
 resources:
 - kbsconfig_sample.yaml
 - kbs-config.yaml
+- rvps-reference-values.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

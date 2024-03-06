@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rvps-config-grpc
+  namespace: kbs-operator-system
+data:
+  rvps-config.json: |
+    {
+      "address": "0.0.0.0:50003",
+      "store_type": "LocalJson",
+      "store_config": {
+        "file_path": "/opt/confidential-containers/rvps/reference-values/reference-values.json"
+      }
+    }

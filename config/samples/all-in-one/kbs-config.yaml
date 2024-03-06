@@ -19,14 +19,15 @@ data:
         "as_config": {
           "work_dir": "/opt/confidential-containers/attestation-service",
           "policy_engine": "opa",
-          "rvps_store_type": "LocalFs",
           "attestation_token_broker": "Simple",
           "attestation_token_config": {
             "duration_min": 5
           },
           "rvps_config": {
-            "store_type": "LocalFs",
-            "remote_addr": ""
+            "store_type": "LocalJson",
+            "store_config": {
+              "file_path": "/opt/confidential-containers/rvps/reference-values/reference-values.json"
+            }
           }
         },
         "policy_engine_config": {

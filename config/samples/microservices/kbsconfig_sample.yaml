@@ -12,6 +12,8 @@ metadata:
 spec:
   kbsConfigMapName: kbs-config-grpc
   kbsAsConfigMapName: as-config-grpc
+  kbsRvpsConfigMapName: rvps-config-grpc
+  kbsRvpsRefValuesConfigMapName: rvps-reference-values
   kbsAuthSecretName: kbs-auth-public-key
   kbsServiceType: ClusterIP
   #kbsServiceType: NodePort
@@ -20,4 +22,4 @@ spec:
   kbsDeploymentType: MicroservicesDeployment
   #kbsHttpsKeySecretName: kbs-https-key
   #kbsHttpsCertSecretName: kbs-https-certificate
-  kbsSecretResources: []
+  #kbsSecretResources: ["kbsres1"]

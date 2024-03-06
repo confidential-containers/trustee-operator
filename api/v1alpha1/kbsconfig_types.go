@@ -50,6 +50,9 @@ type KbsConfigSpec struct {
 	// KbsRvpsConfigMapName is the name of the configmap that contains the KBS RVPS configuration
 	KbsRvpsConfigMapName string `json:"kbsRvpsConfigMapName,omitempty"`
 
+	// kbsRvpsRefValuesConfigMapName is the name of the configmap that contains the RVPS reference values
+	KbsRvpsRefValuesConfigMapName string `json:"kbsRvpsRefValuesConfigMapName,omitempty"`
+
 	// KbsAuthSecretName is the name of the secret that contains the KBS auth secret
 	KbsAuthSecretName string `json:"kbsAuthSecretName,omitempty"`
 
