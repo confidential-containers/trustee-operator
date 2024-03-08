@@ -1,0 +1,23 @@
+apiVersion: v1
+data:
+  kbs-config.json: |
+    {
+        "insecure_http" : true,
+        "sockets": ["0.0.0.0:8080"],
+        "auth_public_key": "/etc/auth-secret/kbs.pem",
+        "private_key": "/etc/https-key/key.pem",
+        "certificate": "/etc/https-cert/cert.pem",
+        "attestation_token_config": {
+          "attestation_token_type": "CoCo"
+        },
+        "grpc_config" : {
+          "as_addr": "http://127.0.0.1:50004"
+        },
+        "repository_config": {
+          "type": "LocalFs",
+          "dir_path": "/opt/confidential-containers/kbs/repository"
+        }
+    }
+kind: ConfigMap
+metadata:
+  name: kbs-config-grpc-sample
