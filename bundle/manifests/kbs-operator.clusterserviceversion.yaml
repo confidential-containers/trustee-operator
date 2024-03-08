@@ -23,14 +23,15 @@ metadata:
             "kbsAuthSecretName": "kbs-auth-public-key",
             "kbsConfigMapName": "kbs-config-grpc",
             "kbsDeploymentType": "MicroservicesDeployment",
-            "kbsSecretResources": [],
+            "kbsRvpsConfigMapName": "rvps-config-grpc",
+            "kbsRvpsRefValuesConfigMapName": "rvps-reference-values",
             "kbsServiceType": "ClusterIP"
           }
         }
       ]
     capabilities: Basic Install
-    createdAt: "2024-03-06T13:10:59Z"
-    operators.operatorframework.io/builder: operator-sdk-v1.28.0
+    createdAt: "2024-03-08T11:44:44Z"
+    operators.operatorframework.io/builder: operator-sdk-v1.33.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
   name: kbs-operator.v0.0.1
   namespace: placeholder
@@ -213,11 +214,11 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: KBS_IMAGE_NAME
-                  value: ghcr.io/confidential-containers/key-broker-service:latest
+                  value: ghcr.io/confidential-containers/staged-images/kbs-grpc-as:latest
                 - name: AS_IMAGE_NAME
-                  value: ghcr.io/confidential-containers/attestation-service:latest
+                  value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
-                  value: ghcr.io/confidential-containers/reference-value-provider-service:latest
+                  value: ghcr.io/confidential-containers/staged-images/rvps:latest
                 image: quay.io/confidential-containers/kbs-operator:latest
                 livenessProbe:
                   httpGet:
