@@ -135,33 +135,6 @@ spec:
   kbsSecretResources: ["kbsres1"]
 ```
 
-Another sample `KbsConfig` with secret resources:
-
-```yaml
-apiVersion: confidentialcontainers.org/v1alpha1
-kind: KbsConfig
-metadata:
-  labels:
-    app.kubernetes.io/name: kbsconfig
-    app.kubernetes.io/instance: kbsconfig-sample
-    app.kubernetes.io/part-of: kbs-operator
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: kbs-operator
-  name: kbsconfig-sample
-  namespace: kbs-operator-system
-spec:
-  kbsConfigMapName: kbs-config-grpc-sample
-  kbsAsConfigMapName: as-config-grpc-sample
-  kbsAuthSecretName: kbs-auth-public-key
-  kbsServiceType: ClusterIP
-  kbsDeploymentType: MicroservicesDeployment
-  # HTTPS support
-  kbsHttpsKeySecretName: kbs-https-key
-  kbsHttpsCertSecretName: kbs-https-certificate
-  # K8s Secrets to be made available to KBS clients
-  kbsSecretResources: ["kbsres1"]
-```
-
 ## Getting Started
 
 You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
@@ -206,6 +179,42 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
   
   # create all the needed resources
   kubectl apply -k .
+  ```
+
+  Among various things, the command above is also responsible for injecting reference values into the RVPS component. The default json file is an empty sequence, but you may want to inject real values by applying a ConfigMap like the one below:
+
+  ``` yaml
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: rvps-reference-values
+    namespace: kbs-operator-system
+  data:
+    reference-values.json: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: rvps-reference-values
+        namespace: kbs-operator-system
+      data:
+        reference-values.json: |
+          [
+            {
+              "name": "sample.svn",
+              "expired": "2025-01-01T00:00:00Z",
+              "hash-value": [
+                {
+                  "alg": "sha256",
+                  "value": "1"
+                }
+              ]
+            }
+          ]
+  ```
+
+  It is also possible to create the K8s secrets (a commented out example is provided in the [kustomization.yaml](config/samples/microservices/kustomization.yaml)). To enable the secrets you'd need to uncomment the relevant secret generator entry and patch.
+  
+
   
 ### Uninstall CRDs
 
