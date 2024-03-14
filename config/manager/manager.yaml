@@ -82,13 +82,15 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        # KBS_IMAGE_NAME
         - name: KBS_IMAGE_NAME
-          value: ghcr.io/confidential-containers/key-broker-service:latest
+          # kbs image for AllInOneDeployment
+          # value: ghcr.io/confidential-containers/staged-images/kbs:latest
+          # kbs image for MicroserviceDeployment
+          value: ghcr.io/confidential-containers/staged-images/kbs-grpc-as:latest
         - name: AS_IMAGE_NAME
-          value: ghcr.io/confidential-containers/attestation-service:latest
+          value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
         - name: RVPS_IMAGE_NAME
-          value: ghcr.io/confidential-containers/reference-value-provider-service:latest
+          value: ghcr.io/confidential-containers/staged-images/rvps:latest
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

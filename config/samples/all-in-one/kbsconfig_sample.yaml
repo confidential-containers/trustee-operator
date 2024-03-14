@@ -13,4 +13,4 @@ spec:
   kbsConfigMapName: kbs-config
   kbsAuthSecretName: kbs-auth-public-key
   kbsDeploymentType: AllInOneDeployment
-  kbsSecretResources: []
+  

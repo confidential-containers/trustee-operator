@@ -50,6 +50,9 @@ const (
 
 	// Default RVPS config path
 	rvpsDefaultConfigPath = "/etc"
+
+	// Default RVPS reference values Path
+	rvpsReferenceValuesPath = "/opt/confidential-containers/rvps"
 )
 
 func contains(list []string, s string) bool {
