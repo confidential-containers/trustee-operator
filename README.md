@@ -174,8 +174,8 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
   # or config/samples/all-in-one for the integrated mode
 
   # create authentication keys
-  openssl genpkey -algorithm ed25519 > kbs.key
-  openssl pkey -in kbs.key -pubout -out kbs.pem
+  openssl genpkey -algorithm ed25519 > privateKey
+  openssl pkey -in privateKey -pubout -out kbs.pem
   
   # create all the needed resources
   kubectl apply -k .
@@ -213,8 +213,6 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
   ```
 
   It is also possible to create the K8s secrets (a commented out example is provided in the [kustomization.yaml](config/samples/microservices/kustomization.yaml)). To enable the secrets you'd need to uncomment the relevant secret generator entry and patch.
-  
-
   
 ### Uninstall CRDs
 
