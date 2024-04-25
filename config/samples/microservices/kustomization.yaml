@@ -3,13 +3,15 @@ namespace: kbs-operator-system
 generatorOptions:
   disableNameSuffixHash: true
 
-secretGenerator:
-- name: kbs-auth-public-key
-  files:
-  - kbs.pem
-- name: kbs-client
-  files:
-  - privateKey
+# uncomment to generate secrets for kbs authorization
+#secretGenerator:
+#- name: kbs-auth-public-key
+#  files:
+#  - kbs.pem
+#- name: kbs-client
+#  files:
+#  - privateKey
+
 # uncomment the following lines for injecting sample resources in kbs
 #- literals:
 #  - key1=res1val1
