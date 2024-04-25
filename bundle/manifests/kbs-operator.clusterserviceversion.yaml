@@ -32,7 +32,7 @@ metadata:
     capabilities: Basic Install
     createdAt: "2024-03-08T11:44:44Z"
     operators.operatorframework.io/builder: operator-sdk-v1.33.0
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: kbs-operator.v0.0.1
   namespace: placeholder
 spec:
