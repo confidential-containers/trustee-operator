@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	confidentialcontainersorgv1alpha1 "github.com/confidential-containers/kbs-operator/api/v1alpha1"
-	"github.com/confidential-containers/kbs-operator/controllers"
+	controller "github.com/confidential-containers/kbs-operator/internal/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	//+kubebuilder:scaffold:imports
 )
@@ -96,7 +96,7 @@ func main() {
 
 	namespace := os.Getenv("POD_NAMESPACE")
 	if namespace == "" {
-		namespace = controllers.KbsOperatorNamespace
+		namespace = controller.KbsOperatorNamespace
 	}
 
 	err = labelNamespace(context.TODO(), mgr, namespace)
@@ -105,7 +105,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.KbsConfigReconciler{
+	if err = (&controller.KbsConfigReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {

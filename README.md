@@ -169,6 +169,9 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
 - Deployment of CRDs, ConfigMaps and Secrets
 
   This is an example. Change it to real values as per your requirements.
+
+  It is recommended to uncomment the secret generation for the trustee authorization in the  [kustomization.yaml](config/samples/microservices/kustomization.yaml), for both public and private key (`kbs-auth-public-key` and `kbs-client` secrets)
+
   ```sh
   cd config/samples/microservices
   # or config/samples/all-in-one for the integrated mode
