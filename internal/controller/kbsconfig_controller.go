@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -331,30 +332,105 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 
 	// RunAsUser (root) 0
 	runAsUser := int64(0)
-	var volumes []corev1.Volume
 
-	// build KBS container
-	volumes, kbsVolumeMounts, err := r.buildKbsVolumeMounts(ctx, volumes)
+	var volumes []corev1.Volume
+	var kbsVM []corev1.VolumeMount
+	var asVM []corev1.VolumeMount
+	var rvpsVM []corev1.VolumeMount
+
+	// kbs-config
+	volume, err := r.createKbsConfigMapVolume(ctx, "kbs-config")
 	if err != nil {
 		return nil
 	}
-	containers := []corev1.Container{r.buildKbsContainer(kbsVolumeMounts, runAsUser)}
+	volumeMount := createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
+	volumes = append(volumes, *volume)
+	kbsVM = append(kbsVM, volumeMount)
+
+	// auth-secret
+	volume, err = r.createAuthSecretVolume(ctx, "auth-secret")
+	if err != nil {
+		return nil
+	}
+	volumes = append(volumes, *volume)
+	volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
+	kbsVM = append(kbsVM, volumeMount)
+
+	// https
+	httpsConfigPresent, err := r.httpsConfigPresent()
+	if err != nil {
+		r.log.Error(err, "Failed to get KBS HTTPS secrets")
+		return nil
+	}
+	if httpsConfigPresent {
+		volume, err = r.createHttpsKeyVolume(ctx, "https-key")
+		if err != nil {
+			return nil
+		}
+		volumes = append(volumes, *volume)
+		volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
+		kbsVM = append(kbsVM, volumeMount)
+
+		volume, err = r.createHttpsCertVolume(ctx, "https-cert")
+		if err != nil {
+			return nil
+		}
+		volumes = append(volumes, *volume)
+		volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
+		kbsVM = append(kbsVM, volumeMount)
+	}
+
+	// kbs secret resources
+	kbsSecretVolumes, err := r.createKbsSecretResourcesVolume(ctx)
+	if err != nil {
+		return nil
+	}
+	volumes = append(volumes, kbsSecretVolumes...)
+	for _, vol := range kbsSecretVolumes {
+		volumeMount = createVolumeMount(vol.Name, filepath.Join(kbsResourcesPath, vol.Name))
+		kbsVM = append(kbsVM, volumeMount)
+	}
+
+	// reference-values
+	volume, err = r.createRvpsRefValuesConfigMapVolume(ctx, "reference-values")
+	if err != nil {
+		return nil
+	}
+	volumes = append(volumes, *volume)
+	volumeMount = createVolumeMount(volume.Name, filepath.Join(rvpsReferenceValuesPath, volume.Name))
+
+	// For the DeploymentTypeAllInOne case, if reference-values.json file is provided must be mounted in kbs
+	if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
+		kbsVM = append(kbsVM, volumeMount)
+	} else {
+		rvpsVM = append(rvpsVM, volumeMount)
+
+		// as-config
+		volume, err = r.createAsConfigMapVolume(ctx, "as-config")
+		if err != nil {
+			return nil
+		}
+		volumes = append(volumes, *volume)
+		volumeMount = createVolumeMount(volume.Name, filepath.Join(asDefaultConfigPath, volume.Name))
+		asVM = append(asVM, volumeMount)
+
+		// rvps-config
+		volume, err = r.processRvpsConfigMapVolume(ctx, "rvps-config")
+		if err != nil {
+			return nil
+		}
+		volumes = append(volumes, *volume)
+		volumeMount = createVolumeMount(volume.Name, filepath.Join(rvpsDefaultConfigPath, volume.Name))
+		rvpsVM = append(rvpsVM, volumeMount)
+	}
+
+	containers := []corev1.Container{r.buildKbsContainer(kbsVM, runAsUser)}
 
 	if kbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices {
 		// build AS container
-		var asVolumeMounts []corev1.VolumeMount
-		volumes, asVolumeMounts, err = r.buildAsVolumesMounts(ctx, volumes)
-		if err != nil {
-			return nil
-		}
-		containers = append(containers, r.buildAsContainer(asVolumeMounts, runAsUser))
+		containers = append(containers, r.buildAsContainer(asVM, runAsUser))
 		// build RVPS container
-		var rvpsVolumeMounts []corev1.VolumeMount
-		volumes, rvpsVolumeMounts, err = r.buildRvpsVolumesMounts(ctx, volumes)
-		if err != nil {
-			return nil
-		}
-		containers = append(containers, r.buildRvpsContainer(rvpsVolumeMounts, runAsUser))
+		containers = append(containers, r.buildRvpsContainer(rvpsVM, runAsUser))
 	}
 
 	// Create the deployment
