@@ -28,6 +28,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -36,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	confidentialcontainersorgv1alpha1 "github.com/confidential-containers/kbs-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -614,6 +615,7 @@ func (r *KbsConfigReconciler) httpsConfigPresent() (bool, error) {
 
 // updateKbsDeployment updates an existing deployment for the KBS instance
 func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deployment *appsv1.Deployment) error {
+
 	err := r.Client.Update(ctx, deployment)
 	if err != nil {
 		// Failed to update the deployment
@@ -635,6 +637,16 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		r.namespace = KbsOperatorNamespace
 	}
 
+	configMapMapper, err := configMapToKbsConfigMapper(r.Client, r.log)
+	if err != nil {
+		return err
+	}
+
+	secretMapper, err := secretToKbsConfigMapper(r.Client, r.log)
+	if err != nil {
+		return err
+	}
+
 	// Create a new controller and add a watch for KbsConfig including the following secondary resources:
 	// KbsConfigMap, KbsSecret, KbsAsConfigMap, KbsRvpsConfigMap in the same namespace as the controller
 	return ctrl.NewControllerManagedBy(mgr).
@@ -642,17 +654,99 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// Watch for changes to ConfigMap, Secret that are in the same namespace as the controller
 		// The ConfigMap and Secret are not owned by the KbsConfig
 		Watches(
-			&source.Kind{Type: &corev1.ConfigMap{}},
-			&handler.EnqueueRequestForObject{},
+			&corev1.ConfigMap{},
+			handler.EnqueueRequestsFromMapFunc(configMapMapper),
 			builder.WithPredicates(namespacePredicate(r.namespace)),
 		).
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
-			&handler.EnqueueRequestForObject{},
+			&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(secretMapper),
 			builder.WithPredicates(namespacePredicate(r.namespace)),
 		).
+		Owns(&corev1.ConfigMap{}).
+		Owns(&corev1.Secret{}).
 		Complete(r)
+}
 
+// create mapper to transform from ConfigMap to KbsConfig
+func configMapToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFunc, error) {
+	mapperFunc := func(ctx context.Context, o client.Object) []reconcile.Request {
+		log.Info("configMapToKbsConfigMapper")
+		configMap, ok := o.(*corev1.ConfigMap)
+		if !ok {
+			log.Info("Expected a ConfigMap, but got another type", "objectType", o.GetObjectKind())
+			return nil
+		}
+
+		// Get the KbsConfig object
+		kbsConfigList := &confidentialcontainersorgv1alpha1.KbsConfigList{}
+		err := c.List(ctx, kbsConfigList, client.InNamespace(configMap.Namespace))
+		if err != nil {
+			log.Info("Error in listing KbsConfig", "err", err)
+			return nil
+		}
+
+		log.Info("Checking KbsConfig", "ConfigMap.Name", configMap.Name, "KbsConfigList", kbsConfigList.Items)
+
+		var requests []reconcile.Request
+		for _, kbsConfig := range kbsConfigList.Items {
+			if kbsConfig.Spec.KbsConfigMapName == configMap.Name ||
+				kbsConfig.Spec.KbsAsConfigMapName == configMap.Name ||
+				kbsConfig.Spec.KbsRvpsConfigMapName == configMap.Name ||
+				kbsConfig.Spec.KbsRvpsRefValuesConfigMapName == configMap.Name {
+
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: kbsConfig.Namespace,
+						Name:      kbsConfig.Name,
+					},
+				})
+			}
+		}
+		return requests
+	}
+
+	return mapperFunc, nil
+
+}
+
+// create mapper to transform from Secret to KbsConfig
+func secretToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFunc, error) {
+	mapperFunc := func(ctx context.Context, o client.Object) []reconcile.Request {
+		log.Info("secretToKbsConfigMapper")
+		secret, ok := o.(*corev1.Secret)
+		if !ok {
+			log.Info("Expected a Secret, but got another type", "objectType", o.GetObjectKind())
+			return nil
+		}
+		// Get the KbsConfig object
+		kbsConfigList := &confidentialcontainersorgv1alpha1.KbsConfigList{}
+		err := c.List(ctx, kbsConfigList, client.InNamespace(secret.Namespace))
+		if err != nil {
+			log.Info("Error in listing KbsConfig", "err", err)
+			return nil
+		}
+
+		log.Info("Checking KbsConfig", "Secret.Name", secret.Name, "KbsConfigList", kbsConfigList.Items)
+
+		var requests []reconcile.Request
+		for _, kbsConfig := range kbsConfigList.Items {
+			if kbsConfig.Spec.KbsAuthSecretName == secret.Name ||
+				kbsConfig.Spec.KbsHttpsKeySecretName == secret.Name ||
+				kbsConfig.Spec.KbsHttpsCertSecretName == secret.Name ||
+				kbsConfig.Spec.KbsSecretResources != nil && contains(kbsConfig.Spec.KbsSecretResources, secret.Name) {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: kbsConfig.Namespace,
+						Name:      kbsConfig.Name,
+					},
+				})
+			}
+		}
+		return requests
+	}
+
+	return mapperFunc, nil
 }
 
 // namespacePredicate is a custom predicate function that filters resources based on the namespace.
@@ -675,5 +769,6 @@ func namespacePredicate(namespace string) predicate.Predicate {
 
 // isResourceInNamespace checks if the resource is in the specified namespace.
 func isResourceInNamespace(obj metav1.Object, namespace string) bool {
+
 	return obj.GetNamespace() == namespace
 }
