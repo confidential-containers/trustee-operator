@@ -20,5 +20,8 @@ data:
         "repository_config": {
           "type": "LocalFs",
           "dir_path": "/opt/confidential-containers/kbs/repository"
+        },
+        "policy_engine_config": {
+          "policy_path": "/opt/confidential-containers/opa/policy.rego"
         }
     }

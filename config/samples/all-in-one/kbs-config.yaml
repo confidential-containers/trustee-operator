@@ -31,6 +31,6 @@ data:
           }
         },
         "policy_engine_config": {
-          "policy_path": "/opa/confidential-containers/kbs/policy.rego"
+          "policy_path": "/opt/confidential-containers/opa/policy.rego"
         }
     }

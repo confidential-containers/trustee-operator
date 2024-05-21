@@ -330,20 +330,37 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 		kbsDeploymentType = confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices
 	}
 
-	// RunAsUser (root) 0
-	runAsUser := int64(0)
-
 	var volumes []corev1.Volume
 	var kbsVM []corev1.VolumeMount
 	var asVM []corev1.VolumeMount
 	var rvpsVM []corev1.VolumeMount
 
-	// kbs-config
-	volume, err := r.createKbsConfigMapVolume(ctx, "kbs-config")
+	// The paths /opt/confidential-container and /opt/confidential-container/kbs/repository/default
+	// are mounted as a RW volume in memory to allow trustee components
+	// to have full access to the filesystem
+	// confidential-containers
+	volume, err := r.createConfidentialContainersVolume(confidentialContainers)
 	if err != nil {
 		return nil
 	}
-	volumeMount := createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
+	volumes = append(volumes, *volume)
+	volumeMount := createVolumeMount(volume.Name, filepath.Join(rootPath, volume.Name))
+	kbsVM = append(kbsVM, volumeMount)
+	// default repo
+	volume, err = r.createDefaultRepositoryVolume(defaultRepository)
+	if err != nil {
+		return nil
+	}
+	volumes = append(volumes, *volume)
+	volumeMount = createVolumeMount(volume.Name, filepath.Join(repositoryPath, volume.Name))
+	kbsVM = append(kbsVM, volumeMount)
+
+	// kbs-config
+	volume, err = r.createKbsConfigMapVolume(ctx, "kbs-config")
+	if err != nil {
+		return nil
+	}
+	volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
 	volumes = append(volumes, *volume)
 	kbsVM = append(kbsVM, volumeMount)
 
@@ -424,13 +441,14 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 		rvpsVM = append(rvpsVM, volumeMount)
 	}
 
-	containers := []corev1.Container{r.buildKbsContainer(kbsVM, runAsUser)}
+	securityContext := createSecurityContext()
+	containers := []corev1.Container{r.buildKbsContainer(kbsVM, securityContext)}
 
 	if kbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices {
 		// build AS container
-		containers = append(containers, r.buildAsContainer(asVM, runAsUser))
+		containers = append(containers, r.buildAsContainer(asVM, securityContext))
 		// build RVPS container
-		containers = append(containers, r.buildRvpsContainer(rvpsVM, runAsUser))
+		containers = append(containers, r.buildRvpsContainer(rvpsVM, securityContext))
 	}
 
 	// Create the deployment
@@ -464,7 +482,24 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 	return deployment
 }
 
-func (r *KbsConfigReconciler) buildAsContainer(volumeMounts []corev1.VolumeMount, runAsUser int64) corev1.Container {
+func pointer[T any](d T) *T {
+	return &d
+}
+
+func createSecurityContext() *corev1.SecurityContext {
+	return &corev1.SecurityContext{
+		AllowPrivilegeEscalation: pointer(false),
+		Capabilities: &corev1.Capabilities{
+			Drop: []corev1.Capability{
+				"ALL"},
+		},
+		SeccompProfile: &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		},
+	}
+}
+
+func (r *KbsConfigReconciler) buildAsContainer(volumeMounts []corev1.VolumeMount, securityContext *corev1.SecurityContext) corev1.Container {
 	asImageName := os.Getenv("AS_IMAGE_NAME")
 	if asImageName == "" {
 		asImageName = DefaultAsImageName
@@ -489,17 +524,14 @@ func (r *KbsConfigReconciler) buildAsContainer(volumeMounts []corev1.VolumeMount
 			},
 		},
 		// Add command to start AS
-		Command: asCommand,
-		// Add SecurityContext
-		SecurityContext: &corev1.SecurityContext{
-			RunAsUser: &runAsUser,
-		},
+		Command:         asCommand,
+		SecurityContext: securityContext,
 		// Add volume mount for config
 		VolumeMounts: volumeMounts,
 	}
 }
 
-func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMount, runAsUser int64) corev1.Container {
+func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMount, securityContext *corev1.SecurityContext) corev1.Container {
 	rvpsImageName := os.Getenv("RVPS_IMAGE_NAME")
 	if rvpsImageName == "" {
 		rvpsImageName = DefaultRvpsImageName
@@ -522,17 +554,14 @@ func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMou
 			},
 		},
 		// Add command to start RVPS
-		Command: rvpsCommand,
-		// Add SecurityContext
-		SecurityContext: &corev1.SecurityContext{
-			RunAsUser: &runAsUser,
-		},
+		Command:         rvpsCommand,
+		SecurityContext: securityContext,
 		// Add volume mount for config
 		VolumeMounts: volumeMounts,
 	}
 }
 
-func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMount, runAsUser int64) corev1.Container {
+func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMount, securityContext *corev1.SecurityContext) corev1.Container {
 	// Get Image Name from env variable if set
 	imageName := os.Getenv("KBS_IMAGE_NAME")
 	if imageName == "" {
@@ -556,11 +585,8 @@ func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMoun
 			},
 		},
 		// Add command to start KBS
-		Command: command,
-		// Add SecurityContext
-		SecurityContext: &corev1.SecurityContext{
-			RunAsUser: &runAsUser,
-		},
+		Command:         command,
+		SecurityContext: securityContext,
 		// Add volume mount for KBS config
 		VolumeMounts: volumeMounts,
 		/* TODO commented out because not configurable yet
