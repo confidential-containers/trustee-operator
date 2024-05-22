@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -71,8 +70,6 @@ type KbsConfigReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
 func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.log = log.FromContext(ctx)
-	_ = r.log.WithValues("kbsconfig", req.NamespacedName)
 	r.log.Info("Reconciling KbsConfig")
 
 	// Get the KbsConfig instance
@@ -636,6 +633,10 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.namespace == "" {
 		r.namespace = KbsOperatorNamespace
 	}
+
+	// Create a logr instance and assign it to r.log
+	r.log = ctrl.Log.WithName("kbsconfig-controller")
+	r.log = r.log.WithValues("kbsconfig", r.namespace)
 
 	configMapMapper, err := configMapToKbsConfigMapper(r.Client, r.log)
 	if err != nil {
