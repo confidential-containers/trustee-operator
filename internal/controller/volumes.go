@@ -25,6 +25,30 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+func (r *KbsConfigReconciler) createConfidentialContainersVolume(volumeName string) (*corev1.Volume, error) {
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				Medium: corev1.StorageMediumMemory,
+			},
+		},
+	}
+	return &volume, nil
+}
+
+func (r *KbsConfigReconciler) createDefaultRepositoryVolume(volumeName string) (*corev1.Volume, error) {
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				Medium: corev1.StorageMediumMemory,
+			},
+		},
+	}
+	return &volume, nil
+}
+
 func (r *KbsConfigReconciler) createKbsConfigMapVolume(ctx context.Context, volumeName string) (*corev1.Volume, error) {
 	if r.kbsConfig.Spec.KbsConfigMapName != "" {
 		foundConfigMap := &corev1.ConfigMap{}
