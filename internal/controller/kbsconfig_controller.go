@@ -275,7 +275,8 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) e
 		} else {
 			// Deployment created successfully
 			r.log.Info("Created a new deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
-			return nil
+			// Add the kbsFinalizer to the KbsConfig if it doesn't already exist
+			return r.addKbsConfigFinalizer(ctx)
 		}
 	} else if err != nil {
 		// Unknown error
@@ -293,7 +294,10 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) e
 		r.log.Info("Updated Deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
 	}
 
-	// Add the kbsFinalizer to the KbsConfig if it doesn't already exist
+	return nil
+}
+
+func (r *KbsConfigReconciler) addKbsConfigFinalizer(ctx context.Context) error {
 	if !contains(r.kbsConfig.GetFinalizers(), KbsFinalizerName) {
 		r.log.Info("Adding kbsFinalizer to KbsConfig")
 		r.kbsConfig.SetFinalizers(append(r.kbsConfig.GetFinalizers(), KbsFinalizerName))
@@ -303,9 +307,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) e
 			return err
 		}
 	}
-
 	return nil
-
 }
 
 // newKbsDeployment returns a new deployment for the KBS instance
