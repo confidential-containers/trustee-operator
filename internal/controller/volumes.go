@@ -18,10 +18,9 @@ package controllers
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -51,16 +50,13 @@ func (r *KbsConfigReconciler) createDefaultRepositoryVolume(volumeName string) (
 
 func (r *KbsConfigReconciler) createKbsConfigMapVolume(ctx context.Context, volumeName string) (*corev1.Volume, error) {
 	if r.kbsConfig.Spec.KbsConfigMapName != "" {
+		r.log.Info("Retrieving details for KbsConfigMap", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", r.kbsConfig.Spec.KbsConfigMapName)
 		foundConfigMap := &corev1.ConfigMap{}
 		err := r.Client.Get(ctx, client.ObjectKey{
 			Namespace: r.namespace,
 			Name:      r.kbsConfig.Spec.KbsConfigMapName,
 		}, foundConfigMap)
-		if err != nil && k8serrors.IsNotFound(err) {
-			r.log.Error(err, "KbsConfigMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", r.kbsConfig.Spec.KbsConfigMapName)
-			return nil, err
-		} else if err != nil {
-			r.log.Error(err, "Failed to get KBS ConfigMap")
+		if err != nil {
 			return nil, err
 		}
 
@@ -76,21 +72,18 @@ func (r *KbsConfigReconciler) createKbsConfigMapVolume(ctx context.Context, volu
 		}
 		return &volume, nil
 	}
-	return nil, errors.New("KbsConfigMapName hasn't been provided")
+	return nil, fmt.Errorf("KbsConfigMapName hasn't been provided")
 }
 
 func (r *KbsConfigReconciler) createAuthSecretVolume(ctx context.Context, volumeName string) (*corev1.Volume, error) {
 	if r.kbsConfig.Spec.KbsAuthSecretName != "" {
+		r.log.Info("Retrieving details for KbsAuthSecret", "Secret.Namespace", r.namespace, "Secret.Name", r.kbsConfig.Spec.KbsAuthSecretName)
 		foundSecret := &corev1.Secret{}
 		err := r.Client.Get(ctx, client.ObjectKey{
 			Namespace: r.namespace,
 			Name:      r.kbsConfig.Spec.KbsAuthSecretName,
 		}, foundSecret)
-		if err != nil && k8serrors.IsNotFound(err) {
-			r.log.Error(err, "KbsAuthSecretName does not exist", "Secret.Namespace", r.namespace, "Secret.Name", r.kbsConfig.Spec.KbsAuthSecretName)
-			return nil, err
-		} else if err != nil {
-			r.log.Error(err, "Failed to get KBS Auth Secret")
+		if err != nil {
 			return nil, err
 		}
 
@@ -104,62 +97,65 @@ func (r *KbsConfigReconciler) createAuthSecretVolume(ctx context.Context, volume
 		}
 		return &volume, nil
 	}
-	return nil, errors.New("KbsAuthSecretName hasn't been provided")
+	return nil, fmt.Errorf("KbsAuthSecretName hasn't been provided")
 }
 
 func (r *KbsConfigReconciler) createHttpsKeyVolume(ctx context.Context, volumeName string) (*corev1.Volume, error) {
-	// get the https key and append to volumes
-	foundHttpsKeySecret := &corev1.Secret{}
-	err := r.Client.Get(ctx, client.ObjectKey{
-		Namespace: r.namespace,
-		Name:      r.kbsConfig.Spec.KbsHttpsKeySecretName,
-	}, foundHttpsKeySecret)
-	if err != nil && k8serrors.IsNotFound(err) {
-		r.log.Error(err, "KbsHttpsKeySecretName does not exist", "Secret.Namespace", r.namespace, "Secret.Name", r.kbsConfig.Spec.KbsHttpsKeySecretName)
-		return nil, err
-	} else if err != nil {
-		r.log.Error(err, "Failed to get KBS HTTPS key Secret")
-		return nil, err
-	}
+	if r.kbsConfig.Spec.KbsHttpsKeySecretName != "" {
+		r.log.Info("Retrieving details for KbsHttpsKeySecret", "Secret.Namespace", r.namespace, "Secret.Name",
+			r.kbsConfig.Spec.KbsHttpsKeySecretName)
+		// get the https key and append to volumes
+		foundHttpsKeySecret := &corev1.Secret{}
+		err := r.Client.Get(ctx, client.ObjectKey{
+			Namespace: r.namespace,
+			Name:      r.kbsConfig.Spec.KbsHttpsKeySecretName,
+		}, foundHttpsKeySecret)
+		if err != nil {
+			return nil, err
+		}
 
-	volume := corev1.Volume{
-		Name: volumeName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: r.kbsConfig.Spec.KbsHttpsKeySecretName,
+		volume := corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: r.kbsConfig.Spec.KbsHttpsKeySecretName,
+				},
 			},
-		},
+		}
+		return &volume, nil
 	}
 
-	return &volume, nil
+	return nil, fmt.Errorf("KbsHttpsKeySecretName hasn't been provided")
 }
 
 func (r *KbsConfigReconciler) createHttpsCertVolume(ctx context.Context, volumeName string) (*corev1.Volume, error) {
-	// get the https key and append to volumes
-	// get the https certificate and append to volumes
-	foundHttpsCertSecret := &corev1.Secret{}
-	err := r.Client.Get(ctx, client.ObjectKey{
-		Namespace: r.namespace,
-		Name:      r.kbsConfig.Spec.KbsHttpsCertSecretName,
-	}, foundHttpsCertSecret)
-	if err != nil && k8serrors.IsNotFound(err) {
-		r.log.Error(err, "KbsHttpsCertSecretName does not exist", "Secret.Namespace", r.namespace, "Secret.Name", r.kbsConfig.Spec.KbsHttpsCertSecretName)
-		return nil, err
-	} else if err != nil {
-		r.log.Error(err, "Failed to get KBS HTTPS Cert Secret")
-		return nil, err
-	}
+	if r.kbsConfig.Spec.KbsHttpsCertSecretName != "" {
+		// get the https key and append to volumes
+		r.log.Info("Retrieving details for KbsHttpsCertSecret", "Secret.Namespace", r.namespace, "Secret.Name",
+			r.kbsConfig.Spec.KbsHttpsCertSecretName)
 
-	volume := corev1.Volume{
-		Name: volumeName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: r.kbsConfig.Spec.KbsHttpsCertSecretName,
+		// get the https certificate and append to volumes
+		foundHttpsCertSecret := &corev1.Secret{}
+		err := r.Client.Get(ctx, client.ObjectKey{
+			Namespace: r.namespace,
+			Name:      r.kbsConfig.Spec.KbsHttpsCertSecretName,
+		}, foundHttpsCertSecret)
+		if err != nil {
+			return nil, err
+		}
+
+		volume := corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: r.kbsConfig.Spec.KbsHttpsCertSecretName,
+				},
 			},
-		},
-	}
+		}
 
-	return &volume, nil
+		return &volume, nil
+	}
+	return nil, fmt.Errorf("KbsHttpsCertSecretName hasn't been provided")
 }
 
 // Method to add KbsSecretResources to the KBS volumes
@@ -167,16 +163,13 @@ func (r *KbsConfigReconciler) createKbsSecretResourcesVolume(ctx context.Context
 	var secretVolumes []corev1.Volume
 	if r.kbsConfig.Spec.KbsSecretResources != nil {
 		for _, secretResource := range r.kbsConfig.Spec.KbsSecretResources {
+			r.log.Info("Retrieving KbsSecretResource", "Secret.Namespace", r.namespace, "Secret.Name", secretResource)
 			foundSecret := &corev1.Secret{}
 			err := r.Client.Get(ctx, client.ObjectKey{
 				Namespace: r.namespace,
 				Name:      secretResource,
 			}, foundSecret)
-			if err != nil && k8serrors.IsNotFound(err) {
-				r.log.Error(err, "KbsSecretResource does not exist", "Secret.Namespace", r.namespace, "Secret.Name", secretResource)
-				return nil, err
-			} else if err != nil {
-				r.log.Error(err, "Failed to get KBS Secret Resource")
+			if err != nil {
 				return nil, err
 			}
 
@@ -196,16 +189,14 @@ func (r *KbsConfigReconciler) createKbsSecretResourcesVolume(ctx context.Context
 func (r *KbsConfigReconciler) createRvpsRefValuesConfigMapVolume(ctx context.Context, volumeName string) (*corev1.Volume, error) {
 	referenceValuesMapName := r.kbsConfig.Spec.KbsRvpsRefValuesConfigMapName
 	if referenceValuesMapName != "" {
+		r.log.Info("Retrieving KbsRvpsReferenceValuesMapName", "ConfigMap.Namespace", r.namespace,
+			"ConfigMap.Name", referenceValuesMapName)
 		foundConfigMap := &corev1.ConfigMap{}
 		err := r.Client.Get(ctx, client.ObjectKey{
 			Namespace: r.namespace,
 			Name:      referenceValuesMapName,
 		}, foundConfigMap)
-		if err != nil && k8serrors.IsNotFound(err) {
-			r.log.Error(err, "KbsRvpsReferenceValuesMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", referenceValuesMapName)
-			return nil, err
-		} else if err != nil {
-			r.log.Error(err, "Failed to get KBS RVPS ReferenceValuesMap")
+		if err != nil {
 			return nil, err
 		}
 
@@ -221,21 +212,19 @@ func (r *KbsConfigReconciler) createRvpsRefValuesConfigMapVolume(ctx context.Con
 		}
 		return &volume, nil
 	}
-	return nil, errors.New("KbsRvpsRefValuesConfigMapName hasn't been provided")
+	return nil, fmt.Errorf("KbsRvpsRefValuesConfigMapName hasn't been provided")
 }
 
 func (r *KbsConfigReconciler) createAsConfigMapVolume(ctx context.Context, volumeName string) (*corev1.Volume, error) {
 	if r.kbsConfig.Spec.KbsAsConfigMapName != "" {
+		r.log.Info("Retrieving KbsAsConfigMapName", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name",
+			r.kbsConfig.Spec.KbsAsConfigMapName)
 		foundConfigMap := &corev1.ConfigMap{}
 		err := r.Client.Get(ctx, client.ObjectKey{
 			Namespace: r.namespace,
 			Name:      r.kbsConfig.Spec.KbsAsConfigMapName,
 		}, foundConfigMap)
-		if err != nil && k8serrors.IsNotFound(err) {
-			r.log.Error(err, "KbsAsConfigMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", r.kbsConfig.Spec.KbsAsConfigMapName)
-			return nil, err
-		} else if err != nil {
-			r.log.Error(err, "Failed to get KBS AS ConfigMap")
+		if err != nil {
 			return nil, err
 		}
 
@@ -251,21 +240,19 @@ func (r *KbsConfigReconciler) createAsConfigMapVolume(ctx context.Context, volum
 		}
 		return &volume, nil
 	}
-	return nil, errors.New("KbsAsConfigMapName hasn't been provided")
+	return nil, fmt.Errorf("KbsAsConfigMapName hasn't been provided")
 }
 
 func (r *KbsConfigReconciler) processRvpsConfigMapVolume(ctx context.Context, volumeName string) (*corev1.Volume, error) {
 	if r.kbsConfig.Spec.KbsRvpsConfigMapName != "" {
+		r.log.Info("Retrieving KbsRvpsConfigMapName", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name",
+			r.kbsConfig.Spec.KbsRvpsConfigMapName)
 		foundConfigMap := &corev1.ConfigMap{}
 		err := r.Client.Get(ctx, client.ObjectKey{
 			Namespace: r.namespace,
 			Name:      r.kbsConfig.Spec.KbsRvpsConfigMapName,
 		}, foundConfigMap)
-		if err != nil && k8serrors.IsNotFound(err) {
-			r.log.Error(err, "KbsRvpsConfigMapName does not exist", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", r.kbsConfig.Spec.KbsRvpsConfigMapName)
-			return nil, err
-		} else if err != nil {
-			r.log.Error(err, "Failed to get KBS RVPS ConfigMap")
+		if err != nil {
 			return nil, err
 		}
 
@@ -281,7 +268,7 @@ func (r *KbsConfigReconciler) processRvpsConfigMapVolume(ctx context.Context, vo
 		}
 		return &volume, nil
 	}
-	return nil, errors.New("KbsRvpsConfigMapName hasn't been provided")
+	return nil, fmt.Errorf("KbsRvpsConfigMapName hasn't been provided")
 }
 
 func createVolumeMount(volumeName string, mountPath string) corev1.VolumeMount {
