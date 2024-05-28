@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,15 +27,15 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	confidentialcontainersorgv1alpha1 "github.com/confidential-containers/kbs-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -66,12 +65,13 @@ type KbsConfigReconciler struct {
 // the KbsConfig object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
+
+// We log the error using log.Info, instead of calling log.Error to avoid dumping the logs with
+// unnecessary stack details. We follow this pattern for all the logs in this code
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
 func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.log = log.FromContext(ctx)
-	_ = r.log.WithValues("kbsconfig", req.NamespacedName)
 	r.log.Info("Reconciling KbsConfig")
 
 	// Get the KbsConfig instance
@@ -86,7 +86,7 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// If there is an error other than the KbsConfig instance not found,
 	// then return with the error
 	if err != nil {
-		r.log.Error(err, "Failed to get KbsConfig")
+		r.log.Info("Getting KbsConfig failed with error", "err", err)
 		return ctrl.Result{}, err
 	}
 
@@ -102,6 +102,7 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			// that we can retry during the next reconciliation.
 			err := r.finalizeKbsConfig(ctx)
 			if err != nil {
+				r.log.Info("Error in finalizeKbsConfig", "err", err)
 				return ctrl.Result{}, err
 			}
 		}
@@ -111,6 +112,7 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		r.kbsConfig.SetFinalizers(remove(r.kbsConfig.GetFinalizers(), KbsFinalizerName))
 		err := r.Update(ctx, r.kbsConfig)
 		if err != nil {
+			r.log.Info("Failed to update KbsConfig after removing kbsFinalizer", "err", err)
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
@@ -119,14 +121,14 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Create or update the KBS deployment
 	err = r.deployOrUpdateKbsDeployment(ctx)
 	if err != nil {
-		r.log.Error(err, "Failed to create KBS deployment")
+		r.log.Info("Error in creating/updating KBS deployment", "err", err)
 		return ctrl.Result{}, err
 	}
 
 	// Create or update the KBS service
 	err = r.deployOrUpdateKbsService(ctx)
 	if err != nil {
-		r.log.Error(err, "Failed to create KBS service")
+		r.log.Info("Error in creating/updating KBS service", "err", err)
 		return ctrl.Result{}, err
 	}
 
@@ -134,6 +136,7 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 // finalizeKbsConfig deletes the KBS deployment
+// Errors are logged by the callee and hence no error is logged in this method
 func (r *KbsConfigReconciler) finalizeKbsConfig(ctx context.Context) error {
 	// Delete the deployment
 	r.log.Info("Deleting the KBS deployment")
@@ -144,18 +147,17 @@ func (r *KbsConfigReconciler) finalizeKbsConfig(ctx context.Context) error {
 		Name:      KbsDeploymentName,
 	}, deployment)
 	if err != nil {
-		r.log.Error(err, "Failed to get KBS deployment")
 		return err
 	}
 	err = r.Client.Delete(ctx, deployment)
 	if err != nil {
-		r.log.Error(err, "Failed to delete KBS deployment")
 		return err
 	}
 	return nil
 }
 
 // deployOrUpdateKbsService returns a new service for the KBS instance
+// Errors are logged by the callee and hence no error is logged in this method
 func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) error {
 
 	// Check if the service name kbs-service in r.namespace already exists
@@ -174,18 +176,16 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 		service := r.newKbsService(ctx)
 		// If service object is nil, return error
 		if service == nil {
-			r.log.Error(err, "Failed to get the KBS service definition")
-			return err
+			// Create an return new error object
+			return fmt.Errorf("failed to get KBS service definition")
 		}
 		err = r.Client.Create(ctx, service)
 		if err != nil {
-			r.log.Error(err, "Failed to create the KBS service")
 			return err
 		}
 		// Service created successfully - return and requeue
 		return nil
 	} else if err != nil {
-		r.log.Error(err, "Failed to get the KBS service")
 		return err
 	}
 
@@ -194,12 +194,10 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 	service := r.newKbsService(ctx)
 	// If service object is nil, return error
 	if service == nil {
-		r.log.Error(err, "Failed to get the KBS service definition")
-		return err
+		return fmt.Errorf("failed to get KBS service definition")
 	}
 	err = r.Client.Update(ctx, service)
 	if err != nil {
-		r.log.Error(err, "Failed to update the KBS service")
 		return err
 	}
 	// Service updated successfully - ret
@@ -207,6 +205,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 }
 
 // newKbsService returns a new service for the KBS instance
+// Errors are logged by the callee and hence no error is logged in this method
 func (r *KbsConfigReconciler) newKbsService(ctx context.Context) *corev1.Service {
 	// Get the service type from the KbsConfig instance
 	serviceType := r.kbsConfig.Spec.KbsServiceType
@@ -239,13 +238,14 @@ func (r *KbsConfigReconciler) newKbsService(ctx context.Context) *corev1.Service
 	// Set KbsConfig instance as the owner and controller
 	err := ctrl.SetControllerReference(r.kbsConfig, service, r.Scheme)
 	if err != nil {
-		r.log.Error(err, "Failed to create the KBS service")
+		r.log.Info("Error in setting the controller reference for the KBS service", "err", err)
 		return nil
 	}
 	return service
 }
 
 // deployOrUpdateKbsDeployment returns a new deployment for the KBS instance
+// Errors are logged by the callee and hence no error is logged in this method
 func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) error {
 
 	// Check if the deployment name kbs-deployment in r.namespace already exists
@@ -261,16 +261,12 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) e
 	if err != nil && k8serrors.IsNotFound(err) {
 		// Create the deployment
 		r.log.Info("Creating a new deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
-		deployment := r.newKbsDeployment(ctx)
-		// If deployment object is nil, return error
-		if deployment == nil {
-			r.log.Error(err, "Failed to create a deployment object", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
-			return fmt.Errorf("failed to create a deployment object")
+		deployment, err := r.newKbsDeployment(ctx)
+		if err != nil {
+			return err
 		}
 		err = r.Client.Create(ctx, deployment)
 		if err != nil {
-			// Failed to create the deployment
-			r.log.Error(err, "Failed to create new Deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
 			return err
 		} else {
 			// Deployment created successfully
@@ -280,14 +276,11 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) e
 		}
 	} else if err != nil {
 		// Unknown error
-		r.log.Error(err, "Failed to get Deployment")
 		return err
 	}
 	// Update the found deployment and write the result back if there are any changes
 	err = r.updateKbsDeployment(ctx, found)
 	if err != nil {
-		// Failed to update the deployment
-		r.log.Error(err, "Failed to update Deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
 		return err
 	} else {
 		// Deployment updated successfully
@@ -303,7 +296,6 @@ func (r *KbsConfigReconciler) addKbsConfigFinalizer(ctx context.Context) error {
 		r.kbsConfig.SetFinalizers(append(r.kbsConfig.GetFinalizers(), KbsFinalizerName))
 		err := r.Update(ctx, r.kbsConfig)
 		if err != nil {
-			r.log.Error(err, "Failed to update KbsConfig with kbsFinalizer")
 			return err
 		}
 	}
@@ -311,7 +303,7 @@ func (r *KbsConfigReconciler) addKbsConfigFinalizer(ctx context.Context) error {
 }
 
 // newKbsDeployment returns a new deployment for the KBS instance
-func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Deployment {
+func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Deployment, error) {
 	// Set replica count
 	replicas := int32(1)
 	// Set rolling update strategy
@@ -343,7 +335,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 	// confidential-containers
 	volume, err := r.createConfidentialContainersVolume(confidentialContainers)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	volumes = append(volumes, *volume)
 	volumeMount := createVolumeMount(volume.Name, filepath.Join(rootPath, volume.Name))
@@ -351,7 +343,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 	// default repo
 	volume, err = r.createDefaultRepositoryVolume(defaultRepository)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	volumes = append(volumes, *volume)
 	volumeMount = createVolumeMount(volume.Name, filepath.Join(repositoryPath, volume.Name))
@@ -360,7 +352,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 	// kbs-config
 	volume, err = r.createKbsConfigMapVolume(ctx, "kbs-config")
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
 	volumes = append(volumes, *volume)
@@ -369,22 +361,18 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 	// auth-secret
 	volume, err = r.createAuthSecretVolume(ctx, "auth-secret")
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	volumes = append(volumes, *volume)
 	volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
 	kbsVM = append(kbsVM, volumeMount)
 
 	// https
-	httpsConfigPresent, err := r.httpsConfigPresent()
-	if err != nil {
-		r.log.Error(err, "Failed to get KBS HTTPS secrets")
-		return nil
-	}
-	if httpsConfigPresent {
+	// TBD: Make https as must going forward
+	if r.isHttpsConfigPresent() {
 		volume, err = r.createHttpsKeyVolume(ctx, "https-key")
 		if err != nil {
-			return nil
+			return nil, err
 		}
 		volumes = append(volumes, *volume)
 		volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
@@ -392,7 +380,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 
 		volume, err = r.createHttpsCertVolume(ctx, "https-cert")
 		if err != nil {
-			return nil
+			return nil, err
 		}
 		volumes = append(volumes, *volume)
 		volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
@@ -402,7 +390,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 	// kbs secret resources
 	kbsSecretVolumes, err := r.createKbsSecretResourcesVolume(ctx)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	volumes = append(volumes, kbsSecretVolumes...)
 	for _, vol := range kbsSecretVolumes {
@@ -413,7 +401,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 	// reference-values
 	volume, err = r.createRvpsRefValuesConfigMapVolume(ctx, "reference-values")
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	volumes = append(volumes, *volume)
 	volumeMount = createVolumeMount(volume.Name, filepath.Join(rvpsReferenceValuesPath, volume.Name))
@@ -427,7 +415,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 		// as-config
 		volume, err = r.createAsConfigMapVolume(ctx, "as-config")
 		if err != nil {
-			return nil
+			return nil, err
 		}
 		volumes = append(volumes, *volume)
 		volumeMount = createVolumeMount(volume.Name, filepath.Join(asDefaultConfigPath, volume.Name))
@@ -436,7 +424,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 		// rvps-config
 		volume, err = r.processRvpsConfigMapVolume(ctx, "rvps-config")
 		if err != nil {
-			return nil
+			return nil, err
 		}
 		volumes = append(volumes, *volume)
 		volumeMount = createVolumeMount(volume.Name, filepath.Join(rvpsDefaultConfigPath, volume.Name))
@@ -481,7 +469,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) *appsv1.Depl
 			},
 		},
 	}
-	return deployment
+	return deployment, nil
 }
 
 func pointer[T any](d T) *T {
@@ -602,22 +590,19 @@ func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMoun
 	}
 }
 
-func (r *KbsConfigReconciler) httpsConfigPresent() (bool, error) {
-	if r.kbsConfig.Spec.KbsHttpsKeySecretName == "" && r.kbsConfig.Spec.KbsHttpsCertSecretName == "" {
-		return false, nil
-	} else if r.kbsConfig.Spec.KbsHttpsKeySecretName != "" && r.kbsConfig.Spec.KbsHttpsCertSecretName != "" {
-		return true, nil
-	} else {
-		return false, errors.New("invalid https parameters, missing key or certificate")
+func (r *KbsConfigReconciler) isHttpsConfigPresent() bool {
+	if r.kbsConfig.Spec.KbsHttpsKeySecretName != "" && r.kbsConfig.Spec.KbsHttpsCertSecretName != "" {
+		return true
 	}
+	return false
 }
 
 // updateKbsDeployment updates an existing deployment for the KBS instance
+// Errors are logged by the callee and hence no error is logged in this method
 func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deployment *appsv1.Deployment) error {
+
 	err := r.Client.Update(ctx, deployment)
 	if err != nil {
-		// Failed to update the deployment
-		r.log.Error(err, "Failed to update Deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", "kbs-deployment")
 		return err
 	} else {
 		// Deployment updated successfully
@@ -635,6 +620,20 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		r.namespace = KbsOperatorNamespace
 	}
 
+	// Create a logr instance and assign it to r.log
+	r.log = ctrl.Log.WithName("kbsconfig-controller")
+	r.log = r.log.WithValues("kbsconfig", r.namespace)
+
+	configMapMapper, err := configMapToKbsConfigMapper(r.Client, r.log)
+	if err != nil {
+		return err
+	}
+
+	secretMapper, err := secretToKbsConfigMapper(r.Client, r.log)
+	if err != nil {
+		return err
+	}
+
 	// Create a new controller and add a watch for KbsConfig including the following secondary resources:
 	// KbsConfigMap, KbsSecret, KbsAsConfigMap, KbsRvpsConfigMap in the same namespace as the controller
 	return ctrl.NewControllerManagedBy(mgr).
@@ -642,17 +641,99 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// Watch for changes to ConfigMap, Secret that are in the same namespace as the controller
 		// The ConfigMap and Secret are not owned by the KbsConfig
 		Watches(
-			&source.Kind{Type: &corev1.ConfigMap{}},
-			&handler.EnqueueRequestForObject{},
+			&corev1.ConfigMap{},
+			handler.EnqueueRequestsFromMapFunc(configMapMapper),
 			builder.WithPredicates(namespacePredicate(r.namespace)),
 		).
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
-			&handler.EnqueueRequestForObject{},
+			&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(secretMapper),
 			builder.WithPredicates(namespacePredicate(r.namespace)),
 		).
+		Owns(&corev1.ConfigMap{}).
+		Owns(&corev1.Secret{}).
 		Complete(r)
+}
 
+// create mapper to transform from ConfigMap to KbsConfig
+func configMapToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFunc, error) {
+	mapperFunc := func(ctx context.Context, o client.Object) []reconcile.Request {
+		log.Info("configMapToKbsConfigMapper")
+		configMap, ok := o.(*corev1.ConfigMap)
+		if !ok {
+			log.Info("Expected a ConfigMap, but got another type", "objectType", o.GetObjectKind())
+			return nil
+		}
+
+		// Get the KbsConfig object
+		kbsConfigList := &confidentialcontainersorgv1alpha1.KbsConfigList{}
+		err := c.List(ctx, kbsConfigList, client.InNamespace(configMap.Namespace))
+		if err != nil {
+			log.Info("Error in listing KbsConfig", "err", err)
+			return nil
+		}
+
+		log.Info("Checking KbsConfig", "ConfigMap.Name", configMap.Name, "KbsConfigList", kbsConfigList.Items)
+
+		var requests []reconcile.Request
+		for _, kbsConfig := range kbsConfigList.Items {
+			if kbsConfig.Spec.KbsConfigMapName == configMap.Name ||
+				kbsConfig.Spec.KbsAsConfigMapName == configMap.Name ||
+				kbsConfig.Spec.KbsRvpsConfigMapName == configMap.Name ||
+				kbsConfig.Spec.KbsRvpsRefValuesConfigMapName == configMap.Name {
+
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: kbsConfig.Namespace,
+						Name:      kbsConfig.Name,
+					},
+				})
+			}
+		}
+		return requests
+	}
+
+	return mapperFunc, nil
+
+}
+
+// create mapper to transform from Secret to KbsConfig
+func secretToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFunc, error) {
+	mapperFunc := func(ctx context.Context, o client.Object) []reconcile.Request {
+		log.Info("secretToKbsConfigMapper")
+		secret, ok := o.(*corev1.Secret)
+		if !ok {
+			log.Info("Expected a Secret, but got another type", "objectType", o.GetObjectKind())
+			return nil
+		}
+		// Get the KbsConfig object
+		kbsConfigList := &confidentialcontainersorgv1alpha1.KbsConfigList{}
+		err := c.List(ctx, kbsConfigList, client.InNamespace(secret.Namespace))
+		if err != nil {
+			log.Info("Error in listing KbsConfig", "err", err)
+			return nil
+		}
+
+		log.Info("Checking KbsConfig", "Secret.Name", secret.Name, "KbsConfigList", kbsConfigList.Items)
+
+		var requests []reconcile.Request
+		for _, kbsConfig := range kbsConfigList.Items {
+			if kbsConfig.Spec.KbsAuthSecretName == secret.Name ||
+				kbsConfig.Spec.KbsHttpsKeySecretName == secret.Name ||
+				kbsConfig.Spec.KbsHttpsCertSecretName == secret.Name ||
+				kbsConfig.Spec.KbsSecretResources != nil && contains(kbsConfig.Spec.KbsSecretResources, secret.Name) {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: kbsConfig.Namespace,
+						Name:      kbsConfig.Name,
+					},
+				})
+			}
+		}
+		return requests
+	}
+
+	return mapperFunc, nil
 }
 
 // namespacePredicate is a custom predicate function that filters resources based on the namespace.
@@ -675,5 +756,6 @@ func namespacePredicate(namespace string) predicate.Predicate {
 
 // isResourceInNamespace checks if the resource is in the specified namespace.
 func isResourceInNamespace(obj metav1.Object, namespace string) bool {
+
 	return obj.GetNamespace() == namespace
 }
