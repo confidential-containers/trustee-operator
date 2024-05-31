@@ -1,4 +1,4 @@
-module github.com/confidential-containers/kbs-operator
+module github.com/confidential-containers/trustee-operator
 
 go 1.21
 
