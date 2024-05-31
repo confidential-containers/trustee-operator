@@ -6,8 +6,8 @@ metadata:
     app.kubernetes.io/name: namespace
     app.kubernetes.io/instance: system
     app.kubernetes.io/component: manager
-    app.kubernetes.io/created-by: kbs-operator
-    app.kubernetes.io/part-of: kbs-operator
+    app.kubernetes.io/created-by: trustee-operator
+    app.kubernetes.io/part-of: trustee-operator
     app.kubernetes.io/managed-by: kustomize
     pod-security.kubernetes.io/audit: privileged
     pod-security.kubernetes.io/enforce: privileged
@@ -24,8 +24,8 @@ metadata:
     app.kubernetes.io/name: deployment
     app.kubernetes.io/instance: controller-manager
     app.kubernetes.io/component: manager
-    app.kubernetes.io/created-by: kbs-operator
-    app.kubernetes.io/part-of: kbs-operator
+    app.kubernetes.io/created-by: trustee-operator
+    app.kubernetes.io/part-of: trustee-operator
     app.kubernetes.io/managed-by: kustomize
 spec:
   selector:

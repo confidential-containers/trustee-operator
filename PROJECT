@@ -8,8 +8,8 @@ layout:
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
-projectName: kbs-operator
-repo: github.com/confidential-containers/kbs-operator
+projectName: trustee-operator
+repo: github.com/confidential-containers/trustee-operator
 resources:
 - api:
     crdVersion: v1
@@ -17,6 +17,6 @@ resources:
   controller: true
   domain: confidentialcontainers.org
   kind: KbsConfig
-  path: github.com/confidential-containers/kbs-operator/api/v1alpha1
+  path: github.com/confidential-containers/trustee-operator/api/v1alpha1
   version: v1alpha1
 version: "3"

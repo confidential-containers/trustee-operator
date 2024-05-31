@@ -4,7 +4,7 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Basic Install
-  name: kbs-operator.v0.0.0
+  name: trustee-operator.v0.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -34,13 +34,13 @@ spec:
   - supported: true
     type: AllNamespaces
   keywords:
-  - kbs
-  - kbs-operator
+  - trustee
+  - trustee-operator
   - attestation-service
   - rvps
   links:
   - name: Kbs Operator
-    url: https://github.com/confidential-containers/kbs-operator
+    url: https://github.com/confidential-containers/trustee-operator
   maintainers:
   - email: cncf-ccontainers-maintainers@lists.cncf.io
     name: Pradipta Banerjee
