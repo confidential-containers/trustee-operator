@@ -138,7 +138,7 @@ spec:
           - subjectaccessreviews
           verbs:
           - create
-        serviceAccountName: kbs-operator-controller-manager
+        serviceAccountName: trustee-operator-controller-manager
       deployments:
       - label:
           app.kubernetes.io/component: manager
@@ -148,7 +148,7 @@ spec:
           app.kubernetes.io/name: deployment
           app.kubernetes.io/part-of: trustee-operator
           control-plane: controller-manager
-        name: kbs-operator-controller-manager
+        name: trustee-operator-controller-manager
         spec:
           replicas: 1
           selector:
@@ -247,7 +247,7 @@ spec:
                     - ALL
               securityContext:
                 runAsNonRoot: true
-              serviceAccountName: kbs-operator-controller-manager
+              serviceAccountName: trustee-operator-controller-manager
               terminationGracePeriodSeconds: 10
       permissions:
       - rules:
@@ -282,7 +282,7 @@ spec:
           verbs:
           - create
           - patch
-        serviceAccountName: kbs-operator-controller-manager
+        serviceAccountName: trustee-operator-controller-manager
     strategy: deployment
   installModes:
   - supported: false

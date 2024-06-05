@@ -4,6 +4,6 @@ kind: Kustomization
 nameSuffix: -sample
 
 resources:
-  - microservices
-# - all-in-one
+ - microservices
+ #- all-in-one
 

@@ -22,7 +22,7 @@ const (
 	KbsFinalizerName = "kbsconfig.confidentialcontainers.org/finalizer"
 
 	// KBS Deployment name
-	KbsDeploymentName = "kbs-deployment"
+	KbsDeploymentName = "trustee-deployment"
 
 	// KBS operator default namespace
 	KbsOperatorNamespace = "kbs-operator-system"
