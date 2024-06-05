@@ -19,18 +19,15 @@ metadata:
             "namespace": "kbs-operator-system"
           },
           "spec": {
-            "kbsAsConfigMapName": "as-config-grpc",
             "kbsAuthSecretName": "kbs-auth-public-key",
-            "kbsConfigMapName": "kbs-config-grpc",
-            "kbsDeploymentType": "MicroservicesDeployment",
-            "kbsRvpsConfigMapName": "rvps-config-grpc",
-            "kbsRvpsRefValuesConfigMapName": "rvps-reference-values",
-            "kbsServiceType": "ClusterIP"
+            "kbsConfigMapName": "kbs-config",
+            "kbsDeploymentType": "AllInOneDeployment",
+            "kbsRvpsRefValuesConfigMapName": "rvps-reference-values"
           }
         }
       ]
     capabilities: Basic Install
-    createdAt: "2024-04-29T09:43:48Z"
+    createdAt: "2024-06-05T08:47:27Z"
     operators.operatorframework.io/builder: operator-sdk-v1.33.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: trustee-operator.v0.0.1
