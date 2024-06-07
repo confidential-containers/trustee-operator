@@ -27,10 +27,13 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2024-06-05T08:47:27Z"
+    categories: "Security"
+    containerImage: quay.io/confidential-containers/trustee-operator:v0.1.0
+    createdAt: "2024-06-07T10:06:06Z"
+    support: "Confidential Containers Community"
     operators.operatorframework.io/builder: operator-sdk-v1.33.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: trustee-operator.v0.0.1
+  name: trustee-operator.v0.1.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -211,12 +214,12 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: KBS_IMAGE_NAME
-                  value: ghcr.io/confidential-containers/staged-images/kbs-grpc-as:latest
+                  value: quay.io/confidential-containers/trustee:290fd0eb64ab20f50efbd27cf80542851c0ee17f
                 - name: AS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/rvps:latest
-                image: quay.io/confidential-containers/kbs-operator:latest
+                image: quay.io/confidential-containers/trustee-operator:v0.1.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -303,8 +306,10 @@ spec:
     name: Pradipta Banerjee
   - email: cncf-ccontainers-maintainers@lists.cncf.io
     name: Jens Freimann
+  - email: lmilleri@redhat.com
+    name: Leonardo Milleri
   maturity: alpha
   provider:
     name: Confidential Containers Community
     url: https://github.com/confidential-containers
-  version: 0.0.1
+  version: 0.1.0
