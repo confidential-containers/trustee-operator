@@ -6,8 +6,8 @@ metadata:
     app.kubernetes.io/name: clusterrole
     app.kubernetes.io/instance: kbsconfig-viewer-role
     app.kubernetes.io/component: rbac
-    app.kubernetes.io/created-by: kbs-operator
-    app.kubernetes.io/part-of: kbs-operator
+    app.kubernetes.io/created-by: trustee-operator
+    app.kubernetes.io/part-of: trustee-operator
     app.kubernetes.io/managed-by: kustomize
   name: kbsconfig-viewer-role
 rules:
