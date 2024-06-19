@@ -46,6 +46,9 @@ type KbsConfigSpec struct {
 
   // KbsSecretResources is an array of secret names that contain the keys required by clients
   KbsSecretResources []string `json:"kbsSecretResources,omitempty"`
+
+// kbsResourcePolicyConfigMapName is the name of the configmap that contains the Resource Policy
+	KbsResourcePolicyConfigMapName string `json:"kbsResourcePolicyConfigMapName,omitempty"`
 }
 ```
 
@@ -133,6 +136,8 @@ spec:
   kbsHttpsCertSecretName: kbs-https-certificate
   # K8s Secrets to be made available to KBS clients
   kbsSecretResources: ["kbsres1"]
+  # Resource policy
+  kbsResourcePolicyConfigMapName: resource-policy
 ```
 
 ## Getting Started

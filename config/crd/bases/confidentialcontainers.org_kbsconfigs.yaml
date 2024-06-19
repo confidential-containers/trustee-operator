@@ -66,6 +66,10 @@ spec:
                 description: KbsHttpsKeySecretName is the name of the secret that
                   contains the KBS https private key
                 type: string
+              kbsResourcePolicyConfigMapName:
+                description: kbsResourcePolicyConfigMapName is the name of the configmap
+                  that contains the Resource Policy
+                type: string
               kbsRvpsConfigMapName:
                 description: KbsRvpsConfigMapName is the name of the configmap that
                   contains the KBS RVPS configuration

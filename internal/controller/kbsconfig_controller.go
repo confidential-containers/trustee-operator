@@ -358,6 +358,15 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	volumes = append(volumes, *volume)
 	kbsVM = append(kbsVM, volumeMount)
 
+	// resource policy
+	volume, err = r.createConfigMapVolume(ctx, "opa", r.kbsConfig.Spec.KbsResourcePolicyConfigMapName)
+	if err != nil {
+		return nil, err
+	}
+	volumeMount = createVolumeMount(volume.Name, filepath.Join(confidentialContainersPath, volume.Name))
+	volumes = append(volumes, *volume)
+	kbsVM = append(kbsVM, volumeMount)
+
 	// auth-secret
 	volume, err = r.createSecretVolume(ctx, "auth-secret", r.kbsConfig.Spec.KbsAuthSecretName)
 	if err != nil {
@@ -680,7 +689,8 @@ func configMapToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFu
 			if kbsConfig.Spec.KbsConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsAsConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsRvpsConfigMapName == configMap.Name ||
-				kbsConfig.Spec.KbsRvpsRefValuesConfigMapName == configMap.Name {
+				kbsConfig.Spec.KbsRvpsRefValuesConfigMapName == configMap.Name ||
+				kbsConfig.Spec.KbsResourcePolicyConfigMapName == configMap.Name {
 
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{

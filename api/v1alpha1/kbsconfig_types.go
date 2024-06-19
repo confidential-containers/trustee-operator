@@ -73,6 +73,9 @@ type KbsConfigSpec struct {
 
 	// KbsSecretResources is an array of secret names that contain the keys required by clients
 	KbsSecretResources []string `json:"kbsSecretResources,omitempty"`
+
+	// kbsResourcePolicyConfigMapName is the name of the configmap that contains the Resource Policy
+	KbsResourcePolicyConfigMapName string `json:"kbsResourcePolicyConfigMapName,omitempty"`
 }
 
 // KbsConfigStatus defines the observed state of KbsConfig
