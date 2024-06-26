@@ -122,3 +122,11 @@ func createVolumeMount(volumeName string, mountPath string) corev1.VolumeMount {
 		MountPath: mountPath,
 	}
 }
+
+func createVolumeMountWithSubpath(volumeName string, mountPath string, subPath string) corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: mountPath,
+		SubPath:   subPath,
+	}
+}

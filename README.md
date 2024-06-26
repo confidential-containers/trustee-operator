@@ -47,8 +47,17 @@ type KbsConfigSpec struct {
   // KbsSecretResources is an array of secret names that contain the keys required by clients
   KbsSecretResources []string `json:"kbsSecretResources,omitempty"`
 
-// kbsResourcePolicyConfigMapName is the name of the configmap that contains the Resource Policy
-	KbsResourcePolicyConfigMapName string `json:"kbsResourcePolicyConfigMapName,omitempty"`
+  // kbsResourcePolicyConfigMapName is the name of the configmap that contains the Resource Policy
+  KbsResourcePolicyConfigMapName string `json:"kbsResourcePolicyConfigMapName,omitempty"`
+
+  // tdxConfigSpec is the struct that hosts the TDX specific configuration
+  TdxConfigSpec TdxConfigSpec `json:"tdxConfigSpec,omitempty"`
+}
+
+// TdxConfigSpec defines the desired state for TDX configuration
+type TdxConfigSpec struct {
+  // kbsTdxConfigMapName is the name of the configmap containing sgx_default_qcnl.conf file
+  KbsTdxConfigMapName string `json:"kbsTdxConfigMapName,omitempty"`
 }
 ```
 
@@ -138,6 +147,8 @@ spec:
   kbsSecretResources: ["kbsres1"]
   # Resource policy
   kbsResourcePolicyConfigMapName: resource-policy
+  # TDX configuration file
+  kbsTdxConfigMapName: tdx-config
 ```
 
 ## Getting Started

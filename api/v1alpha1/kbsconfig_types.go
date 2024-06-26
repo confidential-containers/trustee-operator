@@ -36,6 +36,12 @@ const (
 	DeploymentTypeMicroservices DeploymentType = "MicroservicesDeployment"
 )
 
+// TdxConfigSpec defines the desired state for TDX configuration
+type TdxConfigSpec struct {
+	// kbsTdxConfigMapName is the name of the configmap containing sgx_default_qcnl.conf file
+	KbsTdxConfigMapName string `json:"kbsTdxConfigMapName,omitempty"`
+}
+
 // KbsConfigSpec defines the desired state of KbsConfig
 type KbsConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -76,6 +82,9 @@ type KbsConfigSpec struct {
 
 	// kbsResourcePolicyConfigMapName is the name of the configmap that contains the Resource Policy
 	KbsResourcePolicyConfigMapName string `json:"kbsResourcePolicyConfigMapName,omitempty"`
+
+	// tdxConfigSpec is the struct that hosts the TDX specific configuration
+	TdxConfigSpec TdxConfigSpec `json:"tdxConfigSpec,omitempty"`
 }
 
 // KbsConfigStatus defines the observed state of KbsConfig

@@ -87,6 +87,15 @@ spec:
               kbsServiceType:
                 description: KbsServiceType is the type of service to create for KBS
                 type: string
+              tdxConfigSpec:
+                description: tdxConfigSpec is the struct that hosts the TDX specific
+                  configuration
+                properties:
+                  kbsTdxConfigMapName:
+                    description: kbsTdxConfigMapName is the name of the configmap
+                      containing sgx_default_qcnl.conf file
+                    type: string
+                type: object
             type: object
           status:
             description: KbsConfigStatus defines the observed state of KbsConfig
