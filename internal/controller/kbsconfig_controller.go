@@ -333,7 +333,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	// are mounted as a RW volume in memory to allow trustee components
 	// to have full access to the filesystem
 	// confidential-containers
-	volume, err := r.createConfidentialContainersVolume(confidentialContainers)
+	volume, err := r.createEmptyDirVolume(confidentialContainers)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +341,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	volumeMount := createVolumeMount(volume.Name, filepath.Join(rootPath, volume.Name))
 	kbsVM = append(kbsVM, volumeMount)
 	// default repo
-	volume, err = r.createDefaultRepositoryVolume(defaultRepository)
+	volume, err = r.createEmptyDirVolume(defaultRepository)
 	if err != nil {
 		return nil, err
 	}
