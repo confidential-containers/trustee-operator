@@ -350,7 +350,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	kbsVM = append(kbsVM, volumeMount)
 
 	// kbs-config
-	volume, err = r.createKbsConfigMapVolume(ctx, "kbs-config")
+	volume, err = r.createConfigMapVolume(ctx, "kbs-config", r.kbsConfig.Spec.KbsConfigMapName)
 	if err != nil {
 		return nil, err
 	}
@@ -358,8 +358,17 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	volumes = append(volumes, *volume)
 	kbsVM = append(kbsVM, volumeMount)
 
+	// resource policy
+	volume, err = r.createConfigMapVolume(ctx, "opa", r.kbsConfig.Spec.KbsResourcePolicyConfigMapName)
+	if err != nil {
+		return nil, err
+	}
+	volumeMount = createVolumeMount(volume.Name, filepath.Join(confidentialContainersPath, volume.Name))
+	volumes = append(volumes, *volume)
+	kbsVM = append(kbsVM, volumeMount)
+
 	// auth-secret
-	volume, err = r.createAuthSecretVolume(ctx, "auth-secret")
+	volume, err = r.createSecretVolume(ctx, "auth-secret", r.kbsConfig.Spec.KbsAuthSecretName)
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +379,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	// https
 	// TBD: Make https as must going forward
 	if r.isHttpsConfigPresent() {
-		volume, err = r.createHttpsKeyVolume(ctx, "https-key")
+		volume, err = r.createSecretVolume(ctx, "https-key", r.kbsConfig.Spec.KbsHttpsKeySecretName)
 		if err != nil {
 			return nil, err
 		}
@@ -378,7 +387,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
 		kbsVM = append(kbsVM, volumeMount)
 
-		volume, err = r.createHttpsCertVolume(ctx, "https-cert")
+		volume, err = r.createSecretVolume(ctx, "https-cert", r.kbsConfig.Spec.KbsHttpsCertSecretName)
 		if err != nil {
 			return nil, err
 		}
@@ -399,7 +408,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	}
 
 	// reference-values
-	volume, err = r.createRvpsRefValuesConfigMapVolume(ctx, "reference-values")
+	volume, err = r.createConfigMapVolume(ctx, "reference-values", r.kbsConfig.Spec.KbsRvpsRefValuesConfigMapName)
 	if err != nil {
 		return nil, err
 	}
@@ -413,7 +422,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		rvpsVM = append(rvpsVM, volumeMount)
 
 		// as-config
-		volume, err = r.createAsConfigMapVolume(ctx, "as-config")
+		volume, err = r.createConfigMapVolume(ctx, "as-config", r.kbsConfig.Spec.KbsAsConfigMapName)
 		if err != nil {
 			return nil, err
 		}
@@ -422,7 +431,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		asVM = append(asVM, volumeMount)
 
 		// rvps-config
-		volume, err = r.processRvpsConfigMapVolume(ctx, "rvps-config")
+		volume, err = r.createConfigMapVolume(ctx, "rvps-config", r.kbsConfig.Spec.KbsRvpsConfigMapName)
 		if err != nil {
 			return nil, err
 		}
@@ -680,7 +689,8 @@ func configMapToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFu
 			if kbsConfig.Spec.KbsConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsAsConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsRvpsConfigMapName == configMap.Name ||
-				kbsConfig.Spec.KbsRvpsRefValuesConfigMapName == configMap.Name {
+				kbsConfig.Spec.KbsRvpsRefValuesConfigMapName == configMap.Name ||
+				kbsConfig.Spec.KbsResourcePolicyConfigMapName == configMap.Name {
 
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{

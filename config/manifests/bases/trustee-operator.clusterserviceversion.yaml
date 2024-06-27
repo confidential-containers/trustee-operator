@@ -4,6 +4,9 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Basic Install
+    categories: Security
+    containerImage: quay.io/confidential-containers/trustee-operator:v0.1.0
+    support: Confidential Containers Community
   name: trustee-operator.v0.0.0
   namespace: placeholder
 spec:
@@ -46,6 +49,8 @@ spec:
     name: Pradipta Banerjee
   - email: cncf-ccontainers-maintainers@lists.cncf.io
     name: Jens Freimann
+  - email: lmilleri@redhat.com
+    name: Leonardo Milleri
   maturity: alpha
   provider:
     name: Confidential Containers Community

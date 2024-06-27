@@ -20,6 +20,7 @@ generatorOptions:
 
 patches:
 - path: patch-ref-values.yaml
+- path: patch-resource-policy.yaml
 # uncomment the following line for injecting sample resources in kbs
 #- path: patch-kbs-resources.yaml
 
@@ -29,4 +30,5 @@ resources:
 - as-config.yaml
 - rvps-config.yaml
 - rvps-reference-values.yaml
+- resource-policy.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
