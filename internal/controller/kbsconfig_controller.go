@@ -359,22 +359,26 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	kbsVM = append(kbsVM, volumeMount)
 
 	// resource policy
-	volume, err = r.createConfigMapVolume(ctx, "opa", r.kbsConfig.Spec.KbsResourcePolicyConfigMapName)
-	if err != nil {
-		return nil, err
+	if r.kbsConfig.Spec.KbsResourcePolicyConfigMapName != "" {
+		volume, err = r.createConfigMapVolume(ctx, "opa", r.kbsConfig.Spec.KbsResourcePolicyConfigMapName)
+		if err != nil {
+			return nil, err
+		}
+		volumeMount = createVolumeMount(volume.Name, filepath.Join(confidentialContainersPath, volume.Name))
+		volumes = append(volumes, *volume)
+		kbsVM = append(kbsVM, volumeMount)
 	}
-	volumeMount = createVolumeMount(volume.Name, filepath.Join(confidentialContainersPath, volume.Name))
-	volumes = append(volumes, *volume)
-	kbsVM = append(kbsVM, volumeMount)
 
 	// TDX specific configuration
-	volume, err = r.createConfigMapVolume(ctx, "tdx-config", r.kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName)
-	if err != nil {
-		return nil, err
+	if r.kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName != "" {
+		volume, err = r.createConfigMapVolume(ctx, "tdx-config", r.kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName)
+		if err != nil {
+			return nil, err
+		}
+		volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(kbsDefaultConfigPath, tdxConfigFile), tdxConfigFile)
+		volumes = append(volumes, *volume)
+		kbsVM = append(kbsVM, volumeMount)
 	}
-	volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(kbsDefaultConfigPath, tdxConfigFile), tdxConfigFile)
-	volumes = append(volumes, *volume)
-	kbsVM = append(kbsVM, volumeMount)
 
 	// auth-secret
 	volume, err = r.createSecretVolume(ctx, "auth-secret", r.kbsConfig.Spec.KbsAuthSecretName)
