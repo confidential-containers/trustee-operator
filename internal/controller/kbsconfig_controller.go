@@ -622,8 +622,16 @@ func (r *KbsConfigReconciler) isHttpsConfigPresent() bool {
 // updateKbsDeployment updates an existing deployment for the KBS instance
 // Errors are logged by the callee and hence no error is logged in this method
 func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deployment *appsv1.Deployment) error {
+	// re-generates the deployment
+	newDeployment, err := r.newKbsDeployment(ctx)
+	if err != nil {
+		return err
+	}
 
-	err := r.Client.Update(ctx, deployment)
+	// overwrites the template spec, if any changes
+	deployment.Spec.Template.Spec = *newDeployment.Spec.Template.Spec.DeepCopy()
+
+	err = r.Client.Update(ctx, deployment)
 	if err != nil {
 		return err
 	} else {
