@@ -39,6 +39,15 @@ spec:
           spec:
             description: KbsConfigSpec defines the desired state of KbsConfig
             properties:
+              ibmSEConfigSpec:
+                description: ibmSEConfigSpec is the struct that hosts the IBMSE specific
+                  configuration
+                properties:
+                  certStorePvc:
+                    description: certStorePvc is the name of the PeristentVolumeClaim
+                      where certificates/keys are mounted
+                    type: string
+                type: object
               kbsAsConfigMapName:
                 description: |-
                   KbsAsConfigMapName is the name of the configmap that contains the KBS AS configuration

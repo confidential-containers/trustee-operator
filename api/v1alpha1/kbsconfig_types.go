@@ -43,6 +43,13 @@ type TdxConfigSpec struct {
 	KbsTdxConfigMapName string `json:"kbsTdxConfigMapName,omitempty"`
 }
 
+// IbmSEConfigSpec defines the desired state for IBMSE configuration
+type IbmSEConfigSpec struct {
+	// certStorePvc is the name of the PeristentVolumeClaim where certificates/keys are mounted
+	// +optional
+	CertStorePvc string `json:"certStorePvc,omitempty"`
+}
+
 // KbsConfigSpec defines the desired state of KbsConfig
 type KbsConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -98,6 +105,10 @@ type KbsConfigSpec struct {
 	// tdxConfigSpec is the struct that hosts the TDX specific configuration
 	// +optional
 	TdxConfigSpec TdxConfigSpec `json:"tdxConfigSpec,omitempty"`
+
+	// ibmSEConfigSpec is the struct that hosts the IBMSE specific configuration
+	// +optional
+	IbmSEConfigSpec IbmSEConfigSpec `json:"ibmSEConfigSpec,omitempty"`
 }
 
 // KbsConfigStatus defines the observed state of KbsConfig

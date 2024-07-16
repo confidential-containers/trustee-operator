@@ -380,6 +380,17 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		kbsVM = append(kbsVM, volumeMount)
 	}
 
+	// IBMSE specific configuration
+	if r.kbsConfig.Spec.IbmSEConfigSpec.CertStorePvc != "" {
+		volume, err := r.createPVCVolume(ctx, r.kbsConfig.Spec.IbmSEConfigSpec.CertStorePvc)
+		if err != nil {
+			return nil, err
+		}
+		volumeMount = createVolumeMount(volume.Name, ibmSePath)
+		volumes = append(volumes, *volume)
+		kbsVM = append(kbsVM, volumeMount)
+	}
+
 	// auth-secret
 	volume, err = r.createSecretVolume(ctx, "auth-secret", r.kbsConfig.Spec.KbsAuthSecretName)
 	if err != nil {
