@@ -61,6 +61,17 @@ type KbsConfigSpec struct {
   // tdxConfigSpec is the struct that hosts the TDX specific configuration
   // +optional
   TdxConfigSpec TdxConfigSpec `json:"tdxConfigSpec,omitempty"`
+
+  // ibmSEConfigSpec is the struct that hosts the IBMSE specific configuration
+  // +optional
+  IbmSEConfigSpec IbmSEConfigSpec `json:"ibmSEConfigSpec,omitempty"`
+}
+
+// IbmSEConfigSpec defines the desired state for IBMSE configuration
+type IbmSEConfigSpec struct {
+  // certStorePvc is the name of the PeristentVolumeClaim where certificates/keys are mounted
+  // +optional
+  CertStorePvc string `json:"certStorePvc,omitempty"`
 }
 
 // TdxConfigSpec defines the desired state for TDX configuration
@@ -156,8 +167,12 @@ spec:
   kbsSecretResources: ["kbsres1"]
   # Resource policy
   kbsResourcePolicyConfigMapName: resource-policy
-  # TDX configuration file
-  kbsTdxConfigMapName: tdx-config
+  # TDX settings
+  tdxConfigSpec:
+    kbsTdxConfigMapName: tdx-config-sample
+  # IBMSE settings
+  ibmSEConfigSpec:
+    certStorePvc: ibmse-pvc
 ```
 
 ## Getting Started
@@ -241,6 +256,10 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
   ```
 
   It is also possible to create the K8s secrets (a commented out example is provided in the [kustomization.yaml](config/samples/microservices/kustomization.yaml)). To enable the secrets you'd need to uncomment the relevant secret generator entry and patch.
+
+### IBM Secure Execution
+
+For IBM SE specific configuration, please refer to [ibmse.md](docs/ibmse.md).
   
 ### Uninstall CRDs
 

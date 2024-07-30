@@ -132,3 +132,16 @@ func createVolumeMountWithSubpath(volumeName string, mountPath string, subPath s
 		SubPath:   subPath,
 	}
 }
+
+func (r *KbsConfigReconciler) createPVCVolume(ctx context.Context, volumeName string) (*corev1.Volume, error) {
+	volume := corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: volumeName,
+				ReadOnly:  true,
+			},
+		},
+	}
+	return &volume, nil
+}

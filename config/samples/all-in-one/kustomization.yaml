@@ -30,4 +30,6 @@ resources:
 - rvps-reference-values.yaml
 - resource-policy.yaml
 - tdx-config.yaml
+- ibmse-pv.yaml
+- ibmse-pvc.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
