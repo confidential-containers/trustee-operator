@@ -1,0 +1,30 @@
+apiVersion: v1
+data:
+  default.rego: "package policy\n\nimport future.keywords.every\n\ndefault allow =
+    false\n\nallow {\n  every k, v in input {\n    # `judge_field`: Traverse each
+    key value pair in the input and make policy judgments on it.\n    #\n    # For
+    each key value pair:\n    #\t* If there isn't a corresponding key in the reference:\n
+    \   #\t\tIt is considered that the current key value pair has passed the verification.\n
+    \   #\t* If there is a corresponding key in the reference:\n    #\t\tCall `match_value`
+    to further judge the value in input with the value in reference.\n    judge_field(k,
+    v)\n  }\n}\n\njudge_field(input_key, input_value) {\n  has_key(data.reference,
+    input_key)\n  reference_value := data.reference[input_key]\n\n  # `match_value`:
+    judge the value in input with the value in reference.\n  #\n  # * If the type
+    of reference value is not array:\n  #\t\tJudge whether input value and reference
+    value are equal。\n  # * If the type of reference value is array:\n  #\t\tCall
+    `array_include` to further judge the input value with the values in the array.\n
+    \ match_value(reference_value, input_value)\n}\n\njudge_field(input_key, input_value)
+    {\n  not has_key(data.reference, input_key)\n}\n\nmatch_value(reference_value,
+    input_value) {\n  not is_array(reference_value)\n  input_value == reference_value\n}\n\nmatch_value(reference_value,
+    input_value) {\n  is_array(reference_value)\n\n  # `array_include`: judge the
+    input value with the values in the array.\n  #\n  # * If the reference value array
+    is empty:\n  #\t\tIt is considered that the current input value has passed the
+    verification.\n  # * If the reference value array is not empty:\n  #\t\tJudge
+    whether there is a value equal to input value in the reference value array.\n
+    \ array_include(reference_value, input_value)\n}\n\narray_include(reference_value_array,
+    input_value) {\n  reference_value_array == []\n}\n\narray_include(reference_value_array,
+    input_value) {\n  reference_value_array != []\n  some i\n  reference_value_array[i]
+    == input_value\n}\n\nhas_key(m, k) {\n  _ = m[k]\n}\n"
+kind: ConfigMap
+metadata:
+  name: attestation-policy-sample

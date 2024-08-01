@@ -54,15 +54,19 @@ type KbsConfigSpec struct {
   // +optional
   KbsSecretResources []string `json:"kbsSecretResources,omitempty"`
 
-  // kbsResourcePolicyConfigMapName is the name of the configmap that contains the Resource Policy
+  // KbsAttestationPolicyConfigMapName is the name of the configmap that contains the Attestation Policy
+  // +optional
+  KbsAttestationPolicyConfigMapName string `json:"kbsAttestationPolicyConfigMapName,omitempty"`
+
+  // KbsResourcePolicyConfigMapName is the name of the configmap that contains the Resource Policy
   // +optional
   KbsResourcePolicyConfigMapName string `json:"kbsResourcePolicyConfigMapName,omitempty"`
 
-  // tdxConfigSpec is the struct that hosts the TDX specific configuration
+  // TdxConfigSpec is the struct that hosts the TDX specific configuration
   // +optional
   TdxConfigSpec TdxConfigSpec `json:"tdxConfigSpec,omitempty"`
 
-  // ibmSEConfigSpec is the struct that hosts the IBMSE specific configuration
+  // IbmSEConfigSpec is the struct that hosts the IBMSE specific configuration
   // +optional
   IbmSEConfigSpec IbmSEConfigSpec `json:"ibmSEConfigSpec,omitempty"`
 }
@@ -165,6 +169,8 @@ spec:
   kbsHttpsCertSecretName: kbs-https-certificate
   # K8s Secrets to be made available to KBS clients
   kbsSecretResources: ["kbsres1"]
+  # Attestation policy
+  kbsAttestationPolicyConfigMapName: attestation-policy
   # Resource policy
   kbsResourcePolicyConfigMapName: resource-policy
   # TDX settings
