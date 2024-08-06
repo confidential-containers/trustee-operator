@@ -54,7 +54,10 @@ spec:
             - key: node-role.kubernetes.io/worker
               operator: Exists
 ```
-Note: the `path` has to match a local directory on the worker node.
+**Note:** the `path` has to match a local directory on the worker node, and the correct permission for this directory must be set:
+```bash
+sudo chmod -R 755 /opt/confidential-containers/ibmse/
+```
 
 PersistentVolumeClaim:
 
@@ -73,6 +76,50 @@ spec:
       storage: 100Mi
 ```
 
+## KBS with ibmse specific configuration
+- Please update the `ibmse-attestation-policy` configmap with correct values
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ibmse-attestation-policy
+  namespace: kbs-operator-system
+data:
+  default.rego: |
+    package policy
+    import rego.v1
+    default allow = false
+    converted_version := sprintf("%v", [input["se.version"]])
+
+    allow if {
+        input["se.attestation_phkh"] == "<se.attestation_phkh>"
+        input["se.image_phkh"] == "<se.image_phkh>"
+        input["se.tag"] == "<se.tag>"
+        input["se.user_data"] == "00"
+        converted_version == "256"
+    }
+```
+**Note:** Retrieve the IBM SE fields `<se.attestation_phkh>`, `<se.image_phkh>` and `<se.tag>` for attestation policy from [here](https://github.com/confidential-containers/trustee/blob/main/deps/verifier/src/se/README.md#set-attestation-policy)
+
+- Please check the `ibmse-resource-policy` configmap
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ibmse-resource-policy
+  namespace: kbs-operator-system
+data:
+  policy.rego: |
+    package policy
+    default allow = false
+    path := split(data["resource-path"], "/")
+
+    allow {
+      count(path) == 3
+      input["tee"] == "se"
+    }
+```
+
 ## KBS config CRD
 
 For enabling IBM specific configuration in trustee pod, the `KbsConfig` custom resource should have the `ibmSEConfigSpec` section populated as in the following example:
@@ -86,10 +133,23 @@ metadata:
 spec:
   # omitted all the rest of config
   # ...
-
+  kbsAttestationPolicyConfigMapName: ibmse-attestation-policy
+  kbsResourcePolicyConfigMapName: ibmse-resource-policy
+  kbsServiceType: NodePort
   # IBMSE settings
   ibmSEConfigSpec:
     certStorePvc: ibmse-pvc
 ```
+**Note:**
 
-The `certStorePvc` has to match the aforementioned PVC name.
+- The `kbsAttestationPolicyConfigMapName` has to use `ibmse-attestation-policy` instead of default `attestation-policy`.
+- The `kbsResourcePolicyConfigMapName` has to use `ibmse-resource-policy` instead of default `resource-policy`.
+- The `certStorePvc` has to match the aforementioned PVC name.
+- if the https is enabled, please make sure include the worker node ips to the `[alt_names]` section, here is the document about how to [generate a self signed certificate](https://github.com/confidential-containers/trustee/blob/main/kbs/docs/self-signed-https.md#generate-a-self-signed-certificate)
+  ```yaml
+  ...
+  [alt_names]
+  DNS.1 = kbs-service
+  IP.1 = <ocp-worker-node-0-ip>
+  IP.2 = <ocp-worker-node-1-ip>
+  ```

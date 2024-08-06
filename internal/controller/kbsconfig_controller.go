@@ -358,6 +358,18 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	volumes = append(volumes, *volume)
 	kbsVM = append(kbsVM, volumeMount)
 
+	// attestation policy
+	if r.kbsConfig.Spec.KbsAttestationPolicyConfigMapName != "" {
+		volume, err = r.createConfigMapVolume(ctx, "attestation-opa", r.kbsConfig.Spec.KbsAttestationPolicyConfigMapName)
+		if err != nil {
+			return nil, err
+		}
+		// attestation policy file is "/opt/confidential-containers/attestation-service/opa/default.rego"
+		volumeMount = createVolumeMount(volume.Name, filepath.Join(confidentialContainersPath, "attestation-service", "opa"))
+		volumes = append(volumes, *volume)
+		kbsVM = append(kbsVM, volumeMount)
+	}
+
 	// resource policy
 	if r.kbsConfig.Spec.KbsResourcePolicyConfigMapName != "" {
 		volume, err = r.createConfigMapVolume(ctx, "opa", r.kbsConfig.Spec.KbsResourcePolicyConfigMapName)
@@ -722,6 +734,7 @@ func configMapToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFu
 				kbsConfig.Spec.KbsAsConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsRvpsConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsRvpsRefValuesConfigMapName == configMap.Name ||
+				kbsConfig.Spec.KbsAttestationPolicyConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsResourcePolicyConfigMapName == configMap.Name ||
 				kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName == configMap.Name {
 

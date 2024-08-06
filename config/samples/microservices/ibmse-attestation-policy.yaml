@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ibmse-attestation-policy
+  namespace: kbs-operator-system
+data:
+  default.rego: |
+    package policy
+    import rego.v1
+    default allow = false
+    converted_version := sprintf("%v", [input["se.version"]])
+
+    allow if {
+        input["se.attestation_phkh"] == "<se.attestation_phkh>"
+        input["se.image_phkh"] == "<se.image_phkh>"
+        input["se.tag"] == "<se.tag>"
+        input["se.user_data"] == "00"
+        converted_version == "256"
+    }

@@ -40,7 +40,7 @@ spec:
             description: KbsConfigSpec defines the desired state of KbsConfig
             properties:
               ibmSEConfigSpec:
-                description: ibmSEConfigSpec is the struct that hosts the IBMSE specific
+                description: IbmSEConfigSpec is the struct that hosts the IBMSE specific
                   configuration
                 properties:
                   certStorePvc:
@@ -52,6 +52,10 @@ spec:
                 description: |-
                   KbsAsConfigMapName is the name of the configmap that contains the KBS AS configuration
                   Required only when MicroservicesDeployment is set
+                type: string
+              kbsAttestationPolicyConfigMapName:
+                description: KbsAttestationPolicyConfigMapName is the name of the
+                  configmap that contains the Attestation Policy
                 type: string
               kbsAuthSecretName:
                 description: KbsAuthSecretName is the name of the secret that contains
@@ -81,7 +85,7 @@ spec:
                   contains the KBS https private key
                 type: string
               kbsResourcePolicyConfigMapName:
-                description: kbsResourcePolicyConfigMapName is the name of the configmap
+                description: KbsResourcePolicyConfigMapName is the name of the configmap
                   that contains the Resource Policy
                 type: string
               kbsRvpsConfigMapName:
@@ -105,7 +109,7 @@ spec:
                   Default value is ClusterIP
                 type: string
               tdxConfigSpec:
-                description: tdxConfigSpec is the struct that hosts the TDX specific
+                description: TdxConfigSpec is the struct that hosts the TDX specific
                   configuration
                 properties:
                   kbsTdxConfigMapName:
