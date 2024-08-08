@@ -4,4 +4,5 @@ metadata:
   name: kbsconfig-sample
   namespace: kbs-operator-system
 spec:
-  kbsTdxConfigMapName: tdx-config
+  tdxConfigSpec:
+    kbsTdxConfigMapName: tdx-config
