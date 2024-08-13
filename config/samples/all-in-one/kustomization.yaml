@@ -24,6 +24,8 @@ patches:
 - path: patch-tdx-config.yaml
 # uncomment the following line for injecting sample resources in kbs
 #- path: patch-kbs-resources.yaml
+# uncomment the following line for enabling DEBUG logs
+# - path: patch-env-vars.yaml
 
 resources:
 - kbsconfig_sample.yaml

@@ -218,6 +218,8 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
 
   It is recommended to uncomment the secret generation for the trustee authorization in the  [kustomization.yaml](config/samples/microservices/kustomization.yaml), for both public and private key (`kbs-auth-public-key` and `kbs-client` secrets)
 
+  For enabling logs with DEBUG severity, uncomment the `patch-env-vars.yaml` line in the  [kustomization.yaml](config/samples/microservices/kustomization.yaml).
+
   ```sh
   cd config/samples/microservices
   # or config/samples/all-in-one for the integrated mode
