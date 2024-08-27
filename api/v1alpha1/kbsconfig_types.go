@@ -113,6 +113,11 @@ type KbsConfigSpec struct {
 	// IbmSEConfigSpec is the struct that hosts the IBMSE specific configuration
 	// +optional
 	IbmSEConfigSpec IbmSEConfigSpec `json:"ibmSEConfigSpec,omitempty"`
+
+	// KbsEnvVars injects environment variables in the trustee pods
+	// For example, RUST_LOG=debug enables logging with DEBUG severity
+	// +optional
+	KbsEnvVars map[string]string `json:"KbsEnvVars,omitempty"`
 }
 
 // KbsConfigStatus defines the observed state of KbsConfig

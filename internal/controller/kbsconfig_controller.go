@@ -477,13 +477,14 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	}
 
 	securityContext := createSecurityContext()
-	containers := []corev1.Container{r.buildKbsContainer(kbsVM, securityContext)}
+	env := buildEnvVars(r)
+	containers := []corev1.Container{r.buildKbsContainer(kbsVM, securityContext, env)}
 
 	if kbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices {
 		// build AS container
-		containers = append(containers, r.buildAsContainer(asVM, securityContext))
+		containers = append(containers, r.buildAsContainer(asVM, securityContext, env))
 		// build RVPS container
-		containers = append(containers, r.buildRvpsContainer(rvpsVM, securityContext))
+		containers = append(containers, r.buildRvpsContainer(rvpsVM, securityContext, env))
 	}
 
 	// Create the deployment
@@ -534,7 +535,7 @@ func createSecurityContext() *corev1.SecurityContext {
 	}
 }
 
-func (r *KbsConfigReconciler) buildAsContainer(volumeMounts []corev1.VolumeMount, securityContext *corev1.SecurityContext) corev1.Container {
+func (r *KbsConfigReconciler) buildAsContainer(volumeMounts []corev1.VolumeMount, securityContext *corev1.SecurityContext, env []corev1.EnvVar) corev1.Container {
 	asImageName := os.Getenv("AS_IMAGE_NAME")
 	if asImageName == "" {
 		asImageName = DefaultAsImageName
@@ -563,10 +564,11 @@ func (r *KbsConfigReconciler) buildAsContainer(volumeMounts []corev1.VolumeMount
 		SecurityContext: securityContext,
 		// Add volume mount for config
 		VolumeMounts: volumeMounts,
+		Env:          env,
 	}
 }
 
-func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMount, securityContext *corev1.SecurityContext) corev1.Container {
+func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMount, securityContext *corev1.SecurityContext, env []corev1.EnvVar) corev1.Container {
 	rvpsImageName := os.Getenv("RVPS_IMAGE_NAME")
 	if rvpsImageName == "" {
 		rvpsImageName = DefaultRvpsImageName
@@ -593,10 +595,11 @@ func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMou
 		SecurityContext: securityContext,
 		// Add volume mount for config
 		VolumeMounts: volumeMounts,
+		Env:          env,
 	}
 }
 
-func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMount, securityContext *corev1.SecurityContext) corev1.Container {
+func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMount, securityContext *corev1.SecurityContext, env []corev1.EnvVar) corev1.Container {
 	// Get Image Name from env variable if set
 	imageName := os.Getenv("KBS_IMAGE_NAME")
 	if imageName == "" {
@@ -624,15 +627,18 @@ func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMoun
 		SecurityContext: securityContext,
 		// Add volume mount for KBS config
 		VolumeMounts: volumeMounts,
-		/* TODO commented out because not configurable yet
-		Env: []corev1.EnvVar{
-			{
-				Name:  "RUST_LOG",
-				Value: "debug",
-			},
-		},
-		*/
+		Env:          env,
 	}
+}
+
+func buildEnvVars(r *KbsConfigReconciler) []corev1.EnvVar {
+	env := make([]corev1.EnvVar, 0)
+	if r.kbsConfig.Spec.KbsEnvVars != nil {
+		for k, v := range r.kbsConfig.Spec.KbsEnvVars {
+			env = append(env, corev1.EnvVar{Name: k, Value: v})
+		}
+	}
+	return env
 }
 
 func (r *KbsConfigReconciler) isHttpsConfigPresent() bool {

@@ -1,0 +1,14 @@
+apiVersion: v1
+data:
+  policy.rego: |
+    package policy
+    default allow = false
+    path := split(data["resource-path"], "/")
+
+    allow {
+      count(path) == 3
+      input["tee"] == "se"
+    }
+kind: ConfigMap
+metadata:
+  name: ibmse-resource-policy-sample
