@@ -18,7 +18,7 @@ package controllers
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,7 +38,7 @@ func (r *KbsConfigReconciler) createEmptyDirVolume(volumeName string) (*corev1.V
 
 func (r *KbsConfigReconciler) createSecretVolume(ctx context.Context, volumeName string, secretName string) (*corev1.Volume, error) {
 	if secretName == "" {
-		return nil, fmt.Errorf("Secret name hasn't been provided for volume " + volumeName)
+		return nil, errors.New("Secret name hasn't been provided for volume " + volumeName)
 	}
 
 	r.log.Info("Retrieving details for ", "Secret.Name", secretName, "Secret.Namespace", r.namespace)
@@ -92,7 +92,7 @@ func (r *KbsConfigReconciler) createKbsSecretResourcesVolume(ctx context.Context
 
 func (r *KbsConfigReconciler) createConfigMapVolume(ctx context.Context, volumeName string, configMapName string) (*corev1.Volume, error) {
 	if configMapName == "" {
-		return nil, fmt.Errorf("ConfigMap name hasn't been provided for volume " + volumeName)
+		return nil, errors.New("ConfigMap name hasn't been provided for volume " + volumeName)
 	}
 
 	r.log.Info("Retrieving details for ", "ConfigMap.Name", configMapName, "ConfigMap.Namespace", r.namespace)
