@@ -38,7 +38,7 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: ibmse-pv
-  namespace: kbs-operator-system
+  namespace: trustee-operator-system
 spec:
   capacity:
     storage: 100Mi
@@ -66,7 +66,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: ibmse-pvc
-  namespace: kbs-operator-system
+  namespace: trustee-operator-system
 spec:
   accessModes:
     - ReadOnlyMany
@@ -83,7 +83,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: ibmse-attestation-policy
-  namespace: kbs-operator-system
+  namespace: trustee-operator-system
 data:
   default.rego: |
     package policy
@@ -107,7 +107,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: ibmse-resource-policy
-  namespace: kbs-operator-system
+  namespace: trustee-operator-system
 data:
   policy.rego: |
     package policy
@@ -129,7 +129,7 @@ apiVersion: confidentialcontainers.org/v1alpha1
 kind: KbsConfig
 metadata:  
   name: kbsconfig-sample
-  namespace: kbs-operator-system
+  namespace: trustee-operator-system
 spec:
   # omitted all the rest of config
   # ...

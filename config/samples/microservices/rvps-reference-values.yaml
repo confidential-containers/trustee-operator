@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: rvps-reference-values
-  namespace: kbs-operator-system
+  namespace: trustee-operator-system
 data:
   reference-values.json: |
     [

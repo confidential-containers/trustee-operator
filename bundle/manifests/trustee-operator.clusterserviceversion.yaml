@@ -16,7 +16,7 @@ metadata:
               "app.kubernetes.io/part-of": "trustee-operator"
             },
             "name": "kbsconfig-sample-sample",
-            "namespace": "kbs-operator-system"
+            "namespace": "trustee-operator-system"
           },
           "spec": {
             "kbsAttestationPolicyConfigMapName": "attestation-policy",
@@ -34,7 +34,8 @@ metadata:
     capabilities: Basic Install
     categories: Security
     containerImage: quay.io/confidential-containers/trustee-operator:v0.1.0
-    createdAt: "2024-08-13T13:05:23Z"
+    createdAt: "2024-08-28T07:13:30Z"
+    operatorframework.io/suggested-namespace: trustee-operator-system
     operators.operatorframework.io/builder: operator-sdk-v1.33.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     support: Confidential Containers Community
@@ -290,13 +291,13 @@ spec:
         serviceAccountName: trustee-operator-controller-manager
     strategy: deployment
   installModes:
-  - supported: false
+  - supported: true
     type: OwnNamespace
-  - supported: false
+  - supported: true
     type: SingleNamespace
   - supported: false
     type: MultiNamespace
-  - supported: true
+  - supported: false
     type: AllNamespaces
   keywords:
   - trustee

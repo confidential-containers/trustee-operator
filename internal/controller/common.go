@@ -25,7 +25,7 @@ const (
 	KbsDeploymentName = "trustee-deployment"
 
 	// KBS operator default namespace
-	KbsOperatorNamespace = "kbs-operator-system"
+	KbsOperatorNamespace = "trustee-operator-system"
 
 	// Default KBS image name
 	DefaultKbsImageName = "ghcr.io/confidential-containers/key-broker-service:latest"

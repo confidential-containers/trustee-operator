@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: trustee-operator
   name: kbsconfig-sample
-  namespace: kbs-operator-system
+  namespace: trustee-operator-system
 spec:
   kbsConfigMapName: kbs-config
   kbsAuthSecretName: kbs-auth-public-key

@@ -1,5 +1,5 @@
 ## Append samples you want in your CSV to this file as resources ##
-namespace: kbs-operator-system
+namespace: trustee-operator-system
 generatorOptions:
   disableNameSuffixHash: true
 

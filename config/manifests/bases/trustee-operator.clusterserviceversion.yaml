@@ -6,6 +6,7 @@ metadata:
     capabilities: Basic Install
     categories: Security
     containerImage: quay.io/confidential-containers/trustee-operator:v0.1.0
+    operatorframework.io/suggested-namespace: trustee-operator-system
     support: Confidential Containers Community
   name: trustee-operator.v0.0.0
   namespace: placeholder
@@ -28,13 +29,13 @@ spec:
       deployments: null
     strategy: ""
   installModes:
-  - supported: false
+  - supported: true
     type: OwnNamespace
-  - supported: false
+  - supported: true
     type: SingleNamespace
   - supported: false
     type: MultiNamespace
-  - supported: true
+  - supported: false
     type: AllNamespaces
   keywords:
   - trustee
