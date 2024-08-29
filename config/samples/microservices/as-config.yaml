@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: as-config-grpc
-  namespace: kbs-operator-system
+  namespace: trustee-operator-system
 data:
   as-config.json: |
     {
