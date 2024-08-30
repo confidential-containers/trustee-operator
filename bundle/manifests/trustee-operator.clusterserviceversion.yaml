@@ -2,35 +2,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: |-
-      [
-        {
-          "apiVersion": "confidentialcontainers.org/v1alpha1",
-          "kind": "KbsConfig",
-          "metadata": {
-            "labels": {
-              "app.kubernetes.io/created-by": "trustee-operator",
-              "app.kubernetes.io/instance": "kbsconfig-sample",
-              "app.kubernetes.io/managed-by": "kustomize",
-              "app.kubernetes.io/name": "kbsconfig",
-              "app.kubernetes.io/part-of": "trustee-operator"
-            },
-            "name": "kbsconfig-sample-sample",
-            "namespace": "trustee-operator-system"
-          },
-          "spec": {
-            "kbsAttestationPolicyConfigMapName": "attestation-policy",
-            "kbsAuthSecretName": "kbs-auth-public-key",
-            "kbsConfigMapName": "kbs-config",
-            "kbsDeploymentType": "AllInOneDeployment",
-            "kbsResourcePolicyConfigMapName": "resource-policy",
-            "kbsRvpsRefValuesConfigMapName": "rvps-reference-values",
-            "tdxConfigSpec": {
-              "kbsTdxConfigMapName": "tdx-config"
-            }
-          }
-        }
-      ]
+    alm-examples: '[]'
     capabilities: Basic Install
     categories: Security
     containerImage: quay.io/confidential-containers/trustee-operator:v0.1.0
