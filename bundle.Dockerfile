@@ -18,3 +18,25 @@ LABEL operators.operatorframework.io.test.config.v1=tests/scorecard/
 COPY bundle/manifests /manifests/
 COPY bundle/metadata /metadata/
 COPY bundle/tests/scorecard /tests/scorecard/
+
+# Red Hat labels.
+
+ARG NAME=trustee-operator-bundle
+ARG DESCRIPTION="The Trustee operator bundle."
+
+LABEL com.redhat.component=$NAME
+LABEL description=$DESCRIPTION
+LABEL io.k8s.description=$DESCRIPTION
+LABEL io.k8s.display-name=$NAME
+LABEL name=$NAME
+LABEL summary=$DESCRIPTION
+LABEL distribution-scope=public
+LABEL release="1"
+LABEL url="https://access.redhat.com/"
+LABEL vendor="Red Hat, Inc."
+LABEL version="1"
+LABEL maintainer="Red Hat"
+
+# Licenses
+
+COPY LICENSE /licenses/LICENSE
