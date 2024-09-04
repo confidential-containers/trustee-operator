@@ -7,14 +7,14 @@ metadata:
     categories: "Security"
     containerImage: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9-operator@sha256:50e3c9afc3f3df29895a2a9221c35df8c0886f49ade4d0ca4ffd393c2064630c"
     createdAt: "2024-06-07T10:06:06Z"
+    support: "Confidential Containers Community"
     operatorframework.io/suggested-namespace: trustee-operator-system
     operators.operatorframework.io/builder: operator-sdk-v1.36.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-    support: Confidential Containers Community
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "false"
     features.operators.openshift.io/csi: "false"
-    features.operators.openshift.io/disconnected: "true"
+    features.operators.openshift.io/disconnected: "false"
     features.operators.openshift.io/fips-compliant: "false"
     features.operators.openshift.io/proxy-aware: "false"
     features.operators.openshift.io/tls-profiles: "false"
