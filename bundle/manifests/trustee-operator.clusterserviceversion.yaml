@@ -7,21 +7,21 @@ metadata:
     categories: "Security"
     containerImage: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9-operator@sha256:8d3f9ff13d73ed3d6f7d87948060f84a92e39b7917147d601a83339971d7db8b"
     createdAt: "2024-06-07T10:06:06Z"
-    support: "Confidential Containers Community"
     operatorframework.io/suggested-namespace: trustee-operator-system
     operators.operatorframework.io/builder: operator-sdk-v1.33.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "false"
     features.operators.openshift.io/csi: "false"
-    features.operators.openshift.io/disconnected: "false"
+    features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
     features.operators.openshift.io/proxy-aware: "false"
     features.operators.openshift.io/tls-profiles: "false"
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    operators.openshift.io/valid-subscription: '["OpenShift Container Platform"]'
+    operators.openshift.io/valid-subscription: '["OpenShift Container Platform", "OpenShift Platform Plus"]'
+    repository: https://github.com/openshift/trustee-operator
   name: trustee-operator.v0.1.0
   namespace: placeholder
 spec:
@@ -33,8 +33,8 @@ spec:
       kind: KbsConfig
       name: kbsconfigs.confidentialcontainers.org
       version: v1alpha1
-  description: Operator to manage the lifecycle of Trustee
-  displayName: Trustee Operator
+  description: Remote attestation operator for confidential containers
+  displayName: confidential compute attestation
   icon:
   - base64data: PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTguNTEgMjU4LjUxIj48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6I2QxZDFkMTt9LmNscy0ye2ZpbGw6IzhkOGQ4Zjt9PC9zdHlsZT48L2RlZnM+PHRpdGxlPkFzc2V0IDQ8L3RpdGxlPjxnIGlkPSJMYXllcl8yIiBkYXRhLW5hbWU9IkxheWVyIDIiPjxnIGlkPSJMYXllcl8xLTIiIGRhdGEtbmFtZT0iTGF5ZXIgMSI+PHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMTI5LjI1LDIwQTEwOS4xLDEwOS4xLDAsMCwxLDIwNi40LDIwNi40LDEwOS4xLDEwOS4xLDAsMSwxLDUyLjExLDUyLjExLDEwOC40NSwxMDguNDUsMCwwLDEsMTI5LjI1LDIwbTAtMjBoMEM1OC4xNiwwLDAsNTguMTYsMCwxMjkuMjVIMGMwLDcxLjA5LDU4LjE2LDEyOS4yNiwxMjkuMjUsMTI5LjI2aDBjNzEuMDksMCwxMjkuMjYtNTguMTcsMTI5LjI2LTEyOS4yNmgwQzI1OC41MSw1OC4xNiwyMDAuMzQsMCwxMjkuMjUsMFoiLz48cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Ik0xNzcuNTQsMTAzLjQxSDE0MS42NkwxNTQuOSw2NS43NmMxLjI1LTQuNC0yLjMzLTguNzYtNy4yMS04Ljc2SDEwMi45M2E3LjMyLDcuMzIsMCwwLDAtNy40LDZsLTEwLDY5LjYxYy0uNTksNC4xNywyLjg5LDcuODksNy40LDcuODloMzYuOUwxMTUuNTUsMTk3Yy0xLjEyLDQuNDEsMi40OCw4LjU1LDcuMjQsOC41NWE3LjU4LDcuNTgsMCwwLDAsNi40Ny0zLjQ4TDE4NCwxMTMuODVDMTg2Ljg2LDEwOS4yNCwxODMuMjksMTAzLjQxLDE3Ny41NCwxMDMuNDFaIi8+PC9nPjwvZz48L3N2Zz4=
     mediatype: image/svg+xml
@@ -284,21 +284,15 @@ spec:
     type: AllNamespaces
   keywords:
   - trustee
-  - trustee-operator
-  - attestation-service
-  - rvps
+  - Confidential Computing
+  - Attestation
   links:
-  - name: Trustee Operator
-    url: https://github.com/confidential-containers/trustee-operator
+  - name: confidential compute attestation
+    url: https://github.com/openshift/trustee-operator
   maintainers:
-  - email: cncf-ccontainers-maintainers@lists.cncf.io
-    name: Pradipta Banerjee
-  - email: cncf-ccontainers-maintainers@lists.cncf.io
-    name: Jens Freimann
-  - email: lmilleri@redhat.com
-    name: Leonardo Milleri
-  maturity: alpha
+  - email: support@redhat.com
+    name: Red Hat
+  maturity: beta
   provider:
-    name: Confidential Containers Community
-    url: https://github.com/confidential-containers
+    name: Red Hat
   version: 0.1.0
