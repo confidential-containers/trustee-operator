@@ -36,11 +36,11 @@ spec:
           script: |
             dnf -y install jq
             echo -e "Example test task for the Snapshot:\n ${SNAPSHOT}"
-            // Run custom tests for the given Snapshot here
-            // After the tests finish, record the overall result in the RESULT variable
+            # Run custom tests for the given Snapshot here
+            # After the tests finish, record the overall result in the RESULT variable
             RESULT="SUCCESS"
 
-            // Output the standardized TEST_OUTPUT result in JSON form
+            # Output the standardized TEST_OUTPUT result in JSON form
             TEST_OUTPUT=$(jq -rc --arg date $(date +%s) --arg RESULT "${RESULT}" --null-input \
               '{result: $RESULT, timestamp: $date, failures: 0, successes: 1, warnings: 0}')
             echo -n "${TEST_OUTPUT}" | tee $(results.TEST_OUTPUT.path)
