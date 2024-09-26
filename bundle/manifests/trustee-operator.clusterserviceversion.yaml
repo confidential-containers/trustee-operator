@@ -24,6 +24,10 @@ metadata:
     repository: https://github.com/openshift/trustee-operator
   name: trustee-operator.v0.1.0
   namespace: placeholder
+  labels:
+    operatorframework.io/os.linux: supported
+    operatorframework.io/arch.amd64: supported
+    operatorframework.io/arch.s390x: supported
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
