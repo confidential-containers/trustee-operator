@@ -192,7 +192,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: KBS_IMAGE_NAME
-                  value: quay.io/confidential-containers/trustee:290fd0eb64ab20f50efbd27cf80542851c0ee17f
+                  value: ghcr.io/confidential-containers/key-broker-service:v0.10.1
                 - name: AS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
