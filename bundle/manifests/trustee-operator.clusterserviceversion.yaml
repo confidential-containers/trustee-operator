@@ -5,7 +5,7 @@ metadata:
     alm-examples: '[]'
     capabilities: Basic Install
     categories: Security
-    containerImage: quay.io/confidential-containers/trustee-operator:v0.1.0
+    containerImage: quay.io/confidential-containers/trustee-operator:283a3d7860758f06784121a36266aa177adccd56
     createdAt: "2024-08-28T07:13:30Z"
     operatorframework.io/suggested-namespace: trustee-operator-system
     operators.operatorframework.io/builder: operator-sdk-v1.33.0
@@ -197,7 +197,7 @@ spec:
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/rvps:latest
-                image: quay.io/confidential-containers/trustee-operator:v0.1.0
+                image: quay.io/confidential-containers/trustee-operator:283a3d7860758f06784121a36266aa177adccd56
                 livenessProbe:
                   httpGet:
                     path: /healthz
