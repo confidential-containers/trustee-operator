@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kbs-config
+  namespace: trustee-operator-system
+data:
+  kbs-config.json: |
+    {
+        "insecure_http" : true,
+        "sockets": ["0.0.0.0:8080"],
+        "auth_public_key": "/etc/auth-secret/kbs.pem",
+        "attestation_token_config": {
+          "attestation_token_type": "Jwk",
+          "trusted_certs_paths": ["https://portal.trustauthority.intel.com"]
+        },
+        "repository_config": {
+          "type": "LocalFs",
+          "dir_path": "/opt/confidential-containers/kbs/repository"
+        },
+        "as_config": {
+          "work_dir": "/opt/confidential-containers/attestation-service",
+          "policy_engine": "opa",
+          "attestation_token_broker": "Simple",
+          "attestation_token_config": {
+            "duration_min": 5
+          },
+          "rvps_config": {
+            "store_type": "LocalJson",
+            "store_config": {
+              "file_path": "/opt/confidential-containers/rvps/reference-values/reference-values.json"
+            }
+          }
+        },
+        "policy_engine_config": {
+          "policy_path": "/opt/confidential-containers/opa/policy.rego"
+        },
+        "intel_trust_authority_config" : {
+          "base_url": "https://api.trustauthority.intel.com",
+          "api_key": "tBfd5kKX2x9ahbodKV1...",
+          "certs_file": "https://portal.trustauthority.intel.com"
+        }
+    }
