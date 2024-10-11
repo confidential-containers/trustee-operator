@@ -8,7 +8,7 @@ metadata:
     containerImage: quay.io/confidential-containers/trustee-operator:283a3d7860758f06784121a36266aa177adccd56
     createdAt: "2024-08-28T07:13:30Z"
     operatorframework.io/suggested-namespace: trustee-operator-system
-    operators.operatorframework.io/builder: operator-sdk-v1.33.0
+    operators.operatorframework.io/builder: operator-sdk-v1.36.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     support: Confidential Containers Community
   name: trustee-operator.v0.1.0
@@ -162,7 +162,7 @@ spec:
                 - --upstream=http://127.0.0.1:8080/
                 - --logtostderr=true
                 - --v=0
-                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
+                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.16.0
                 name: kube-rbac-proxy
                 ports:
                 - containerPort: 8443
