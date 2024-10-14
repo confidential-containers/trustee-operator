@@ -172,6 +172,17 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
 
+# Run sample attestation in a kind cluster
+# pre-requirements: kuttl plugin and kind are installed
+# Usage: KBS_IMAGE_NAME=<trustee-image> CLIENT_IMAGE_NAME=<client-image> make test-e2e
+KBS_IMAGE_NAME ?= quay.io/confidential-containers/trustee:290fd0eb64ab20f50efbd27cf80542851c0ee17f
+CLIENT_IMAGE_NAME ?= quay.io/confidential-containers/kbs-client:v0.9.0
+.PHONY: test-e2e
+test-e2e:
+	./tests/scripts/kind-with-registry.sh
+	KBS_IMAGE_NAME=${KBS_IMAGE_NAME} CLIENT_IMAGE_NAME=${CLIENT_IMAGE_NAME} kubectl kuttl test || true
+	kind delete cluster
+
 ##@ Build Dependencies
 
 ## Location to install dependencies to
