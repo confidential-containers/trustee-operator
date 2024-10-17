@@ -10,6 +10,7 @@ metadata:
     operatorframework.io/suggested-namespace: trustee-operator-system
     operators.operatorframework.io/builder: operator-sdk-v1.36.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
+    support: Confidential Containers Community
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "false"
     features.operators.openshift.io/csi: "false"
