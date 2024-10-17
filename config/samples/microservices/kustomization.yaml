@@ -39,6 +39,8 @@ resources:
 - ibmse-resource-policy.yaml
 - resource-policy.yaml
 - tdx-config.yaml
+- ita-kbs-config.yaml
+- ita-resource-policy.yaml
 - ibmse-pv.yaml
 - ibmse-pvc.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
