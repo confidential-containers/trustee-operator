@@ -97,20 +97,29 @@ metadata:
   name: kbs-config-grpc
   namespace: trustee-operator-system
 data:
-  kbs-config.json: |
-    {
-        "insecure_http" : false,
-        "sockets": ["0.0.0.0:8080"],
-        "auth_public_key": "/etc/auth-secret/kbs.pem",
-        "private_key": "/etc/https-key/key.pem",
-        "certificate": "/etc/https-cert/cert.pem",
-        "attestation_token_config": {
-          "attestation_token_type": "CoCo"
-        },
-        "grpc_config" : {
-          "as_addr": "http://127.0.0.1:50004"
-        }
-    }
+  kbs-config.toml: |
+    [http_server]
+    sockets = ["0.0.0.0:8080"]
+    insecure_http = true
+    [admin]
+    insecure_api = true
+    auth_public_key = "/etc/auth-secret/kbs.pem"
+
+    [attestation_token]
+    insecure_key = true
+
+    [attestation_service]
+    type = "coco_as_grpc"
+    as_addr = "http://127.0.0.1:50004"
+
+    [[plugins]]
+    name = "resource"
+    type = "LocalFs"
+    dir_path = "/opt/confidential-containers/kbs/repository"
+
+    [policy_engine]
+    policy_path = "/opt/confidential-containers/opa/policy.rego"
+
 ```
 
 If HTTPS support is not needed, please set `insecure_http=true` and no need to specify the attributes `private_key` and `certificate`.
@@ -215,10 +224,6 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
 - Deployment of CRDs, ConfigMaps and Secrets
 
   This is an example. Change it to real values as per your requirements.
-
-  It is recommended to uncomment the secret generation for the trustee authorization in the  [kustomization.yaml](config/samples/microservices/kustomization.yaml), for both public and private key (`kbs-auth-public-key` and `kbs-client` secrets)
-
-  For enabling logs with DEBUG severity, uncomment the `patch-env-vars.yaml` line in the  [kustomization.yaml](config/samples/microservices/kustomization.yaml).
 
   ```sh
   cd config/samples/microservices

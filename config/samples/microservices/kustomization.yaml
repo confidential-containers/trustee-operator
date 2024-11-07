@@ -4,19 +4,19 @@ generatorOptions:
   disableNameSuffixHash: true
 
 # uncomment to generate secrets for kbs authorization
-#secretGenerator:
-#- name: kbs-auth-public-key
-#  files:
-#  - kbs.pem
-#- name: kbs-client
-#  files:
-#  - privateKey
+secretGenerator:
+- name: kbs-auth-public-key
+  files:
+  - kbs.pem
+- name: kbs-client
+  files:
+  - privateKey
 
 # uncomment the following lines for injecting sample resources in kbs
-#- literals:
-#  - key1=res1val1
-#  - key2=res1val2
-#  name: kbsres1
+- literals:
+  - key1=res1val1
+  - key2=res1val2
+  name: kbsres1
 
 patches:
 - path: patch-ref-values.yaml
@@ -24,9 +24,9 @@ patches:
 - path: patch-resource-policy.yaml
 - path: patch-tdx-config.yaml
 # uncomment the following line for injecting sample resources in kbs
-#- path: patch-kbs-resources.yaml
+- path: patch-kbs-resources.yaml
 # uncomment the following line for enabling DEBUG logs
-#- path: patch-env-vars.yaml
+- path: patch-env-vars.yaml
 
 resources:
 - kbsconfig_sample.yaml

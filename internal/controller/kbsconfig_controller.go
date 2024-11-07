@@ -610,7 +610,7 @@ func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMoun
 	command := []string{
 		"/usr/local/bin/kbs",
 		"--config-file",
-		"/etc/kbs-config/kbs-config.json",
+		"/etc/kbs-config/kbs-config.toml",
 	}
 
 	return corev1.Container{
