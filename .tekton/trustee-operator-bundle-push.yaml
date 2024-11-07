@@ -32,7 +32,14 @@ spec:
   - name: hermetic
     value: "true"
   pipelineRef:
-    name: bundle-build-pipeline
+    resolver: bundles
+    params:
+    - name: name
+      value: docker-build
+    - name: bundle
+      value: quay.io/konflux-ci/tekton-catalog/pipeline-docker-build@sha256:fba3350bde0e546b34afabc3ac98da37fea7e4f9abd299bfc49d7672db636531
+    - name: kind
+      value: pipeline
   taskRunTemplate: {}
   workspaces:
   - name: workspace
@@ -49,4 +56,6 @@ spec:
   - name: git-auth
     secret:
       secretName: '{{ git_auth_secret }}'
+  timeouts:
+    pipeline: "2h"
 status: {}
