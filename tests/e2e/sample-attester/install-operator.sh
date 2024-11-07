@@ -21,5 +21,5 @@ make build-installer
 kubectl apply -f dist/install.yaml
 
 pushd tests/e2e/sample-attester
-kustomize edit set image $CLIENT_IMAGE_NAME
+kustomize edit set image quay.io/confidential-containers/kbs-client=$CLIENT_IMAGE_NAME
 popd
