@@ -15,6 +15,7 @@ spec:
   kbsDeploymentType: AllInOneDeployment
   kbsRvpsRefValuesConfigMapName: rvps-reference-values
   kbsResourcePolicyConfigMapName: resource-policy
+  kbsAttestationPolicyConfigMapName: attestation-policy
   kbsSecretResources:
     - "kbsres1"
   KbsEnvVars: 
