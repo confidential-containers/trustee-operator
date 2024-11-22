@@ -7,6 +7,7 @@ data:
   rvps-config.json: |
     {
       "address": "0.0.0.0:50003",
+      "type": "BuiltIn",
       "store_type": "LocalJson",
       "store_config": {
         "file_path": "/opt/confidential-containers/rvps/reference-values/reference-values.json"

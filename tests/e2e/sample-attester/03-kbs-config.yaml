@@ -27,6 +27,7 @@ data:
       duration_min = 5
 
       [attestation_service.rvps_config]
+      type = "BuiltIn"
       store_type = "LocalJson"
         
         [attestation_service.rvps_config.store_config]
