@@ -24,6 +24,7 @@ data:
       [attestation_service.attestation_token_config]
       duration_min = 5
       [attestation_service.rvps_config]
+      type = "BuiltIn"
       store_type = "LocalJson"
         [attestation_service.rvps_config.store_config]
         file_path = "/opt/confidential-containers/rvps/reference-values/reference-values.json"
