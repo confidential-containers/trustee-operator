@@ -12,7 +12,9 @@ data:
             "type": "BuiltIn",
             "remote_addr":"http://127.0.0.1:50003"
         },
-        "attestation_token_broker": "Simple",
+        "attestation_token_broker": {
+          "type": "Ear"
+        },
         "attestation_token_config": {
           "duration_min": 5
         }
