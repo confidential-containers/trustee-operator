@@ -207,7 +207,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: KBS_IMAGE_NAME
-                  value: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9@sha256:169f9d8b47dd02a008078a9dbd711e69f42821267e3624943d132a1c1e89a639"
+                  value: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9@sha256:5d286c136c61eaa2dbdb2f3cd3f5b82fe06f55b5d178d4060c9e19e410fb9de8"
                 - name: AS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
