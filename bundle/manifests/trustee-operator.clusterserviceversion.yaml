@@ -8,8 +8,9 @@ metadata:
     containerImage: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9-operator@sha256:d8f219626cfaa0acbfed94341d2e71113b75a1be005eaaa484e7a66ca10ce769"
     createdAt: "2024-06-07T10:06:06Z"
     operatorframework.io/suggested-namespace: trustee-operator-system
-    operators.operatorframework.io/builder: operator-sdk-v1.33.0
+    operators.operatorframework.io/builder: operator-sdk-v1.36.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
+    support: Confidential Containers Community
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "false"
     features.operators.openshift.io/csi: "false"
@@ -22,7 +23,7 @@ metadata:
     features.operators.openshift.io/token-auth-gcp: "false"
     operators.openshift.io/valid-subscription: '["OpenShift Container Platform", "OpenShift Platform Plus"]'
     repository: https://github.com/openshift/trustee-operator
-  name: trustee-operator.v0.1.0
+  name: trustee-operator.v0.2.0
   namespace: placeholder
   labels:
     operatorframework.io/os.linux: supported
@@ -299,4 +300,4 @@ spec:
   maturity: beta
   provider:
     name: Red Hat
-  version: 0.1.0
+  version: 0.2.0

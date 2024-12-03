@@ -139,7 +139,6 @@ func (r *KbsConfigReconciler) createPVCVolume(ctx context.Context, volumeName st
 		VolumeSource: corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 				ClaimName: volumeName,
-				ReadOnly:  true,
 			},
 		},
 	}

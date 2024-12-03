@@ -312,6 +312,19 @@ which provide a reconcile function responsible for synchronizing resources until
 
 **NOTE:** You can also run this in one step by running: `make install run`
 
+### Integration tests
+
+An attestation with the sample-attester is performed in an ephemeral kind cluster
+Pre-requirements:
+- [kuttl](https://kuttl.dev/docs/cli.html#setup-the-kuttl-kubectl-plugin) plugin installed
+- [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation) installed
+
+Optional: set the env variables KBS_IMAGE_NAME and CLIENT_IMAGE_NAME to override the default trustee/client images
+
+  ```sh
+  KBS_IMAGE_NAME=<trustee-image> CLIENT_IMAGE_NAME=<client-image> make test-e2e
+  ```
+
 ### Modifying the API definitions
 
 If you are editing the API definitions, generate the manifests such as CRs or CRDs using:
