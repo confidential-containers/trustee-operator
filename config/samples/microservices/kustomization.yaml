@@ -3,7 +3,7 @@ namespace: trustee-operator-system
 generatorOptions:
   disableNameSuffixHash: true
 
-# uncomment to generate secrets for kbs authorization
+# generate secrets for kbs authorization
 secretGenerator:
 - name: kbs-auth-public-key
   files:
@@ -12,7 +12,7 @@ secretGenerator:
   files:
   - privateKey
 
-# uncomment the following lines for injecting sample resources in kbs
+# inject sample secret resources in kbs
 - literals:
   - key1=res1val1
   - key2=res1val2
@@ -23,10 +23,10 @@ patches:
 - path: patch-attestation-policy.yaml
 - path: patch-resource-policy.yaml
 - path: patch-tdx-config.yaml
-# uncomment the following line for injecting sample resources in kbs
+# inject sample resources in kbs
 - path: patch-kbs-resources.yaml
 # uncomment the following line for enabling DEBUG logs
-- path: patch-env-vars.yaml
+#- path: patch-env-vars.yaml
 
 resources:
 - kbsconfig_sample.yaml
