@@ -1,6 +1,6 @@
 module github.com/confidential-containers/trustee-operator
 
-go 1.21
+go 1.22.0
 
 require (
 	github.com/go-logr/logr v1.4.1
