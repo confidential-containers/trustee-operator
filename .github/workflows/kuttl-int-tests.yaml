@@ -1,9 +1,8 @@
 name: "Integration tests"
-
 on:
   pull_request:
     branches:
-      - main 
+      - main
 
 env:
   KUTTL: /usr/local/bin/kubectl-kuttl
@@ -15,8 +14,7 @@ jobs:
 
     - uses: actions/setup-go@v5
       with:
-        go-version-file: go.mod
-        check-latest: true
+        go-version: 1.22.0
 
     - uses: actions/checkout@v4
 
