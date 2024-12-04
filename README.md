@@ -1,4 +1,4 @@
-# trustee-operator
+# introduction
 
 The `trustee-operator` manages the lifecycle of [trustee](https://github.com/confidential-containers/trustee) along with it's configuration when deployed
 in a Kubernetes cluster
