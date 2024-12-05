@@ -11,6 +11,9 @@ on:
   push:
     branches:
       - main
+      # Skip CI when changes are made to *.md files
+    paths-ignore:
+      - '**.md'
 
 env:
 

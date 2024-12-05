@@ -3,6 +3,9 @@ on:
   pull_request:
     branches:
       - main
+    # Skip CI when changes are made to *.md files
+    paths-ignore:
+      - '**.md'
 
 env:
   KUTTL: /usr/local/bin/kubectl-kuttl
