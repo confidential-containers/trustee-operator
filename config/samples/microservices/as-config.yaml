@@ -9,11 +9,12 @@ data:
         "work_dir": "/opt/confidential-containers/attestation-service",
         "policy_engine": "opa",
         "rvps_config": {
-            "type": "BuiltIn",
-            "remote_addr":"http://127.0.0.1:50003"
+          "type": "GrpcRemote",
+          "address": "http://127.0.0.1:50003"
         },
         "attestation_token_broker": {
-          "type": "Ear"
+          "type": "Ear",
+          "policy_dir": "/opt/confidential-containers/attestation-service/policies"
         },
         "attestation_token_config": {
           "duration_min": 5
