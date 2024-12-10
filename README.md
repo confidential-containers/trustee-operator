@@ -139,9 +139,13 @@ data:
         "work_dir": "/opt/confidential-containers/attestation-service",
         "policy_engine": "opa",
         "rvps_config": {
-           "remote_addr":"http://127.0.0.1:50003"
+          "type": "GrpcRemote",
+          "address": "http://127.0.0.1:50003"
         },
-        "attestation_token_broker": "Simple",
+        "attestation_token_broker": {
+          "type": "Ear",
+          "policy_dir": "/opt/confidential-containers/attestation-service/policies"
+        },
         "attestation_token_config": {
           "duration_min": 5
         }
@@ -271,8 +275,8 @@ data:
       reference-values.json: |
         [
           {
-            "name": "sample.svn",
-            "expired": "2025-01-01T00:00:00Z",
+            "name": "svn",
+            "expired": "2026-01-01T00:00:00Z",
             "hash-value": [
               {
                 "alg": "sha256",
