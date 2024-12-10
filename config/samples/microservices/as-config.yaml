@@ -13,7 +13,8 @@ data:
             "remote_addr":"http://127.0.0.1:50003"
         },
         "attestation_token_broker": {
-          "type": "Ear"
+          "type": "Ear",
+          "policy_dir": "/opt/confidential-containers/attestation-service/policies"
         },
         "attestation_token_config": {
           "duration_min": 5
