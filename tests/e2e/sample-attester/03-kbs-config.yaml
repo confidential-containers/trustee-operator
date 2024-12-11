@@ -24,6 +24,7 @@ data:
 
       [attestation_service.attestation_token_broker]
       type = "Ear"
+      policy_dir = "/opt/confidential-containers/attestation-service/policies"
 
       [attestation_service.attestation_token_config]
       duration_min = 5
