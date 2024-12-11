@@ -1,0 +1,27 @@
+apiVersion: confidentialcontainers.org/v1alpha1
+kind: KbsConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: kbsconfig
+    app.kubernetes.io/instance: kbsconfig
+    app.kubernetes.io/part-of: trustee-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: trustee-operator
+  name: cluster-kbsconfig
+  namespace: trustee-operator-system
+spec:
+  kbsConfigMapName: kbs-config-cm
+  kbsAuthSecretName: kbs-auth-public-key
+  kbsDeploymentType: AllInOneDeployment
+  kbsRvpsRefValuesConfigMapName: rvps-reference-values
+  kbsSecretResources: ["kbsres1"]
+  #kbsHttpsKeySecretName: kbs-https-key
+  #kbsHttpsCertSecretName: kbs-https-certificate
+  kbsResourcePolicyConfigMapName: resource-policy
+
+  # TDX specific configuration (optional)
+  # tdxConfigSpec:
+  #   kbsTdxConfigMapName: tdx-config
+
+  # Override attestation policy (optional)
+  # kbsAttestationPolicyConfigMapName: attestation-policy

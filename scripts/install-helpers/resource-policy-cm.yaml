@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: resource-policy
+  namespace: trustee-operator-system
+data:
+  policy.rego: |
+    package policy
+    default allow = false
+    allow {
+            input["tee"] != "sample"
+    }
