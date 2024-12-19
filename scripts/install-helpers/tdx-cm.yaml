@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tdx-config
+  namespace: trustee-operator-system
+data:
+  sgx_default_qcnl.conf: | \
+      {
+        "collateral_service": "https://api.trustedservices.intel.com/sgx/certification/v4/",
+         "pccs_url": "https://api.trustedservices.intel.com/sgx/certification/v4/"
+      }

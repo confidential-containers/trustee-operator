@@ -1,0 +1,37 @@
+# trustee-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kbs-config-cm
+  namespace: trustee-operator-system
+data:
+  kbs-config.json: |
+    {
+      "insecure_http" : true,
+      "sockets": ["0.0.0.0:8080"],
+      "auth_public_key": "/etc/auth-secret/publicKey",
+      "attestation_token_config": {
+        "attestation_token_type": "CoCo"
+      },
+      "repository_config": {
+        "type": "LocalFs",
+        "dir_path": "/opt/confidential-containers/kbs/repository"
+      },
+      "as_config": {
+        "work_dir": "/opt/confidential-containers/attestation-service",
+        "policy_engine": "opa",
+        "attestation_token_broker": "Simple",
+          "attestation_token_config": {
+          "duration_min": 5
+          },
+        "rvps_config": {
+          "store_type": "LocalJson",
+          "store_config": {
+            "file_path": "/opt/confidential-containers/rvps/reference-values/reference-values.json"
+          }
+         }
+      },
+      "policy_engine_config": {
+        "policy_path": "/opt/confidential-containers/opa/policy.rego"
+      }
+    }

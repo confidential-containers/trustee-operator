@@ -1,0 +1,8 @@
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: trustee-operator-group
+  namespace: trustee-operator-system
+spec:
+  targetNamespaces:
+  - trustee-operator-system
