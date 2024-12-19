@@ -170,7 +170,6 @@ spec:
   kbsDeploymentType: AllInOneDeployment
   kbsRvpsRefValuesConfigMapName: rvps-reference-values
   kbsSecretResources: ["kbsres1"]
-  kbsServiceType: NodePort
   kbsResourcePolicyConfigMapName: ita-resource-policy
 EOF
 ```
