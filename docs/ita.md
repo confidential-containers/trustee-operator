@@ -67,7 +67,7 @@ data:
         "sockets": ["0.0.0.0:8080"],
         "auth_public_key": "/etc/auth-secret/publicKey",
         "attestation_token_config": {
-          "attestation_token_type": "Jwt",
+          "attestation_token_type": "Jwk",
           "trusted_certs_paths": ["https://portal.trustauthority.intel.com"]
         },
         "repository_config": {
