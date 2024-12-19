@@ -175,7 +175,8 @@ function apply_operator_manifests() {
 # Function to apply the operator manifests
 function override_trustee_image() {
     if [ -n "$TRUSTEE_IMAGE" ]; then
-        oc patch csv -n trustee-operator-system trustee-operator.v0.1.0 --type=json -p="[
+        CSV=$(oc get csv -n trustee-operator-system -o name -l operators.coreos.com/trustee-operator.trustee-operator-system)
+        oc patch -n trustee-operator-system $CSV --type=json -p="[
         {
             "op": "replace",
             "path": "/spec/install/spec/deployments/0/spec/template/spec/containers/1/env/1/value",
