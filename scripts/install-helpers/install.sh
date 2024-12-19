@@ -5,7 +5,12 @@ OCP_PULL_SECRET_LOCATION="${OCP_PULL_SECRET_LOCATION:-$HOME/pull-secret.json}"
 MIRRORING=false
 ADD_IMAGE_PULL_SECRET=false
 GA_RELEASE=true
-TRUSTEE_IMAGE=${TRUSTEE_IMAGE:-quay.io/openshift_sandboxed_containers/kbs:v0.10.1}
+ITA_KEY="${ITA_KEY:-}"
+DEFAULT_IMAGE=quay.io/openshift_sandboxed_containers/kbs:v0.10.1
+if [ -n "$ITA_KEY" ]; then
+    DEFAULT_IMAGE+="-ita"
+fi
+TRUSTEE_IMAGE=${TRUSTEE_IMAGE:-$DEFAULT_IMAGE}
 
 # Function to check if the oc command is available
 function check_oc() {
@@ -121,6 +126,17 @@ function add_image_pull_secret() {
 
 #Function to create Trustee artefacts secret
 function create_trustee_artefacts() {
+    local kbs_cm="kbs-cm.yaml"
+    local rvps_cm="rvps-cm.yaml"
+    local resource_policy_cm="resource-policy-cm.yaml"
+    local config="kbsconfig.yaml"
+    if [ -n "$ITA_KEY" ]; then
+        kbs_cm="tdx-ita-$kbs_cm"
+        resource_policy_cm="tdx-ita-$resource_policy_cm"
+        config="tdx-ita-$config"
+
+        sed -i -e "s/tBfd5kKX2x9ahbodKV1.../${ITA_KEY}/g" $kbs_cm
+    fi
 
     # Create secret
     openssl genpkey -algorithm ed25519 >privateKey
@@ -135,13 +151,13 @@ function create_trustee_artefacts() {
     fi
 
     # Create KBS configmap
-    oc apply -f kbs-cm.yaml || return 1
+    oc apply -f "$kbs_cm" || return 1
 
     # Create RVPS configmap
-    oc apply -f rvps-cm.yaml || return 1
+    oc apply -f "$rvps_cm" || return 1
 
     # Create resource policy configmap
-    oc apply -f resource-policy-cm.yaml || return 1
+    oc apply -f "$resource_policy_cm" || return 1
 
     # Create few secrets to serve via Trustee
     # Create kbsres1 secret only if it doesn't exist
@@ -154,7 +170,7 @@ function create_trustee_artefacts() {
     fi
 
     # Create KBSConfig
-    oc apply -f kbsconfig.yaml || return 1
+    oc apply -f "$config" || return 1
 
 }
 
@@ -252,6 +268,9 @@ function display_help() {
     echo "Example usage:"
     echo "# Install the GA operator"
     echo " ./install.sh "
+    echo " "
+    echo "# Install the GA operator with ITA support"
+    echo " ITA_KEY="tBfd5kKX2x9ahbodKV1..." ./install.sh"
     echo " "
     echo "# Install the GA operator with image mirroring"
     echo " ./install.sh -m"
