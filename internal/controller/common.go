@@ -70,6 +70,9 @@ const (
 
 	// IBM SE path
 	ibmSePath = "/run/confidential-containers/ibmse/"
+
+	// Attestation policy path
+	attestationPolicyPath = confidentialContainersPath + "/attestation-service/policies/opa"
 )
 
 func contains(list []string, s string) bool {
