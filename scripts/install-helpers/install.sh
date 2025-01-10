@@ -5,7 +5,11 @@ OCP_PULL_SECRET_LOCATION="${OCP_PULL_SECRET_LOCATION:-$HOME/pull-secret.json}"
 MIRRORING=false
 ADD_IMAGE_PULL_SECRET=false
 GA_RELEASE=true
+TDX=${TDX:-false}
 ITA_KEY="${ITA_KEY:-}"
+if [ -n "$ITA_KEY" ]; then
+	TDX=true
+fi
 DEFAULT_IMAGE=quay.io/openshift_sandboxed_containers/kbs:v0.10.1
 if [ -n "$ITA_KEY" ]; then
     DEFAULT_IMAGE+="-ita"
@@ -129,13 +133,21 @@ function create_trustee_artefacts() {
     local kbs_cm="kbs-cm.yaml"
     local rvps_cm="rvps-cm.yaml"
     local resource_policy_cm="resource-policy-cm.yaml"
+    local tdx_coco_as_cm=""
     local config="kbsconfig.yaml"
-    if [ -n "$ITA_KEY" ]; then
-        kbs_cm="tdx-ita-$kbs_cm"
-        resource_policy_cm="tdx-ita-$resource_policy_cm"
-        config="tdx-ita-$config"
+    if [ "$TDX" = "true" ]; then
+        if [ -n "$ITA_KEY" ]; then
+            kbs_cm="tdx-ita-$kbs_cm"
+            resource_policy_cm="tdx-ita-$resource_policy_cm"
+            config="tdx-ita-$config"
 
-        sed -i -e "s/tBfd5kKX2x9ahbodKV1.../${ITA_KEY}/g" $kbs_cm
+            sed -i -e "s/tBfd5kKX2x9ahbodKV1.../${ITA_KEY}/g" $kbs_cm
+	else
+            tdx_coco_as_cm="tdx-coco-as-cm.yaml"
+
+            sed -i -e "s/\# tdxConfigSpec/tdxConfigSpec/g" $config
+            sed -i -e "s/\#   kbsTdxConfigMapName/    kbsTdxConfigMapName/g" $config
+        fi
     fi
 
     # Create secret
@@ -167,6 +179,11 @@ function create_trustee_artefacts() {
         echo "Secret kbsres1 created successfully"
     else
         echo "Secret kbsres1 already exists, skipping creation"
+    fi
+
+    # Create TDX configmap
+    if [ -n "$tdx_coco_as_cm" ]; then
+        oc apply -f "$tdx_coco_as_cm" || return 1
     fi
 
     # Create KBSConfig
@@ -271,6 +288,9 @@ function display_help() {
     echo " "
     echo "# Install the GA operator with ITA support"
     echo " ITA_KEY="tBfd5kKX2x9ahbodKV1..." ./install.sh"
+    echo " "
+    echo "# Install the GA operator with DCAP support"
+    echo " TDX=true ./install.sh"
     echo " "
     echo "# Install the GA operator with image mirroring"
     echo " ./install.sh -m"

@@ -59,7 +59,7 @@ You can edit the `resource-policy` configMap and set `default allow = true`.
 Create the TDX configmap
 
 ```sh
-oc apply -f tdx-cm.yaml
+oc apply -f tdx-coco-as-cm.yaml
 ```
 
 Update the KbsConfig CR
