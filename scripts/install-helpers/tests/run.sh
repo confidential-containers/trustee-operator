@@ -27,6 +27,7 @@ if [ -n "${K8S_TEST_UNION:-}" ]; then
 else
     K8S_TEST_UNION=( \
         "k8s-confidential.bats" \ 
+        "k8s-confidential-attestation.bats" \
     )
 fi
 
