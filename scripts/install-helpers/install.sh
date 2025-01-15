@@ -219,31 +219,6 @@ function override_trustee_image() {
     fi
 }
 
-# Function to workaround an operator issue, as the operator does not
-# properly take the cluster wide proxy set into consideration.
-set_proxy_vars_for_trustee_deployment() {
-    CLUSTER_HTTPS_PROXY="$(oc get proxy/cluster -o jsonpath={.spec.httpsProxy})"
-    CLUSTER_HTTP_PROXY="$(oc get proxy/cluster -o jsonpath={.spec.httpProxy})"
-    CLUSTER_NO_PROXY="$(oc get proxy/cluster -o jsonpath={.spec.noProxy})"
-
-    # Here were coming with the assumption that the env is always not there, which is
-    # the case in a normal deployment.
-    #
-    # ideally, we should double check whether it's empty, and yatta yatta ... but if
-    # this is just a workaround till the Operator knows how to properly do this.
-    oc patch -n trustee-operator-system deployment trustee-deployment --type=json -p="[
-    {
-        "op": "add",
-        "path": "/spec/template/spec/containers/0/env",
-        "value": [
-            { "name": "HTTPS_PROXY", "value": \""$CLUSTER_HTTPS_PROXY"\" },
-            { "name": "HTTP_PROXY", "value": \""$CLUSTER_HTTP_PROXY"\" },
-            { "name": "NO_PROXY", "value": \""$CLUSTER_NO_PROXY"\" }
-         ]
-    }
-    ]"
-}
-
 # Function to uninstall the installed artifacts
 # It won't delete the cluster
 function uninstall() {
@@ -421,10 +396,3 @@ wait_for_deployment trustee-operator-controller-manager trustee-operator-system 
 
 # Create Trustee artefacts
 create_trustee_artefacts || exit 1
-
-# Ensure that proxy is set via this script, at least till
-# the operator does this in the proper way.
-set_proxy_vars_for_trustee_deployment || exit 1
-
-# Ensure we restart the deployment after the proxy patches were applied
-oc rollout restart deployment -n trustee-operator-system trustee-deployment || exit 1
