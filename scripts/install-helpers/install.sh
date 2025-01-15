@@ -150,6 +150,18 @@ function create_trustee_artefacts() {
         fi
     fi
 
+    # Workaround the fact that the trustee-deployment isn't getting these from
+    # the cluster-wide proxy deployment
+    CLUSTER_HTTPS_PROXY="$(oc get proxy/cluster -o jsonpath={.spec.httpsProxy})"
+    CLUSTER_HTTP_PROXY="$(oc get proxy/cluster -o jsonpath={.spec.httpProxy})"
+    CLUSTER_NO_PROXY="$(oc get proxy/cluster -o jsonpath={.spec.noProxy})"
+
+    echo "
+  KbsEnvVars:
+    HTTPS_PROXY: \"${CLUSTER_HTTPS_PROXY}\"
+    HTTP_PROXY: \"${CLUSTER_HTTP_PROXY}\"
+    NO_PROXY: \"${CLUSTER_NO_PROXY}\"" >> $config
+
     # Create secret
     openssl genpkey -algorithm ed25519 >privateKey
     openssl pkey -in privateKey -pubout -out publicKey
