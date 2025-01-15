@@ -28,6 +28,7 @@ else
     K8S_TEST_UNION=( \
         "k8s-confidential.bats" \ 
         "k8s-confidential-attestation.bats" \
+        "k8s-guest-pull-image-signature.bats" \
     )
 fi
 

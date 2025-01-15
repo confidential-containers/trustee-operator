@@ -1,0 +1,20 @@
+# Copyright Kata Containers Contributors
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: signed-image-tests
+  annotations:
+    io.katacontainers.config.hypervisor.kernel_params: "${KERNEL_PARAMS}"
+spec:
+  runtimeClassName: kata-${TEE}
+  containers:
+    - name: test-signed-image
+      image: ${CONTAINER_IMAGE}
+      imagePullPolicy: Always
+      command:
+        - sleep
+        - infinity
