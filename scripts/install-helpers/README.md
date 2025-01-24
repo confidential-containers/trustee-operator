@@ -6,10 +6,13 @@ These are helper scripts to setup Trustee operator on OpenShift cluster
 
 - `oc`, `jq` and `openssl` CLI
 
+## How to use the installation script
+
+Type `./install.sh -h` for displaying the installation help and examples.
+
 ## Install Trustee operator GA release
 
-- Update `startingCSV` key in the `subs-ga.yaml` file to use the GA release you need.
-
+- Currently, the latest GA operator release will be installed by default (v0.2.0 at the time of writing). Provide the `startingCSV` key in the `subs-ga.yaml` file to use the GA release you need.
 - Kickstart the installation by running the following:
 
 ```sh
