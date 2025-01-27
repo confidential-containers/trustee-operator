@@ -1,3 +1,0 @@
-# There resources need to be edited with kustomize
-resources:
-- client.yaml
