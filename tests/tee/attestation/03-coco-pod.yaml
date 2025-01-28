@@ -1,0 +1,6 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: export TEE=${TEE:-snp} && envsubst < "pod.yaml.in" > "pod.yaml"
+  - script: kubectl apply -f pod.yaml
+  - script: rm pod.yaml

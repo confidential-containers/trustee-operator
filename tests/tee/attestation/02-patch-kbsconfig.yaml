@@ -1,0 +1,4 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: export CR_NAME=$(kubectl get kbsconfig -n trustee-operator-system -o=jsonpath='{.items[0].metadata.name}') && kubectl patch KbsConfig -n trustee-operator-system $CR_NAME --type=json -p='[{"op":"add", "path":"/spec/kbsSecretResources/-", "value":"new-secret"}]'
