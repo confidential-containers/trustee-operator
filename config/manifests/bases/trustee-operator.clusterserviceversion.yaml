@@ -5,10 +5,10 @@ metadata:
     alm-examples: '[]'
     capabilities: Basic Install
     categories: Security
-    containerImage: quay.io/confidential-containers/trustee-operator:v0.2.0
+    containerImage: quay.io/confidential-containers/trustee-operator:v0.3.0
     operatorframework.io/suggested-namespace: trustee-operator-system
     support: Confidential Containers Community
-  name: trustee-operator.v0.2.0
+  name: trustee-operator.v0.3.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -56,4 +56,4 @@ spec:
   provider:
     name: Confidential Containers Community
     url: https://github.com/confidential-containers
-  version: 0.2.0
+  version: 0.3.0
