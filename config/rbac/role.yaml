@@ -8,6 +8,7 @@ rules:
   - ""
   resources:
   - configmaps
+  - secrets
   verbs:
   - get
   - list
@@ -19,14 +20,6 @@ rules:
   verbs:
   - get
   - update
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - get
-  - list
-  - watch
 - apiGroups:
   - apps
   resources:
