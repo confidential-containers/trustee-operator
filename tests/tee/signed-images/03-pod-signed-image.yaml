@@ -1,0 +1,7 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: export KATA_RUNTIME=${KATA_RUNTIME:kata-snp} && envsubst < "pod-signed-image.yaml.in" > "pod-signed-image.yaml"
+  - script: kubectl apply -f pod-signed-image.yaml
+  - script: rm pod-signed-image.yaml
+
