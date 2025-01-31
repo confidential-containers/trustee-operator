@@ -1,0 +1,9 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: kubectl delete secret -n trustee-operator-system security-policy cosign-public-key
+  - script: export CR_NAME=$(kubectl get kbsconfig -n trustee-operator-system -o=jsonpath='{.items[0].metadata.name}') &&
+            kubectl get KbsConfig -n trustee-operator-system $CR_NAME -o json | jq ".spec.kbsSecretResources -= [\"security-policy\"]" | kubectl apply -f -
+  - script: export CR_NAME=$(kubectl get kbsconfig -n trustee-operator-system -o=jsonpath='{.items[0].metadata.name}') &&
+            kubectl get KbsConfig -n trustee-operator-system $CR_NAME -o json | jq ".spec.kbsSecretResources -= [\"cosign-public-key\"]" | kubectl apply -f -
+  - script: kubectl delete pod signed-image-tests
