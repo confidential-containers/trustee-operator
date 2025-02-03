@@ -74,7 +74,7 @@ spec:
         args:
         - --leader-elect
         - --health-probe-bind-address=:8081
-        image: controller:latest
+        image: quay.io/confidential-containers/trustee-operator:v0.3.0
         name: manager
         # Add the following environment variables to the manager container
         # POD_NAMESPACE
@@ -85,9 +85,9 @@ spec:
               fieldPath: metadata.namespace
         - name: KBS_IMAGE_NAME
           # kbs image for AllInOneDeployment
-          # value: ghcr.io/confidential-containers/staged-images/kbs:latest
+          value: ghcr.io/confidential-containers/key-broker-service:v0.11.0
           # kbs image for MicroserviceDeployment
-          value: ghcr.io/confidential-containers/staged-images/kbs-grpc-as:latest
+          # value: ghcr.io/confidential-containers/staged-images/kbs-grpc-as:latest
         - name: AS_IMAGE_NAME
           value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
         - name: RVPS_IMAGE_NAME
