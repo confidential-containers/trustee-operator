@@ -11,7 +11,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.36.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     support: Confidential Containers Community
-  name: trustee-operator.v0.2.0
+  name: trustee-operator.v0.3.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -290,4 +290,4 @@ spec:
   provider:
     name: Confidential Containers Community
     url: https://github.com/confidential-containers
-  version: 0.2.0
+  version: 0.3.0
