@@ -1,0 +1,22 @@
+{
+    "default": [
+        {
+            "type": "reject"
+        }
+    ],
+    "transports": {
+        "docker": {
+            "ghcr.io/confidential-containers/test-container-image-rs": [
+                {
+                    "type": "sigstoreSigned",
+                    "keyPath": "kbs:///default/cosign-public-key/test"
+                }
+            ],
+            "quay.io/prometheus": [
+                {
+                    "type": "insecureAcceptAnything"
+                }
+            ]
+        }
+    }
+}
