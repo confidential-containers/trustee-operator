@@ -85,7 +85,7 @@ spec:
               fieldPath: metadata.namespace
         - name: KBS_IMAGE_NAME
           # kbs image for AllInOneDeployment
-          value: ghcr.io/confidential-containers/key-broker-service:v0.11.0
+          value: ghcr.io/confidential-containers/key-broker-service:built-in-as-v0.11.0
           # kbs image for MicroserviceDeployment
           # value: ghcr.io/confidential-containers/staged-images/kbs-grpc-as:latest
         - name: AS_IMAGE_NAME

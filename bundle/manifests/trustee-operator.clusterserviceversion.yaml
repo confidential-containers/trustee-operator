@@ -146,7 +146,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: KBS_IMAGE_NAME
-                  value: ghcr.io/confidential-containers/key-broker-service:v0.11.0
+                  value: ghcr.io/confidential-containers/key-broker-service:built-in-as-v0.11.0
                 - name: AS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
