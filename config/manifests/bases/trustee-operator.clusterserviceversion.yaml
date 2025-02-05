@@ -56,4 +56,5 @@ spec:
   provider:
     name: Confidential Containers Community
     url: https://github.com/confidential-containers
+  replaces: trustee-operator.v0.1.0
   version: 0.3.0

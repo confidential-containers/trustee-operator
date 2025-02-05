@@ -5,8 +5,8 @@ metadata:
     alm-examples: '[]'
     capabilities: Basic Install
     categories: Security
-    containerImage: quay.io/confidential-containers/trustee-operator:283a3d7860758f06784121a36266aa177adccd56
-    createdAt: "2024-08-28T07:13:30Z"
+    containerImage: quay.io/confidential-containers/trustee-operator:v0.3.0
+    createdAt: "2025-02-04T11:23:24Z"
     operatorframework.io/suggested-namespace: trustee-operator-system
     operators.operatorframework.io/builder: operator-sdk-v1.36.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
@@ -35,6 +35,7 @@ spec:
           - ""
           resources:
           - configmaps
+          - secrets
           verbs:
           - get
           - list
@@ -46,14 +47,6 @@ spec:
           verbs:
           - get
           - update
-        - apiGroups:
-          - ""
-          resources:
-          - secrets
-          verbs:
-          - get
-          - list
-          - watch
         - apiGroups:
           - apps
           resources:
@@ -140,50 +133,11 @@ spec:
               labels:
                 control-plane: controller-manager
             spec:
-              affinity:
-                nodeAffinity:
-                  requiredDuringSchedulingIgnoredDuringExecution:
-                    nodeSelectorTerms:
-                    - matchExpressions:
-                      - key: kubernetes.io/arch
-                        operator: In
-                        values:
-                        - amd64
-                        - arm64
-                        - ppc64le
-                        - s390x
-                      - key: kubernetes.io/os
-                        operator: In
-                        values:
-                        - linux
               containers:
               - args:
-                - --secure-listen-address=0.0.0.0:8443
-                - --upstream=http://127.0.0.1:8080/
-                - --logtostderr=true
-                - --v=0
-                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.16.0
-                name: kube-rbac-proxy
-                ports:
-                - containerPort: 8443
-                  name: https
-                  protocol: TCP
-                resources:
-                  limits:
-                    cpu: 500m
-                    memory: 128Mi
-                  requests:
-                    cpu: 5m
-                    memory: 64Mi
-                securityContext:
-                  allowPrivilegeEscalation: false
-                  capabilities:
-                    drop:
-                    - ALL
-              - args:
-                - --health-probe-bind-address=:8081
-                - --metrics-bind-address=127.0.0.1:8080
+                - --metrics-bind-address=:8443
                 - --leader-elect
+                - --health-probe-bind-address=:8081
                 command:
                 - /manager
                 env:
@@ -192,12 +146,12 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: KBS_IMAGE_NAME
-                  value: ghcr.io/confidential-containers/key-broker-service:v0.10.1
+                  value: ghcr.io/confidential-containers/key-broker-service:v0.11.0
                 - name: AS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/rvps:latest
-                image: quay.io/confidential-containers/trustee-operator:283a3d7860758f06784121a36266aa177adccd56
+                image: quay.io/confidential-containers/trustee-operator:v0.3.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -290,4 +244,5 @@ spec:
   provider:
     name: Confidential Containers Community
     url: https://github.com/confidential-containers
+  replaces: trustee-operator.v0.1.0
   version: 0.3.0
