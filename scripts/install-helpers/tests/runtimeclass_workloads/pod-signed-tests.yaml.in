@@ -10,7 +10,7 @@ metadata:
   annotations:
     io.katacontainers.config.hypervisor.kernel_params: "${KERNEL_PARAMS}"
 spec:
-  runtimeClassName: kata-${TEE}
+  runtimeClassName: kata-cc
   containers:
     - name: test-signed-image
       image: ${CONTAINER_IMAGE}
