@@ -1,0 +1,4 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: test "$(kubectl exec aa-test-cc -- curl http://127.0.0.1:8006/cdh/resource/default/new-secret/key1)" = "res1val1"

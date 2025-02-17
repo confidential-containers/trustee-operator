@@ -6,9 +6,8 @@ metadata:
 data:
   rvps-config.json: |
     {
-      "address": "0.0.0.0:50003",
-      "store_type": "LocalJson",
-      "store_config": {
+      "storage" : {
+        "type": "LocalJson",
         "file_path": "/opt/confidential-containers/rvps/reference-values/reference-values.json"
       }
     }

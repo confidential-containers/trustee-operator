@@ -1,7 +1,7 @@
-# trustee-operator
+# Introduction
 
-The `trustee-operator` manages the lifecycle of [trustee](https://github.com/confidential-containers/trustee) along with it's configuration when deployed
-in a Kubernetes cluster
+The `trustee-operator` manages the lifecycle of [trustee](https://github.com/confidential-containers/trustee)
+along with its configuration when deployed in a Kubernetes cluster
 
 ## Description
 
@@ -83,9 +83,10 @@ type TdxConfigSpec struct {
   // kbsTdxConfigMapName is the name of the configmap containing sgx_default_qcnl.conf file
   // +optional
   KbsTdxConfigMapName string `json:"kbsTdxConfigMapName,omitempty"`
-}```
+}
+```
 
-Note: the default deployment type is ```MicroservicesDeployment```.
+>Note: the default deployment type is ```MicroservicesDeployment```. 
 The examples below apply to this mode.
 
 An example configmap for the KBS configuration looks like this:
@@ -97,20 +98,29 @@ metadata:
   name: kbs-config-grpc
   namespace: trustee-operator-system
 data:
-  kbs-config.json: |
-    {
-        "insecure_http" : false,
-        "sockets": ["0.0.0.0:8080"],
-        "auth_public_key": "/etc/auth-secret/kbs.pem",
-        "private_key": "/etc/https-key/key.pem",
-        "certificate": "/etc/https-cert/cert.pem",
-        "attestation_token_config": {
-          "attestation_token_type": "CoCo"
-        },
-        "grpc_config" : {
-          "as_addr": "http://127.0.0.1:50004"
-        }
-    }
+  kbs-config.toml: |
+    [http_server]
+    sockets = ["0.0.0.0:8080"]
+    insecure_http = true
+    [admin]
+    insecure_api = true
+    auth_public_key = "/etc/auth-secret/kbs.pem"
+
+    [attestation_token]
+    insecure_key = true
+
+    [attestation_service]
+    type = "coco_as_grpc"
+    as_addr = "http://127.0.0.1:50004"
+
+    [[plugins]]
+    name = "resource"
+    type = "LocalFs"
+    dir_path = "/opt/confidential-containers/kbs/repository"
+
+    [policy_engine]
+    policy_path = "/opt/confidential-containers/opa/policy.rego"
+
 ```
 
 If HTTPS support is not needed, please set `insecure_http=true` and no need to specify the attributes `private_key` and `certificate`.
@@ -129,9 +139,13 @@ data:
         "work_dir": "/opt/confidential-containers/attestation-service",
         "policy_engine": "opa",
         "rvps_config": {
-           "remote_addr":"http://127.0.0.1:50003"
+          "type": "GrpcRemote",
+          "address": "http://127.0.0.1:50003"
         },
-        "attestation_token_broker": "Simple",
+        "attestation_token_broker": {
+          "type": "Ear",
+          "policy_dir": "/opt/confidential-containers/attestation-service/policies"
+        },
         "attestation_token_config": {
           "duration_min": 5
         }
@@ -184,92 +198,112 @@ spec:
 ## Getting Started
 
 You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
-**Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
+
+>Note: Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
 
 ### Running on the cluster
 
-- Export env variables.
+Ensure you have `golang`, `kubectl`, `make` available in the `$PATH`.
 
-  Set `REGISTRY` environment variable to point to your container registry.
-  For example:
+#### Deploying prebuilt operator image
 
-  ```sh
-  export REGISTRY=quay.io/user
-  ```
+If you want to deploy latest prebuilt image, then run the following command:
 
-- Build and push your image to the location specified by `IMG`.
+```sh
+make deploy IMG=quay.io/confidential-containers/trustee-operator:latest
+```
 
-  ```sh
-  make docker-build docker-push IMG=${REGISTRY}/kbs-operator:latest
-  ```
+Verify if the controller is running by executing the following command:
 
-  Change the tag from `latest` to any other based on your requirements.
-  Also ensure that the image is public.
+```sh
+kubectl get pods -n trustee-operator-system --watch
+```
 
-- Deploy the controller to the cluster with the image specified by `IMG`.
+You should see a similar output as below:
 
-  ```sh
-  make deploy IMG=${REGISTRY}/kbs-operator:latest
-  ```
+```sh
+NAME                                                   READY   STATUS    RESTARTS   AGE
+trustee-operator-controller-manager-6fb5bb5bd9-22wd6   2/2     Running   0          25s
+```
 
-- Deployment of CRDs, ConfigMaps and Secrets
+#### Deployment of CRDs, ConfigMaps and Secrets
 
-  This is an example. Change it to real values as per your requirements.
+This is an example deployment. Review the config files and change it as per your requirements.
 
-  It is recommended to uncomment the secret generation for the trustee authorization in the  [kustomization.yaml](config/samples/microservices/kustomization.yaml), for both public and private key (`kbs-auth-public-key` and `kbs-client` secrets)
+```sh
+cd config/samples/microservices
+# or config/samples/all-in-one for the integrated mode
 
-  For enabling logs with DEBUG severity, uncomment the `patch-env-vars.yaml` line in the  [kustomization.yaml](config/samples/microservices/kustomization.yaml).
+# create authentication keys
+openssl genpkey -algorithm ed25519 > privateKey
+openssl pkey -in privateKey -pubout -out kbs.pem
 
-  ```sh
-  cd config/samples/microservices
-  # or config/samples/all-in-one for the integrated mode
+# create all the needed resources
+kubectl apply -k .
+```
 
-  # create authentication keys
-  openssl genpkey -algorithm ed25519 > privateKey
-  openssl pkey -in privateKey -pubout -out kbs.pem
-  
-  # create all the needed resources
-  kubectl apply -k .
-  ```
+Verify if the trustee deployment is running by executing the following command:
 
-  Among various things, the command above is also responsible for injecting reference values into the RVPS component. The default json file is an empty sequence, but you may want to inject real values by applying a ConfigMap like the one below:
+```sh
+kubectl get pods -n trustee-operator-system --selector=app=kbs
+```
 
-  ``` yaml
-  apiVersion: v1
-  kind: ConfigMap
-  metadata:
-    name: rvps-reference-values
-    namespace: trustee-operator-system
-  data:
-    reference-values.json: |
-      apiVersion: v1
-      kind: ConfigMap
-      metadata:
-        name: rvps-reference-values
-        namespace: trustee-operator-system
-      data:
-        reference-values.json: |
-          [
-            {
-              "name": "sample.svn",
-              "expired": "2025-01-01T00:00:00Z",
-              "hash-value": [
-                {
-                  "alg": "sha256",
-                  "value": "1"
-                }
-              ]
-            }
-          ]
-  ```
+You should see a similar output as below:
 
-  It is also possible to create the K8s secrets (a commented out example is provided in the [kustomization.yaml](config/samples/microservices/kustomization.yaml)). To enable the secrets you'd need to uncomment the relevant secret generator entry and patch.
+```sh
+NAME                                  READY   STATUS    RESTARTS   AGE
+trustee-deployment-78bd97f6d4-nxsbb   3/3     Running   0          4m3s
+```
 
-### IBM Secure Execution
+The default installation uses empty reference values. You must add real values by updating
+the `rvps-reference-values` ConfigMap like shown in the example below:
+
+``` yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rvps-reference-values
+  namespace: trustee-operator-system
+data:
+  reference-values.json: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: rvps-reference-values
+      namespace: trustee-operator-system
+    data:
+      reference-values.json: |
+        [
+          {
+            "name": "svn",
+            "expired": "2026-01-01T00:00:00Z",
+            "hash-value": [
+              {
+                "alg": "sha256",
+                "value": "1"
+              }
+            ]
+          }
+        ]
+```
+
+The default installation creates a sample K8s secret named `kbsres1` to be made available to clients.
+Take a look at [patch-kbs-resources.yaml](config/samples/microservices/patch-kbs-resources.yaml) and update it
+with the K8s secrets that you want to deliver to clients via Trustee.
+
+#### IBM Secure Execution
 
 For IBM SE specific configuration, please refer to [ibmse.md](docs/ibmse.md).
   
-### Uninstall CRDs
+#### ITA configuration
+
+For Intel's ITA specific configuration, please refer to [ita.md](docs/ita.md).
+
+### Uninstallation
+
+Ensure you are in the root folder of the project before running the uninstall commands.
+
+#### Uninstall CRDs
 
 To delete the CRDs from the cluster:
 
@@ -277,7 +311,7 @@ To delete the CRDs from the cluster:
 make uninstall
 ```
 
-### Undeploy controller
+#### Undeploy controller
 
 UnDeploy the controller from the cluster:
 
@@ -310,12 +344,43 @@ which provide a reconcile function responsible for synchronizing resources until
   make run
   ```
 
-**NOTE:** You can also run this in one step by running: `make install run`
+>Note: You can also run this in one step by running: `make install run`
+
+#### Building your own operator image
+
+If using a remote Kubernetes cluster for testing, then you'll need to
+build the controller image and deploy it.
+
+- Export env variables.
+
+  Set `REGISTRY` environment variable to point to your container registry.
+  For example:
+
+  ```sh
+  export REGISTRY=quay.io/user
+  ```
+
+- Build and push your image to the location specified by `IMG`.
+
+  ```sh
+  make docker-build docker-push IMG=${REGISTRY}/trustee-operator:latest
+  ```
+
+  Change the tag from `latest` to any other based on your requirements.
+  Also ensure that the image is public.
+
+- Deploy the controller to the cluster with the image specified by `IMG`.
+
+  ```sh
+  make deploy IMG=${REGISTRY}/trustee-operator:latest
+  ```
 
 ### Integration tests
 
-An attestation with the sample-attester is performed in an ephemeral kind cluster
-Pre-requirements:
+An attestation with the sample-attester is performed in an ephemeral kind cluster:
+
+Prerequisites:
+
 - [kuttl](https://kuttl.dev/docs/cli.html#setup-the-kuttl-kubectl-plugin) plugin installed
 - [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation) installed
 
@@ -333,7 +398,7 @@ If you are editing the API definitions, generate the manifests such as CRs or CR
 make manifests
 ```
 
-**NOTE:** Run `make --help` for more information on all potential `make` targets
+>Note: Run `make --help` for more information on all potential `make` targets
 
 More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
 

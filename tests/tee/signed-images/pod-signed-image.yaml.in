@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: signed-image-tests
+  annotations:
+    io.katacontainers.config.hypervisor.kernel_params: "agent.aa_kbc_params=cc_kbc::http://kbs-service.trustee-operator-system:8080 agent.image_policy_file=kbs:///default/security-policy/test agent.enable_signature_verification=true"
+spec:
+  runtimeClassName: ${KATA_RUNTIME}
+  containers:
+    - name: test-signed-image
+      image: ghcr.io/confidential-containers/test-container-image-rs:cosign-signed
+      imagePullPolicy: Always
+      command:
+        - sleep
+        - infinity
+

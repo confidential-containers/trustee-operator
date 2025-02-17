@@ -1,12 +1,11 @@
 name: "Integration tests"
-
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
-      - main 
+      - main
+    # Skip CI when changes are made to *.md files
+    paths-ignore:
+      - '**.md'
 
 env:
   KUTTL: /usr/local/bin/kubectl-kuttl
@@ -16,11 +15,11 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
 
-    - uses: actions/setup-go@v2.1.4
+    - uses: actions/setup-go@v5
       with:
-        go-version: 1.21
+        go-version: 1.22.0
 
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |

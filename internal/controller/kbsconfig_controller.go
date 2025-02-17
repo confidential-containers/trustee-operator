@@ -360,12 +360,12 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 
 	// attestation policy
 	if r.kbsConfig.Spec.KbsAttestationPolicyConfigMapName != "" {
-		volume, err = r.createConfigMapVolume(ctx, "attestation-opa", r.kbsConfig.Spec.KbsAttestationPolicyConfigMapName)
+		volume, err = r.createConfigMapVolume(ctx, "attestation-policy", r.kbsConfig.Spec.KbsAttestationPolicyConfigMapName)
 		if err != nil {
 			return nil, err
 		}
-		// attestation policy file is "/opt/confidential-containers/attestation-service/opa/default.rego"
-		volumeMount = createVolumeMount(volume.Name, filepath.Join(confidentialContainersPath, "attestation-service", "opa"))
+		// attestation policy file is "/opt/confidential-containers/attestation-service/policies/opa/default.rego"
+		volumeMount = createVolumeMount(volume.Name, attestationPolicyPath)
 		volumes = append(volumes, *volume)
 		kbsVM = append(kbsVM, volumeMount)
 	}
@@ -610,7 +610,7 @@ func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMoun
 	command := []string{
 		"/usr/local/bin/kbs",
 		"--config-file",
-		"/etc/kbs-config/kbs-config.json",
+		"/etc/kbs-config/kbs-config.toml",
 	}
 
 	return corev1.Container{
