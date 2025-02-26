@@ -305,7 +305,7 @@ func (r *KbsConfigReconciler) addKbsConfigFinalizer(ctx context.Context) error {
 // newKbsDeployment returns a new deployment for the KBS instance
 func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Deployment, error) {
 	// Set replica count
-	replicas := int32(1)
+	replicas := int32(2)
 	// Set rolling update strategy
 	rollingUpdate := &appsv1.RollingUpdateDeployment{
 		MaxUnavailable: &intstr.IntOrString{
