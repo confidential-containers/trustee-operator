@@ -17,7 +17,7 @@ data:
     insecure_key = true
 
     [attestation_service]
-    type = "coco_as_grpc"
+    type = "coco_as_builtin"
     as_addr = "http://127.0.0.1:50004"
 
     [[plugins]]
