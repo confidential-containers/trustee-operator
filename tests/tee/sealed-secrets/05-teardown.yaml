@@ -1,0 +1,8 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: kubectl delete secret -n default sealed-secret
+  - script: kubectl delete secret -n trustee-operator-system vault-secret
+  - script: kubectl delete pod sealed-pod
+  - script: export CR_NAME=$(kubectl get kbsconfig -n trustee-operator-system -o=jsonpath='{.items[0].metadata.name}') &&
+            kubectl get KbsConfig -n trustee-operator-system $CR_NAME -o json | jq ".spec.kbsSecretResources -= [\"vault-secret\"]" | kubectl apply -f -

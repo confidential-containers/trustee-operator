@@ -97,6 +97,5 @@ spec:
   kbsRvpsRefValuesConfigMapName: rvps-reference-values
   kbsSecretResources: ["kbsres1"]
   kbsResourcePolicyConfigMapName: resource-policy
-  kbsServiceType: LoadBalancer
 EOF
 
