@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kbs-auth-public-key
+  namespace: trustee-operator-system
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kbs-https-certificate
+  namespace: trustee-operator-system
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kbs-https-key
+  namespace: trustee-operator-system
