@@ -4,7 +4,7 @@ These are helper scripts to setup Trustee operator on OpenShift cluster
 
 ## Prerequisites
 
-- `oc`, `jq` and `openssl` CLI
+- `oc`, `jq`, `git` and `openssl` CLI
 
 ## How to use the installation script
 
