@@ -478,7 +478,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 
 	securityContext := createSecurityContext()
 	env := buildEnvVars(r)
-	containers := []corev1.Container{r.buildKbsContainer(kbsVM, securityContext, env)}
+	containers := []corev1.Container{r.buildKbsContainer(kbsVM, securityContext, env, kbsDeploymentType)}
 
 	if kbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices {
 		// build AS container
@@ -599,11 +599,14 @@ func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMou
 	}
 }
 
-func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMount, securityContext *corev1.SecurityContext, env []corev1.EnvVar) corev1.Container {
-	// Get Image Name from env variable if set
-	imageName := os.Getenv("KBS_IMAGE_NAME")
-	if imageName == "" {
-		imageName = DefaultKbsImageName
+func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMount,
+	securityContext *corev1.SecurityContext, env []corev1.EnvVar,
+	kbsDeploymentType confidentialcontainersorgv1alpha1.DeploymentType) corev1.Container {
+	var imageName string
+	if kbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
+		imageName = os.Getenv("KBS_IMAGE_NAME")
+	} else {
+		imageName = os.Getenv("KBS_IMAGE_NAME_MICROSERVICES")
 	}
 
 	// command array for the KBS container

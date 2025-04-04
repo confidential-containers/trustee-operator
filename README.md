@@ -223,7 +223,7 @@ You should see a similar output as below:
 
 ```sh
 NAME                                                   READY   STATUS    RESTARTS   AGE
-trustee-operator-controller-manager-6fb5bb5bd9-22wd6   2/2     Running   0          25s
+trustee-operator-controller-manager-6797b78467-zndkv   1/1     Running   0          111s
 ```
 
 #### Deployment of CRDs, ConfigMaps and Secrets
@@ -231,8 +231,8 @@ trustee-operator-controller-manager-6fb5bb5bd9-22wd6   2/2     Running   0      
 This is an example deployment. Review the config files and change it as per your requirements.
 
 ```sh
-cd config/samples/microservices
-# or config/samples/all-in-one for the integrated mode
+cd config/samples/all-in-one
+# or config/samples/microservices for the microservices mode
 
 # create authentication keys
 openssl genpkey -algorithm ed25519 > privateKey
