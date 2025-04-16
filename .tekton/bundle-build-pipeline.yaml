@@ -337,6 +337,54 @@ spec:
       operator: in
       values:
       - "false"
+  - name: sast-shell-check
+    params:
+      - name: image-digest
+        value: $(tasks.build-container.results.IMAGE_DIGEST)
+      - name: image-url
+        value: $(tasks.build-container.results.IMAGE_URL)
+    runAfter:
+      - build-container
+    taskRef:
+      params:
+        - name: name
+          value: sast-shell-check
+        - name: bundle
+          value: quay.io/konflux-ci/tekton-catalog/task-sast-shell-check:0.1@sha256:b4167347d57e189289ebc0df61ed937cfd969bd1220e154b226d4517bfb14cb7
+        - name: kind
+          value: task
+      resolver: bundles
+    when:
+      - input: $(params.skip-checks)
+        operator: in
+        values:
+          - "false"
+    workspaces:
+      - name: workspace
+        workspace: workspace
+  - name: sast-unicode-check
+    params:
+      - name: image-url
+        value: $(tasks.build-container.results.IMAGE_URL)
+    runAfter:
+      - build-container
+    taskRef:
+      params:
+        - name: name
+          value: sast-unicode-check
+        - name: bundle
+          value: quay.io/konflux-ci/tekton-catalog/task-sast-unicode-check:0.1@sha256:33f4ca4d3cc58c011f280fc7c62fae1e202bbd7e989a8a4678039302f14c5ed9
+        - name: kind
+          value: task
+      resolver: bundles
+    when:
+      - input: $(params.skip-checks)
+        operator: in
+        values:
+          - "false"
+    workspaces:
+      - name: workspace
+        workspace: workspace
   - name: apply-tags
     params:
     - name: IMAGE
