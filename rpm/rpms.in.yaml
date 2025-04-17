@@ -1,0 +1,4 @@
+packages: [openssl] 
+contentOrigin:
+  repofiles: ["./ubi.repo"] 
+arches: [x86_64, s390x]

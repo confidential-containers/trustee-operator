@@ -33,22 +33,15 @@ spec:
   - name: build-source-image
     value: "true"
   - name: prefetch-input
-    value: '{"type": "gomod", "path": "."}'
+    value: '[{"type": "gomod", "path": "."}, {"type": "rpm", "path": "rpm"}]'
   - name: hermetic
-    value: "false"
+    value: "true"
   - name: build-platforms
     value:
       - linux/x86_64
       - linux/s390x
   pipelineRef:
-    resolver: bundles
-    params:
-    - name: name
-      value: docker-build-multi-platform-oci-ta
-    - name: bundle
-      value: quay.io/konflux-ci/tekton-catalog/pipeline-docker-build-multi-platform-oci-ta:devel@sha256:ce2fa488b0ce0ba713d6756a4f86f06f1db1ab803dd344fbcfdab4e3dd775952
-    - name: kind
-      value: pipeline
+    name: docker-build-multi-platform-oci-ta
   taskRunTemplate: {}
   workspaces:
   - name: git-auth
