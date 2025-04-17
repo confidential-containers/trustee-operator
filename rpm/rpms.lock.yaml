@@ -1,0 +1,26 @@
+---
+lockfileVersion: 1
+lockfileVendor: redhat
+arches:
+- arch: s390x
+  packages:
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/s390x/baseos/os/Packages/o/openssl-3.2.2-6.el9_5.1.s390x.rpm
+    repoid: ubi-9-for-s390x-baseos-rpms
+    size: 1407537
+    checksum: sha256:0a24289ee6324c2ecd6edad913f8ecfcfc6db43fbf6fed65458141e3ec0c104f
+    name: openssl
+    evr: 1:3.2.2-6.el9_5.1
+    sourcerpm: openssl-3.2.2-6.el9_5.1.src.rpm
+  source: []
+  module_metadata: []
+- arch: x86_64
+  packages:
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/baseos/os/Packages/o/openssl-3.2.2-6.el9_5.1.x86_64.rpm
+    repoid: ubi-9-for-x86_64-baseos-rpms
+    size: 1420999
+    checksum: sha256:f379686df99db814e30568a896b417278775fc96864ac6d2660bf48ef94309e3
+    name: openssl
+    evr: 1:3.2.2-6.el9_5.1
+    sourcerpm: openssl-3.2.2-6.el9_5.1.src.rpm
+  source: []
+  module_metadata: []
