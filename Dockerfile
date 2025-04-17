@@ -51,6 +51,7 @@ LABEL url="https://access.redhat.com/"
 LABEL vendor="Red Hat, Inc."
 LABEL version="1"
 LABEL maintainer="Red Hat"
+LABEL io.openshift.tags=""
 
 # Licenses
 
