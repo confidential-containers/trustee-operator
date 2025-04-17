@@ -30,7 +30,7 @@ spec:
   - name: build-source-image
     value: "true"
   - name: prefetch-input
-    value: '{"type": "gomod", "path": "."}'
+    value: '[{"type": "gomod", "path": "."}, {"type": "rpm", "path": "rpm"}]'
   - name: hermetic
     value: "true"
   - name: build-platforms
