@@ -6,7 +6,8 @@ metadata:
   namespace: trustee-operator-system
 spec:
   channel: stable
-  installPlanApproval: Automatic
+  installPlanApproval: Manual
   name: trustee-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
+  startingCSV: trustee-operator.v0.2.0

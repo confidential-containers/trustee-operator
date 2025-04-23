@@ -11,10 +11,14 @@ if [ -n "$ITA_KEY" ]; then
 	TDX=true
 fi
 DEFAULT_IMAGE=quay.io/openshift_sandboxed_containers/kbs:v0.10.1
+DEFAULT_TRUSTEE_OPERATOR_CSV=trustee-operator.v0.2.0
+
 if [ -n "$ITA_KEY" ]; then
     DEFAULT_IMAGE+="-ita"
 fi
+
 TRUSTEE_IMAGE=${TRUSTEE_IMAGE:-$DEFAULT_IMAGE}
+TRUSTEE_OPERATOR_CSV=${TRUSTEE_OPERATOR_CSV:-$DEFAULT_TRUSTEE_OPERATOR_CSV}
 
 # Function to check if the oc command is available
 function check_oc() {
@@ -103,6 +107,37 @@ function wait_for_mcp() {
         statusDegraded=$(oc get mcp "$mcp" -o=jsonpath='{.status.conditions[?(@.type=="Degraded")].status}')
     done
 
+}
+
+# Function to approve installPlan tied to specific CSV to be available in specific namespace
+approve_installplan_for_target_csv() {
+    local ns="$1"
+    local target_csv="$2"
+    local timeout=300
+    local interval=5
+    local elapsed=0
+
+    echo "Waiting for InstallPlan with CSV '$target_csv' in namespace '$ns'..."
+
+    while [ $elapsed -lt "$timeout" ]; do
+        installplans=$(oc get installplan -n "$ns" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)
+        for ip in $installplans; do
+            csvs=$(oc get installplan "$ip" -n "$ns" -o jsonpath="{.spec.clusterServiceVersionNames[*]}" 2>/dev/null)
+            for csv in $csvs; do
+                if [ "$csv" == "$target_csv" ]; then
+                    echo "Found matching InstallPlan: $ip"
+                    echo "Approving InstallPlan: $ip"
+                    oc patch installplan "$ip" -n "$ns" -p '{"spec":{"approved":true}}' --type merge || return 1
+                    return 0
+                fi
+            done
+        done
+        sleep $interval
+        elapsed=$((elapsed + interval))
+    done
+
+    echo "Timed out waiting for InstallPlan with CSV '$target_csv' in namespace '$ns'"
+    return 1
 }
 
 # Function to set additional cluster-wide image pull secret
@@ -210,6 +245,7 @@ function apply_operator_manifests() {
     oc apply -f og.yaml || return 1
     if [[ "$GA_RELEASE" == "true" ]]; then
         oc apply -f subs-ga.yaml || return 1
+	approve_installplan_for_target_csv trustee-operator-system "$TRUSTEE_OPERATOR_CSV" || return 1
     else
         oc apply -f trustee_catalog.yaml || return 1
         oc apply -f subs-upstream.yaml || return 1
@@ -362,9 +398,6 @@ check_oc || exit 1
 
 # Check if openssl command is available
 check_openssl || exit 1
-
-# Apply the operator manifests
-apply_operator_manifests || exit 1
 
 # If MIRRORING is true, then create the image mirroring config
 if [ "$MIRRORING" = true ]; then
