@@ -6,7 +6,7 @@ metadata:
 spec:
   displayName: Trustee Operator Catalog
   sourceType: grpc
-  image: quay.io/redhat-user-workloads/ose-osc-tenant/trustee-fbc/trustee-fbc-4-16@sha256:9d3414cf77b353f6345a13e47e5365ab25931ef85afbfb6d778cd9bb818af047
+  image: ${FBC_IMAGE}
   updateStrategy:
     registryPoll:
       interval: 5m

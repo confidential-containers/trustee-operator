@@ -10,4 +10,4 @@ spec:
   name: trustee-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: trustee-operator.v0.2.0
+  startingCSV: trustee-operator.v0.3.0
