@@ -69,6 +69,9 @@ type KbsConfigSpec struct {
   // IbmSEConfigSpec is the struct that hosts the IBMSE specific configuration
   // +optional
   IbmSEConfigSpec IbmSEConfigSpec `json:"ibmSEConfigSpec,omitempty"`
+
+  // KbsLocalCertCacheSpec is the struct for mounting local certificates into trustee file system
+  kbsLocalCertCacheSpec kbsLocalCertCacheSpec `json:"kbsLocalCertCacheSpec,omitempty"`  
 }
 
 // IbmSEConfigSpec defines the desired state for IBMSE configuration
@@ -83,6 +86,16 @@ type TdxConfigSpec struct {
   // kbsTdxConfigMapName is the name of the configmap containing sgx_default_qcnl.conf file
   // +optional
   KbsTdxConfigMapName string `json:"kbsTdxConfigMapName,omitempty"`
+}
+
+// KbsLocalCertCacheSpec defines the configuration for mounting local certificates into trustee file system
+type KbsLocalCertCacheSpec struct {
+  // SecretName is the name of the secret that maps to a local directory containing the certificates
+  // +optional
+  SecretName string `json:"secretName,omitempty"`
+  // MountPath is the destination path in the trustee file system
+  // +optional
+  MountPath string `json:"mountPath,omitempty"`
 }
 ```
 
@@ -193,6 +206,10 @@ spec:
   # IBMSE settings
   ibmSEConfigSpec:
     certStorePvc: ibmse-pvc
+  # Mount VCEK certificate for disconnected environment
+  kbsLocalCertCacheSpec:
+    secretName: vcek-secret
+    mountPath: "/etc/kbs/snp/ek"
 ```
 
 ## Getting Started
@@ -298,6 +315,10 @@ For IBM SE specific configuration, please refer to [ibmse.md](docs/ibmse.md).
 #### ITA configuration
 
 For Intel's ITA specific configuration, please refer to [ita.md](docs/ita.md).
+
+### Mount certificates for disconnected environment
+
+Please refer to [disconnected.md](docs/disconnected.md).
 
 ### Uninstallation
 
