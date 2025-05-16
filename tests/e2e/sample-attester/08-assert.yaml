@@ -1,8 +1,7 @@
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: kbs-client
+  name: trustee-deployment
   namespace: trustee-operator-system
 status:
-  containerStatuses:
-  - ready: true
+  readyReplicas: 2

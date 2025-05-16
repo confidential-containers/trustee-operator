@@ -19,4 +19,8 @@ spec:
   kbsSecretResources:
     - "kbsres1"
   KbsEnvVars: 
-    RUST_LOG: debug  
+    RUST_LOG: debug
+  kbsLocalCertCacheSpec:
+    secretName: vcek-secret
+    mountPath: "/etc/kbs/snp/ek"
+    

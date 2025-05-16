@@ -1,0 +1,4 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: export POD=$(kubectl get pod -n trustee-operator-system -l app=kbs -o jsonpath="{.items[0].metadata.name}") && test "$(kubectl exec -n trustee-operator-system $POD -- ls /etc/kbs/snp/ek | wc -l)" = "1"
