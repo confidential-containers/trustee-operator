@@ -412,6 +412,17 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
 	kbsVM = append(kbsVM, volumeMount)
 
+	// Mount local directory into a secret
+	if r.kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName != "" {
+		volume, err = r.createSecretVolume(ctx, r.kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName, r.kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName)
+		if err != nil {
+			return nil, err
+		}
+		volumes = append(volumes, *volume)
+		volumeMount = createVolumeMount(volume.Name, r.kbsConfig.Spec.KbsLocalCertCacheSpec.MountPath)
+		kbsVM = append(kbsVM, volumeMount)
+	}
+
 	// https
 	// TBD: Make https as must going forward
 	if r.isHttpsConfigPresent() {
@@ -784,6 +795,7 @@ func secretToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFunc,
 		var requests []reconcile.Request
 		for _, kbsConfig := range kbsConfigList.Items {
 			if kbsConfig.Spec.KbsAuthSecretName == secret.Name ||
+				kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName == secret.Name ||
 				kbsConfig.Spec.KbsHttpsKeySecretName == secret.Name ||
 				kbsConfig.Spec.KbsHttpsCertSecretName == secret.Name ||
 				kbsConfig.Spec.KbsSecretResources != nil && contains(kbsConfig.Spec.KbsSecretResources, secret.Name) {
