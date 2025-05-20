@@ -50,6 +50,16 @@ type IbmSEConfigSpec struct {
 	CertStorePvc string `json:"certStorePvc,omitempty"`
 }
 
+// KbsLocalCertCacheSpec defines the configuration for mounting local certificates into trustee file system
+type KbsLocalCertCacheSpec struct {
+	// SecretName is the name of the secret that maps to a local directory containing the certificates
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
+	// MountPath is the destination path in the trustee file system
+	// +optional
+	MountPath string `json:"mountPath,omitempty"`
+}
+
 // KbsConfigSpec defines the desired state of KbsConfig
 type KbsConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -118,6 +128,9 @@ type KbsConfigSpec struct {
 	// For example, RUST_LOG=debug enables logging with DEBUG severity
 	// +optional
 	KbsEnvVars map[string]string `json:"KbsEnvVars,omitempty"`
+
+	// KbsLocalCertCacheSpec is the struct for mounting local certificates into trustee file system
+	KbsLocalCertCacheSpec KbsLocalCertCacheSpec `json:"kbsLocalCertCacheSpec,omitempty"`
 }
 
 // KbsConfigStatus defines the observed state of KbsConfig

@@ -1,0 +1,8 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - command: ../../scripts/uninstall-operator.sh
+  - script: rm -f privateKey
+  - script: rm -f publicKey
+  - script: rm -f https.crt
+  - script: rm -f https.key

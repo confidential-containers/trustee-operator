@@ -1,0 +1,6 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: export KATA_RUNTIME=${KATA_RUNTIME:-kata-snp} && envsubst < "pod-sealed.yaml.in" > "pod-sealed.yaml"
+  - script: kubectl apply -f pod-sealed.yaml
+  - script: rm pod-sealed.yaml
