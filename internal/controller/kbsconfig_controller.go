@@ -305,7 +305,7 @@ func (r *KbsConfigReconciler) addKbsConfigFinalizer(ctx context.Context) error {
 // newKbsDeployment returns a new deployment for the KBS instance
 func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Deployment, error) {
 	// Set replica count
-	replicas := int32(1)
+	replicas := int32(2)
 	// Set rolling update strategy
 	rollingUpdate := &appsv1.RollingUpdateDeployment{
 		MaxUnavailable: &intstr.IntOrString{
@@ -412,6 +412,17 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
 	kbsVM = append(kbsVM, volumeMount)
 
+	// Mount local directory into a secret
+	if r.kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName != "" {
+		volume, err = r.createSecretVolume(ctx, r.kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName, r.kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName)
+		if err != nil {
+			return nil, err
+		}
+		volumes = append(volumes, *volume)
+		volumeMount = createVolumeMount(volume.Name, r.kbsConfig.Spec.KbsLocalCertCacheSpec.MountPath)
+		kbsVM = append(kbsVM, volumeMount)
+	}
+
 	// https
 	// TBD: Make https as must going forward
 	if r.isHttpsConfigPresent() {
@@ -478,7 +489,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 
 	securityContext := createSecurityContext()
 	env := buildEnvVars(r)
-	containers := []corev1.Container{r.buildKbsContainer(kbsVM, securityContext, env)}
+	containers := []corev1.Container{r.buildKbsContainer(kbsVM, securityContext, env, kbsDeploymentType)}
 
 	if kbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices {
 		// build AS container
@@ -599,11 +610,14 @@ func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMou
 	}
 }
 
-func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMount, securityContext *corev1.SecurityContext, env []corev1.EnvVar) corev1.Container {
-	// Get Image Name from env variable if set
-	imageName := os.Getenv("KBS_IMAGE_NAME")
-	if imageName == "" {
-		imageName = DefaultKbsImageName
+func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMount,
+	securityContext *corev1.SecurityContext, env []corev1.EnvVar,
+	kbsDeploymentType confidentialcontainersorgv1alpha1.DeploymentType) corev1.Container {
+	var imageName string
+	if kbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
+		imageName = os.Getenv("KBS_IMAGE_NAME")
+	} else {
+		imageName = os.Getenv("KBS_IMAGE_NAME_MICROSERVICES")
 	}
 
 	// command array for the KBS container
@@ -781,6 +795,7 @@ func secretToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFunc,
 		var requests []reconcile.Request
 		for _, kbsConfig := range kbsConfigList.Items {
 			if kbsConfig.Spec.KbsAuthSecretName == secret.Name ||
+				kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName == secret.Name ||
 				kbsConfig.Spec.KbsHttpsKeySecretName == secret.Name ||
 				kbsConfig.Spec.KbsHttpsCertSecretName == secret.Name ||
 				kbsConfig.Spec.KbsSecretResources != nil && contains(kbsConfig.Spec.KbsSecretResources, secret.Name) {

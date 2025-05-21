@@ -163,6 +163,8 @@ spec:
                       fieldPath: metadata.namespace
                 - name: KBS_IMAGE_NAME
                   value: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9@sha256:f04017fae84e044d23b23e8528185abfce7204a43425b40b627c34d32d34c36a"
+                - name: KBS_IMAGE_NAME_MICROSERVICES
+                  value: ghcr.io/confidential-containers/key-broker-service:v0.11.0                  
                 - name: AS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME

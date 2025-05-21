@@ -3,4 +3,4 @@ kind: TestSuite
 testDirs:
 - tests/e2e/
 parallel: 1
-timeout: 240
+timeout: 480

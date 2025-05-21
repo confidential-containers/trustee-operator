@@ -1,7 +1,7 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: Secret
 metadata:
-  name: trustee-deployment
+  name: vcek-secret
   namespace: trustee-operator-system
-status:
-  readyReplicas: 1
+
+

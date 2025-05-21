@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kbs-client
+  namespace: trustee-operator-system
+spec:
+  containers:
+  - name: kbs-client
+    image: ${CLIENT_IMAGE_NAME}
+    imagePullPolicy: IfNotPresent
+    command:
+      - sleep
+      - "360000"
+    env:
+      - name: RUST_LOG
+        value:  none
