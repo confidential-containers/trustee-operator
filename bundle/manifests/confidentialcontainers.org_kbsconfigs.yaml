@@ -91,6 +91,19 @@ spec:
                 description: KbsHttpsKeySecretName is the name of the secret that
                   contains the KBS https private key
                 type: string
+              kbsLocalCertCacheSpec:
+                description: KbsLocalCertCacheSpec is the struct for mounting local
+                  certificates into trustee file system
+                properties:
+                  mountPath:
+                    description: MountPath is the destination path in the trustee
+                      file system
+                    type: string
+                  secretName:
+                    description: SecretName is the name of the secret that maps to
+                      a local directory containing the certificates
+                    type: string
+                type: object
               kbsResourcePolicyConfigMapName:
                 description: KbsResourcePolicyConfigMapName is the name of the configmap
                   that contains the Resource Policy

@@ -1,0 +1,7 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: kubectl delete pod encrypted-pod
+  # re-applies the CR without 'new-secret'
+  - script: export CR_NAME=$(kubectl get kbsconfig -n trustee-operator-system -o=jsonpath='{.items[0].metadata.name}') &&
+            kubectl get KbsConfig -n trustee-operator-system $CR_NAME -o json | jq ".spec.kbsSecretResources -= [\"key\"]" | kubectl apply -f -

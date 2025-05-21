@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: trustee-deployment
+  name: trustee-operator-controller-manager
   namespace: trustee-operator-system
 status:
-  readyReplicas: 2
+  readyReplicas: 1

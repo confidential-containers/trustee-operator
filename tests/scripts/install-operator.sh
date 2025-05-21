@@ -28,12 +28,15 @@ REGISTRY=localhost:5001
 export IMG=${REGISTRY}/trustee-operator:test
 
 pushd config/manager
-kustomize edit set image controller=$IMG
 kustomize edit add patch --patch "- op: replace
   path: '/spec/template/spec/containers/0/env/1'
   value:
     name: KBS_IMAGE_NAME
     value: ${KBS_IMAGE_NAME}" --kind Deployment --name controller-manager
+
+kustomize edit add patch --patch "- op: replace
+  path: '/spec/template/spec/containers/0/image'
+  value: localhost:5001/trustee-operator:test" --kind Deployment --name controller-manager
 
 if [[ "$ALL_IN_ONE" != "true" ]] ; then
   kustomize edit add patch --patch "- op: replace
