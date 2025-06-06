@@ -72,6 +72,9 @@ type KbsConfigSpec struct {
 
   // KbsLocalCertCacheSpec is the struct for mounting local certificates into trustee file system
   kbsLocalCertCacheSpec kbsLocalCertCacheSpec `json:"kbsLocalCertCacheSpec,omitempty"`  
+
+	// KbsDeploymentSpec is the struct for trustee deployment options
+	KbsDeploymentSpec KbsDeploymentSpec `json:"KksDeploymentSpec,omitempty"`
 }
 
 // IbmSEConfigSpec defines the desired state for IBMSE configuration
@@ -96,6 +99,14 @@ type KbsLocalCertCacheSpec struct {
   // MountPath is the destination path in the trustee file system
   // +optional
   MountPath string `json:"mountPath,omitempty"`
+}
+
+// KbsDeploymentSpec defines the configuration for trustee deployment
+type KbsDeploymentSpec struct {
+	// Number of desired trustee pods. This is a pointer to distinguish between explicit
+	// zero and not specified. Defaults to 1.
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 ```
 
