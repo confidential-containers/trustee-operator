@@ -3,6 +3,9 @@ kind: Pod
 metadata:
   name: aa-test-cc
   namespace: default
+  annotations:
+    io.containerd.cri.runtime-handler: ${KATA_RUNTIME}
+    io.katacontainers.config.hypervisor.kernel_params: " agent.aa_kbc_params=cc_kbc::http://kbs-service.trustee-operator-system:8080"
 spec:
   runtimeClassName: ${KATA_RUNTIME}
   containers:

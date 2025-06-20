@@ -69,6 +69,12 @@ type KbsConfigSpec struct {
   // IbmSEConfigSpec is the struct that hosts the IBMSE specific configuration
   // +optional
   IbmSEConfigSpec IbmSEConfigSpec `json:"ibmSEConfigSpec,omitempty"`
+
+  // KbsLocalCertCacheSpec is the struct for mounting local certificates into trustee file system
+  kbsLocalCertCacheSpec kbsLocalCertCacheSpec `json:"kbsLocalCertCacheSpec,omitempty"`  
+
+	// KbsDeploymentSpec is the struct for trustee deployment options
+	KbsDeploymentSpec KbsDeploymentSpec `json:"KksDeploymentSpec,omitempty"`
 }
 
 // IbmSEConfigSpec defines the desired state for IBMSE configuration
@@ -83,6 +89,24 @@ type TdxConfigSpec struct {
   // kbsTdxConfigMapName is the name of the configmap containing sgx_default_qcnl.conf file
   // +optional
   KbsTdxConfigMapName string `json:"kbsTdxConfigMapName,omitempty"`
+}
+
+// KbsLocalCertCacheSpec defines the configuration for mounting local certificates into trustee file system
+type KbsLocalCertCacheSpec struct {
+  // SecretName is the name of the secret that maps to a local directory containing the certificates
+  // +optional
+  SecretName string `json:"secretName,omitempty"`
+  // MountPath is the destination path in the trustee file system
+  // +optional
+  MountPath string `json:"mountPath,omitempty"`
+}
+
+// KbsDeploymentSpec defines the configuration for trustee deployment
+type KbsDeploymentSpec struct {
+	// Number of desired trustee pods. This is a pointer to distinguish between explicit
+	// zero and not specified. Defaults to 1.
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 ```
 
@@ -193,6 +217,10 @@ spec:
   # IBMSE settings
   ibmSEConfigSpec:
     certStorePvc: ibmse-pvc
+  # Mount VCEK certificate for disconnected environment
+  kbsLocalCertCacheSpec:
+    secretName: vcek-secret
+    mountPath: "/etc/kbs/snp/ek"
 ```
 
 ## Getting Started
@@ -223,7 +251,7 @@ You should see a similar output as below:
 
 ```sh
 NAME                                                   READY   STATUS    RESTARTS   AGE
-trustee-operator-controller-manager-6fb5bb5bd9-22wd6   2/2     Running   0          25s
+trustee-operator-controller-manager-6797b78467-zndkv   1/1     Running   0          111s
 ```
 
 #### Deployment of CRDs, ConfigMaps and Secrets
@@ -231,8 +259,8 @@ trustee-operator-controller-manager-6fb5bb5bd9-22wd6   2/2     Running   0      
 This is an example deployment. Review the config files and change it as per your requirements.
 
 ```sh
-cd config/samples/microservices
-# or config/samples/all-in-one for the integrated mode
+cd config/samples/all-in-one
+# or config/samples/microservices for the microservices mode
 
 # create authentication keys
 openssl genpkey -algorithm ed25519 > privateKey
@@ -298,6 +326,10 @@ For IBM SE specific configuration, please refer to [ibmse.md](docs/ibmse.md).
 #### ITA configuration
 
 For Intel's ITA specific configuration, please refer to [ita.md](docs/ita.md).
+
+### Mount certificates for disconnected environment
+
+Please refer to [disconnected.md](docs/disconnected.md).
 
 ### Uninstallation
 

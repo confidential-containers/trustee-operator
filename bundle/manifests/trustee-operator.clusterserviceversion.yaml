@@ -5,7 +5,7 @@ metadata:
     alm-examples: '[]'
     capabilities: Basic Install
     categories: "Security"
-    containerImage: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9-operator@sha256:8d6be8f419389a90d57aca4271d92edcb053bae3f3774a11113e4b955347fe11"
+    containerImage: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9-operator@sha256:caff236f7745427e2aae28632f1853b4a0991264e40aebfae12041fd34c33c1e"
     createdAt: "2024-06-07T10:06:06Z"
     operatorframework.io/suggested-namespace: trustee-operator-system
     operators.operatorframework.io/builder: operator-sdk-v1.36.1
@@ -23,7 +23,7 @@ metadata:
     features.operators.openshift.io/token-auth-gcp: "false"
     operators.openshift.io/valid-subscription: '["OpenShift Container Platform", "OpenShift Platform Plus"]'
     repository: https://github.com/openshift/trustee-operator
-  name: trustee-operator.v0.3.0
+  name: trustee-operator.v0.4.0
   namespace: placeholder
   labels:
     operatorframework.io/os.linux: supported
@@ -162,12 +162,14 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: KBS_IMAGE_NAME
-                  value: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9@sha256:32784863251006a829dccbf38ef6a99157da5b7c66e8ca710fea1405b3a97867"
+                  value: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9@sha256:b1c79617f7279650146ccf78fcc12a12a357dcf83673b8ccf714f8416f7eab48"
+                - name: KBS_IMAGE_NAME_MICROSERVICES
+                  value: ghcr.io/confidential-containers/key-broker-service:v0.13.0
                 - name: AS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/rvps:latest
-                image: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9-operator@sha256:8d6be8f419389a90d57aca4271d92edcb053bae3f3774a11113e4b955347fe11"
+                image: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9-operator@sha256:caff236f7745427e2aae28632f1853b4a0991264e40aebfae12041fd34c33c1e"
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -255,5 +257,5 @@ spec:
   provider:
     name: Red Hat
     url: https://github.com/confidential-containers
-  replaces: trustee-operator.v0.2.0
-  version: 0.3.0
+  replaces: trustee-operator.v0.3.0
+  version: 0.4.0

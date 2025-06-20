@@ -16,7 +16,9 @@ spec:
   kbsRvpsRefValuesConfigMapName: rvps-reference-values
   kbsResourcePolicyConfigMapName: resource-policy
   kbsAttestationPolicyConfigMapName: attestation-policy
+  kbsHttpsKeySecretName: kbs-https-key
+  kbsHttpsCertSecretName: kbs-https-certificate
   kbsSecretResources:
     - "kbsres1"
   KbsEnvVars: 
-    RUST_LOG: debug  
+    RUST_LOG: debug

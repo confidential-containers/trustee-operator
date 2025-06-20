@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sealed-pod
+  namespace: default
+status:
+  containerStatuses:
+  - ready: true

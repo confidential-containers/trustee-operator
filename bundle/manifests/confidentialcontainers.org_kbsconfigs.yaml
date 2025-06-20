@@ -46,6 +46,17 @@ spec:
                   KbsEnvVars injects environment variables in the trustee pods
                   For example, RUST_LOG=debug enables logging with DEBUG severity
                 type: object
+              KksDeploymentSpec:
+                description: KbsDeploymentSpec is the struct for trustee deployment
+                  options
+                properties:
+                  replicas:
+                    description: |-
+                      Number of desired trustee pods. This is a pointer to distinguish between explicit
+                      zero and not specified. Defaults to 1.
+                    format: int32
+                    type: integer
+                type: object
               ibmSEConfigSpec:
                 description: IbmSEConfigSpec is the struct that hosts the IBMSE specific
                   configuration
@@ -91,6 +102,19 @@ spec:
                 description: KbsHttpsKeySecretName is the name of the secret that
                   contains the KBS https private key
                 type: string
+              kbsLocalCertCacheSpec:
+                description: KbsLocalCertCacheSpec is the struct for mounting local
+                  certificates into trustee file system
+                properties:
+                  mountPath:
+                    description: MountPath is the destination path in the trustee
+                      file system
+                    type: string
+                  secretName:
+                    description: SecretName is the name of the secret that maps to
+                      a local directory containing the certificates
+                    type: string
+                type: object
               kbsResourcePolicyConfigMapName:
                 description: KbsResourcePolicyConfigMapName is the name of the configmap
                   that contains the Resource Policy
