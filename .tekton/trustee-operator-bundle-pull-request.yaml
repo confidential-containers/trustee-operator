@@ -7,10 +7,8 @@ metadata:
     build.appstudio.redhat.com/pull_request_number: '{{pull_request_number}}'
     build.appstudio.redhat.com/target_branch: '{{target_branch}}'
     pipelinesascode.tekton.dev/max-keep-runs: "3"
-    pipelinesascode.tekton.dev/on-cel-expression: >
-      event == "pull_request" &&
-      target_branch == "main" &&
-      files.all.exists(path, path.matches('bundle*|tests/*|.tekton/*bundle*'))
+    pipelinesascode.tekton.dev/on-cel-expression: |
+      event == "pull_request" && target_branch == "main" && files.all.exists(path, path.matches('bundle*|tests/*|.tekton/*bundle*'))
   creationTimestamp: null
   labels:
     appstudio.openshift.io/application: trustee
@@ -36,7 +34,10 @@ spec:
     value: "true"
   pipelineRef:
     name: bundle-build-pipeline
-  taskRunTemplate: {}
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-trustee-operator-bundle
+  timeouts:
+    pipeline: 2h0m0s
   workspaces:
   - name: workspace
     volumeClaimTemplate:
@@ -52,6 +53,4 @@ spec:
   - name: git-auth
     secret:
       secretName: '{{ git_auth_secret }}'
-  timeouts:
-    pipeline: "2h"
 status: {}
