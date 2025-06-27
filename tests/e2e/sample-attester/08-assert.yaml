@@ -4,4 +4,4 @@ metadata:
   name: trustee-deployment
   namespace: trustee-operator-system
 status:
-  readyReplicas: 1
+  readyReplicas: 2
