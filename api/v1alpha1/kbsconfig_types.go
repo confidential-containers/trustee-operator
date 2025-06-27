@@ -141,7 +141,7 @@ type KbsConfigSpec struct {
 	KbsLocalCertCacheSpec KbsLocalCertCacheSpec `json:"kbsLocalCertCacheSpec,omitempty"`
 
 	// KbsDeploymentSpec is the struct for trustee deployment options
-	KbsDeploymentSpec KbsDeploymentSpec `json:"KksDeploymentSpec,omitempty"`
+	KbsDeploymentSpec KbsDeploymentSpec `json:"KbsDeploymentSpec,omitempty"`
 }
 
 // KbsConfigStatus defines the observed state of KbsConfig
