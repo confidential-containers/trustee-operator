@@ -23,3 +23,6 @@ spec:
   kbsLocalCertCacheSpec:
     secretName: vcek-secret
     mountPath: "/etc/kbs/snp/ek"
+  KbsDeploymentSpec:
+    replicas: 2
+
