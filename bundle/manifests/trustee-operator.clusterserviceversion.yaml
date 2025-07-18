@@ -162,7 +162,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: KBS_IMAGE_NAME
-                  value: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9@sha256:59676f5e5c7dab9a49fd827bca87b1f396b4de3e0efa7d04e248c2f583222301"
+                  value: "registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9@sha256:447f80ee2b7d174ce255c9ce6ee9e2afb81846bc1a23c26da214ef59e7234e80"
                 - name: KBS_IMAGE_NAME_MICROSERVICES
                   value: ghcr.io/confidential-containers/key-broker-service:v0.13.0
                 - name: AS_IMAGE_NAME
