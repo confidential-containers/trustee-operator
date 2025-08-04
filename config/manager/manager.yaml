@@ -74,7 +74,7 @@ spec:
         args:
         - --leader-elect
         - --health-probe-bind-address=:8081
-        image: quay.io/confidential-containers/trustee-operator:v0.4.0
+        image: quay.io/confidential-containers/trustee-operator:v0.4.1
         name: manager
         # Add the following environment variables to the manager container
         # POD_NAMESPACE

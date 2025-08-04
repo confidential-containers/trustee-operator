@@ -6,13 +6,13 @@ spec:
   imageTagMirrors:
     - mirrors:
         - quay.io/redhat-user-workloads/ose-osc-tenant/trustee
-      source: registry.redhat.io/confidential-compute-attestation-tech-preview
+      source: registry.redhat.io/build-of-trustee
     - mirrors:
         - quay.io/redhat-user-workloads/ose-osc-tenant/trustee/trustee
-      source: registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9
+      source: registry.redhat.io/build-of-trustee/trustee-rhel9
     - mirrors:
         - quay.io/redhat-user-workloads/ose-osc-tenant/trustee/trustee-operator
-      source: registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9-operator
+      source: registry.redhat.io/build-of-trustee/trustee-rhel9-operator
 ---
 apiVersion: config.openshift.io/v1
 kind: ImageDigestMirrorSet
@@ -22,10 +22,10 @@ spec:
   imageDigestMirrors:
     - mirrors:
         - quay.io/redhat-user-workloads/ose-osc-tenant/trustee
-      source: registry.redhat.io/confidential-compute-attestation-tech-preview
+      source: registry.redhat.io/build-of-trustee
     - mirrors:
         - quay.io/redhat-user-workloads/ose-osc-tenant/trustee/trustee
-      source: registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9
+      source: registry.redhat.io/build-of-trustee/trustee-rhel9
     - mirrors:
         - quay.io/redhat-user-workloads/ose-osc-tenant/trustee/trustee-operator
-      source: registry.redhat.io/confidential-compute-attestation-tech-preview/trustee-rhel9-operator
+      source: registry.redhat.io/build-of-trustee/trustee-rhel9-operator
