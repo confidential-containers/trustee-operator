@@ -12,7 +12,7 @@ if [ -n "$ITA_KEY" ]; then
 fi
 
 DEFAULT_IMAGE=quay.io/redhat-user-workloads/ose-osc-tenant/trustee/trustee:345aef3985efea5d4f91ffbffb597cb44087b96a
-DEFAULT_TRUSTEE_OPERATOR_CSV=trustee-operator.v0.3.0
+DEFAULT_TRUSTEE_OPERATOR_CSV=trustee-operator.v0.4.1
 
 if [ -n "$ITA_KEY" ]; then
     DEFAULT_IMAGE+="-ita"
