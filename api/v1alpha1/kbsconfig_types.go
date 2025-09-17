@@ -174,6 +174,88 @@ type KbsConfigList struct {
 	Items           []KbsConfig `json:"items"`
 }
 
+// HttpsSpec defines the desired state for HTTPS configuration
+type HttpsSpec struct {
+	// HttpsEnabled: whether HTTPS is enabled or not
+	HttpsEnabled bool `json:"trusteeHttpsEnabled,omitempty"`
+	// Private key
+	PrivateKey string `json:"privateKey,omitempty"`
+	// Certificate
+	Certificate string `json:"certificate,omitempty"`
+}
+
+// AttestationTokenVerificationSpec token validation using trusted certificate authorities
+type AttestationTokenVerificationSpec struct {
+	// TokenVerificationEnabled: whether token signature is verified or not
+	TokenVerificationEnabled bool `json:"tokenVerificationEnabled,omitempty"`
+	// Certificate
+	Certificate string `json:"certificate,omitempty"`
+}
+
+// Profile Type string determines the trustee profile
+// +enum
+type ProfileType string
+
+const (
+	// ProfileTypePermissive: permissive mode is enabled
+	// - resource-policy is permissive
+	// - debug log enabled by default
+	ProfileTypePermissive ProfileType = "Permissive"
+
+	// ProfileTypeRestricted: restricted mode is enabled
+	// - resource-policy is restricted
+	// - https configuration is enforced
+	// - insecure_api enforced to false
+	// - insecure_key enforced to false
+	ProfileTypeRestrictive ProfileType = "Restricted"
+)
+
+// TrusteeConfigSpec defines the desired state of TrusteeConfig
+type TrusteeConfigSpec struct {
+	// HttpsSpec is the struct that hosts the HTTPS configuration
+	// +optional
+	HttpsSpec HttpsSpec `json:"httpsSpec,omitempty"`
+
+	// AttestationTokenVerificationSpec token validation using trusted certificate authorities
+	// +optional
+	AttestationTokenVerificationSpec AttestationTokenVerificationSpec `json:"attestationTokenVerificationSpec,omitempty"`
+
+	// ProfileType determines how to configure trustee, e.g. in permissive/restricted mode etc.
+	Profile ProfileType `json:"profileType,omitempty"`
+
+	// KbsServiceType is the type of service to create for KBS
+	// Default value is ClusterIP
+	// +optional
+	KbsServiceType corev1.ServiceType `json:"kbsServiceType,omitempty"`
+}
+
+// TrusteeConfigStatus defines the observed state of TrusteeConfig
+type TrusteeConfigStatus struct {
+	// IsReady is true when the TrusteeConfig configuration is ready
+	IsReady bool `json:"isReady,omitempty"`
+}
+
+//+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
+
+// TrusteeConfig is the Schema for the trusteeconfigs API
+type TrusteeConfig struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   TrusteeConfigSpec   `json:"spec,omitempty"`
+	Status TrusteeConfigStatus `json:"status,omitempty"`
+}
+
+//+kubebuilder:object:root=true
+
+// TrusteeConfigList contains a list of TrusteeConfig
+type TrusteeConfigList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []TrusteeConfig `json:"items"`
+}
+
 func init() {
-	SchemeBuilder.Register(&KbsConfig{}, &KbsConfigList{})
+	SchemeBuilder.Register(&KbsConfig{}, &KbsConfigList{}, &TrusteeConfig{}, &TrusteeConfigList{})
 }

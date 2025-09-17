@@ -6,7 +6,7 @@ metadata:
     capabilities: Basic Install
     categories: Security
     containerImage: quay.io/confidential-containers/trustee-operator:v0.4.0
-    createdAt: "2025-02-04T11:23:24Z"
+    createdAt: "2025-09-16T15:51:16Z"
     operatorframework.io/suggested-namespace: trustee-operator-system
     operators.operatorframework.io/builder: operator-sdk-v1.36.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
@@ -17,10 +17,15 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: KbsConfig is the Schema for the kbsconfigs API
+bsConfig is the Schema for the kbsconfigs API    - description: K
       displayName: Kbs Config
       kind: KbsConfig
       name: kbsconfigs.confidentialcontainers.org
+      version: v1alpha1
+    - description: TrusteeConfig is the Schema for the Trustee Config API
+      displayName: Trustee Config
+      kind: TrusteeConfig
+      name: trusteeconfigs.confidentialcontainers.org
       version: v1alpha1
   description: Operator to manage the lifecycle of Trustee
   displayName: Trustee Operator
@@ -63,6 +68,7 @@ spec:
           - confidentialcontainers.org
           resources:
           - kbsconfigs
+          - trusteeconfigs
           verbs:
           - create
           - delete
@@ -75,12 +81,14 @@ spec:
           - confidentialcontainers.org
           resources:
           - kbsconfigs/finalizers
+          - trusteeconfigs/finalizers
           verbs:
           - update
         - apiGroups:
           - confidentialcontainers.org
           resources:
           - kbsconfigs/status
+          - trusteeconfigs/status
           verbs:
           - get
           - patch
@@ -153,7 +161,7 @@ spec:
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/rvps:latest
-                image: quay.io/confidential-containers/trustee-operator:v0.4.0
+                image: controller:latest
                 livenessProbe:
                   httpGet:
                     path: /healthz
