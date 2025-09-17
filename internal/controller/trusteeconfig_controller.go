@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	"os"
@@ -239,9 +241,23 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 	}
 	spec.KbsEnvVars["RUST_LOG"] = "debug"
 
-	// TODO: Configure permissive resource policy
-	// This would require creating appropriate ConfigMaps
+	// Create the KBS config map
+	err := r.createOrUpdateKbsConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating KBS config map", "err", err)
+		return spec
+	}
 
+	// Create the KBS auth secret
+	err = r.createOrUpdateKbsAuthSecret(ctx)
+	if err != nil {
+		r.log.Info("Error creating KBS auth secret", "err", err)
+		return spec
+	}
+
+	// Set the config map and auth secret names in the spec
+	spec.KbsConfigMapName = r.getKbsConfigMapName()
+	spec.KbsAuthSecretName = r.getKbsAuthSecretName()
 	return spec
 }
 
@@ -413,3 +429,104 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context
 
 	return nil
 }
+
+// generateKbsAuthSecret creates a Secret for KBS authentication
+
+// getKbsAuthSecretName returns the name for the KBS auth secret
+func (r *TrusteeConfigReconciler) getKbsAuthSecretName() string {
+	return r.trusteeConfig.Name + "-auth-secret"
+}
+
+// createOrUpdateKbsAuthSecret creates or updates the KBS auth secret
+func (r *TrusteeConfigReconciler) createOrUpdateKbsAuthSecret(ctx context.Context) error {
+	secretName := r.getKbsAuthSecretName()
+
+	// Check if the secret already exists
+	found := &corev1.Secret{}
+	err := r.Client.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      secretName,
+	}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		// Create the secret
+		r.log.Info("Creating KBS auth secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		secret, err := r.generateKbsAuthSecret(ctx)
+		if err != nil {
+			return err
+		}
+		err = r.Client.Create(ctx, secret)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else {
+		// Update the existing secret
+		r.log.Info("Updating KBS auth secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		secret, err := r.generateKbsAuthSecret(ctx)
+		if err != nil {
+			return err
+		}
+		// Preserve the existing ObjectMeta
+		secret.ObjectMeta = found.ObjectMeta
+		// Update the data
+		found.Data = secret.Data
+		err = r.Client.Update(ctx, found)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// generateKbsAuthSecret creates a Secret for KBS authentication
+func (r *TrusteeConfigReconciler) generateKbsAuthSecret(ctx context.Context) (*corev1.Secret, error) {
+	secretName := r.getKbsAuthSecretName()
+
+	// Generate RSA key pair
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		r.log.Error(err, "Failed to generate RSA private key")
+		return nil, err
+	}
+
+	// Encode private key to PEM format
+	privateKeyPEM, err := encodePrivateKeyToPEM(privateKey)
+	if err != nil {
+		r.log.Error(err, "Failed to encode private key to PEM")
+		return nil, err
+	}
+
+	// Encode public key to PEM format
+	publicKeyPEM, err := encodePublicKeyToPEM(&privateKey.PublicKey)
+	if err != nil {
+		r.log.Error(err, "Failed to encode public key to PEM")
+		return nil, err
+	}
+
+	// Prepare secret data
+	data := make(map[string][]byte)
+	data["publicKey"] = publicKeyPEM
+	data["privateKey"] = privateKeyPEM
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: r.namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: data,
+	}
+
+	// Set TrusteeConfig as the owner
+	err = ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	return secret, nil
+}
+
+// encodePrivateKeyToPEM encodes an RSA private key to PEM format
