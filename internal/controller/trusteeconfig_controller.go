@@ -19,6 +19,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	"os"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -179,7 +181,7 @@ func (r *TrusteeConfigReconciler) newKbsConfig(ctx context.Context) *confidentia
 	kbsConfigName := r.getKbsConfigName()
 
 	// Create the KbsConfig spec based on TrusteeConfig
-	kbsConfigSpec := r.buildKbsConfigSpec()
+	kbsConfigSpec := r.buildKbsConfigSpec(ctx)
 
 	// Create a new KbsConfig
 	kbsConfig := &confidentialcontainersorgv1alpha1.KbsConfig{
@@ -200,7 +202,7 @@ func (r *TrusteeConfigReconciler) newKbsConfig(ctx context.Context) *confidentia
 }
 
 // buildKbsConfigSpec builds the KbsConfigSpec based on TrusteeConfig
-func (r *TrusteeConfigReconciler) buildKbsConfigSpec() confidentialcontainersorgv1alpha1.KbsConfigSpec {
+func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) confidentialcontainersorgv1alpha1.KbsConfigSpec {
 	spec := confidentialcontainersorgv1alpha1.KbsConfigSpec{}
 
 	// Set service type from TrusteeConfig
@@ -212,7 +214,7 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec() confidentialcontainersorg
 	switch r.trusteeConfig.Spec.Profile {
 	case confidentialcontainersorgv1alpha1.ProfileTypePermissive:
 		r.log.Info("Configuring KbsConfig for Permissive profile")
-		spec = r.configurePermissiveProfile(spec)
+		spec = r.configurePermissiveProfile(ctx, spec)
 	case confidentialcontainersorgv1alpha1.ProfileTypeRestrictive:
 		r.log.Info("Configuring KbsConfig for Restricted profile")
 		spec = r.configureRestrictedProfile(spec)
@@ -230,7 +232,7 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec() confidentialcontainersorg
 }
 
 // configurePermissiveProfile configures KbsConfig for permissive mode
-func (r *TrusteeConfigReconciler) configurePermissiveProfile(spec confidentialcontainersorgv1alpha1.KbsConfigSpec) confidentialcontainersorgv1alpha1.KbsConfigSpec {
+func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context, spec confidentialcontainersorgv1alpha1.KbsConfigSpec) confidentialcontainersorgv1alpha1.KbsConfigSpec {
 	// Set environment variables for permissive mode
 	if spec.KbsEnvVars == nil {
 		spec.KbsEnvVars = make(map[string]string)
@@ -305,4 +307,109 @@ func (r *TrusteeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&confidentialcontainersorgv1alpha1.TrusteeConfig{}).
 		Owns(&confidentialcontainersorgv1alpha1.KbsConfig{}).
 		Complete(r)
+}
+
+// generateKbsConfigMap creates a ConfigMap with the KBS configuration
+func (r *TrusteeConfigReconciler) generateKbsConfigMap(ctx context.Context) (*corev1.ConfigMap, error) {
+	configMapName := r.getKbsConfigMapName()
+
+	// Generate the TOML configuration content
+	tomlConfig, err := r.generateKbsTomlConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      configMapName,
+			Namespace: r.namespace,
+		},
+		Data: map[string]string{
+			"kbs-config.toml": tomlConfig,
+		},
+	}
+
+	// Set TrusteeConfig as the owner
+	err = ctrl.SetControllerReference(r.trusteeConfig, configMap, r.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	return configMap, nil
+}
+
+// generateKbsTomlConfig generates the TOML configuration content for KBS
+func (r *TrusteeConfigReconciler) generateKbsTomlConfig() (string, error) {
+	var templateFile string
+
+	// Select template file based on profile type
+	switch r.trusteeConfig.Spec.Profile {
+	case confidentialcontainersorgv1alpha1.ProfileTypeRestrictive:
+		templateFile = "config/templates/kbs-config-restricted.toml"
+		r.log.Info("Using restricted configuration template")
+	case confidentialcontainersorgv1alpha1.ProfileTypePermissive:
+		templateFile = "config/templates/kbs-config-permissive.toml"
+		r.log.Info("Using permissive configuration template")
+	default:
+		templateFile = "config/templates/kbs-config-permissive.toml"
+		r.log.Info("Using default permissive configuration template")
+	}
+
+	// Read the template file
+	configBytes, err := os.ReadFile(templateFile)
+	if err != nil {
+		r.log.Error(err, "Failed to read config template", "template", templateFile)
+		return "", err
+	}
+
+	return string(configBytes), nil
+}
+
+// getKbsConfigMapName returns the name for the KBS config map
+func (r *TrusteeConfigReconciler) getKbsConfigMapName() string {
+	return r.trusteeConfig.Name + "-kbs-config"
+}
+
+// createOrUpdateKbsConfigMap creates or updates the KBS config map
+func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context) error {
+	configMapName := r.getKbsConfigMapName()
+
+	// Check if the config map already exists
+	found := &corev1.ConfigMap{}
+	err := r.Client.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      configMapName,
+	}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		// Create the config map
+		r.log.Info("Creating KBS config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+		configMap, err := r.generateKbsConfigMap(ctx)
+		if err != nil {
+			return err
+		}
+		err = r.Client.Create(ctx, configMap)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else {
+		// Update the existing config map
+		r.log.Info("Updating KBS config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+		configMap, err := r.generateKbsConfigMap(ctx)
+		if err != nil {
+			return err
+		}
+		// Preserve the existing ObjectMeta
+		configMap.ObjectMeta = found.ObjectMeta
+		// Update the data
+		found.Data = configMap.Data
+		err = r.Client.Update(ctx, found)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
