@@ -322,10 +322,10 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		"app": "kbs",
 	}
 
-	// deployment type defaulted to microservices
+	// deployment type defaulted to all-in-one
 	kbsDeploymentType := r.kbsConfig.Spec.KbsDeploymentType
 	if kbsDeploymentType == "" {
-		kbsDeploymentType = confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices
+		kbsDeploymentType = confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne
 	}
 
 	var volumes []corev1.Volume
