@@ -102,6 +102,22 @@ func (r *TrusteeConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Update the TrusteeConfig status
 	r.trusteeConfig.Status.IsReady = true
+
+	// Set the KbsConfig reference
+	r.trusteeConfig.Status.KbsConfigRef = &corev1.ObjectReference{
+		APIVersion: "confidentialcontainers.org/v1alpha1",
+		Kind:       "KbsConfig",
+		Name:       kbsConfig.Name,
+		Namespace:  kbsConfig.Namespace,
+	}
+
+	// Set status description based on KbsConfig status
+	if kbsConfig.Status.IsReady {
+		r.trusteeConfig.Status.StatusDescription = "TrusteeConfig is ready and KbsConfig is deployed successfully"
+	} else {
+		r.trusteeConfig.Status.StatusDescription = "TrusteeConfig is ready but KbsConfig deployment is in progress"
+	}
+
 	err = r.Status().Update(ctx, r.trusteeConfig)
 	if err != nil {
 		r.log.Error(err, "Failed to update TrusteeConfig status")
