@@ -200,7 +200,7 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) confid
 	}
 
 	// Configure attestation token verification if specified
-	if r.trusteeConfig.Spec.AttestationTokenVerificationSpec.TokenVerificationEnabled {
+	if r.trusteeConfig.Spec.AttestationTokenVerificationSpec.Certificate != "" {
 		spec = r.configureAttestationTokenVerification(spec)
 	}
 

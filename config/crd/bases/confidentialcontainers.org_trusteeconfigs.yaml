@@ -46,10 +46,6 @@ spec:
                   certificate:
                     description: Certificate
                     type: string
-                  tokenVerificationEnabled:
-                    description: 'TokenVerificationEnabled: whether token signature
-                      is verified or not'
-                    type: boolean
                 type: object
               httpsSpec:
                 description: HttpsSpec is the struct that hosts the HTTPS configuration

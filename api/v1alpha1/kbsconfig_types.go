@@ -186,8 +186,6 @@ type HttpsSpec struct {
 
 // AttestationTokenVerificationSpec token validation using trusted certificate authorities
 type AttestationTokenVerificationSpec struct {
-	// TokenVerificationEnabled: whether token signature is verified or not
-	TokenVerificationEnabled bool `json:"tokenVerificationEnabled,omitempty"`
 	// Certificate
 	Certificate string `json:"certificate,omitempty"`
 }

@@ -14,4 +14,4 @@ spec:
   httpsSpec:
     trusteeHttpsEnabled: false
   attestationTokenVerificationSpec:
-    tokenVerificationEnabled: false
+    certificate: ""
