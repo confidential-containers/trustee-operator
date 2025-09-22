@@ -197,6 +197,8 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) confid
 		spec.KbsServiceType = r.trusteeConfig.Spec.KbsServiceType
 	}
 
+	spec.KbsDeploymentType = confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne
+
 	// Configure based on profile type
 	switch r.trusteeConfig.Spec.Profile {
 	case confidentialcontainersorgv1alpha1.ProfileTypePermissive:
