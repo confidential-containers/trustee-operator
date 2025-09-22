@@ -195,7 +195,7 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) confid
 	}
 
 	// Configure HTTPS if specified
-	if r.trusteeConfig.Spec.HttpsSpec.HttpsEnabled {
+	if r.trusteeConfig.Spec.HttpsSpec.Certificate != "" && r.trusteeConfig.Spec.HttpsSpec.PrivateKey != "" {
 		spec = r.configureHttps(spec)
 	}
 

@@ -13,6 +13,5 @@ spec:
   profileType: Permissive
   kbsServiceType: ClusterIP
   httpsSpec:
-    trusteeHttpsEnabled: false
   attestationTokenVerificationSpec:
     certificate: ""

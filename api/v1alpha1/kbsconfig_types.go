@@ -176,8 +176,6 @@ type KbsConfigList struct {
 
 // HttpsSpec defines the desired state for HTTPS configuration
 type HttpsSpec struct {
-	// HttpsEnabled: whether HTTPS is enabled or not
-	HttpsEnabled bool `json:"trusteeHttpsEnabled,omitempty"`
 	// Private key
 	PrivateKey string `json:"privateKey,omitempty"`
 	// Certificate

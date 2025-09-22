@@ -56,9 +56,6 @@ spec:
                   privateKey:
                     description: Private key
                     type: string
-                  trusteeHttpsEnabled:
-                    description: 'HttpsEnabled: whether HTTPS is enabled or not'
-                    type: boolean
                 type: object
               kbsServiceType:
                 description: |-
