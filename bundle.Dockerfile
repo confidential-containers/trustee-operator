@@ -28,7 +28,7 @@ LABEL com.redhat.component=$NAME
 LABEL description=$DESCRIPTION
 LABEL io.k8s.description=$DESCRIPTION
 LABEL io.k8s.display-name=$NAME
-LABEL name=$NAME
+LABEL name="build-of-trustee/trustee-operator-bundle"
 LABEL summary=$DESCRIPTION
 LABEL distribution-scope=public
 LABEL release="1"
@@ -36,6 +36,7 @@ LABEL url="https://access.redhat.com/"
 LABEL vendor="Red Hat, Inc."
 LABEL version="1"
 LABEL maintainer="Red Hat"
+LABEL cpe="cpe:/a:redhat:confidential_compute_attestation:1.0::el9"
 
 # Licenses
 
