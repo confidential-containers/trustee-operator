@@ -689,6 +689,9 @@ func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deploymen
 
 	// overwrites the template spec, if any changes
 	deployment.Spec.Template.Spec = *newDeployment.Spec.Template.Spec.DeepCopy()
+	// Update replicas if changed
+	deployment.Spec.Replicas = newDeployment.Spec.Replicas
+
 
 	err = r.Client.Update(ctx, deployment)
 	if err != nil {
