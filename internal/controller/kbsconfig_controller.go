@@ -692,7 +692,6 @@ func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deploymen
 	// Update replicas if changed
 	deployment.Spec.Replicas = newDeployment.Spec.Replicas
 
-
 	err = r.Client.Update(ctx, deployment)
 	if err != nil {
 		return err

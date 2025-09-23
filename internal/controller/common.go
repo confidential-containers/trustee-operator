@@ -16,10 +16,6 @@ limitations under the License.
 
 package controllers
 
-import (
-	"os"
-)
-
 const (
 
 	// KbsFinalizerName for KbsConfig
@@ -97,13 +93,4 @@ func remove(slice []string, s string) []string {
 		}
 	}
 	return result
-}
-
-// getOperatorNamespace returns the namespace the operator is running in
-func getOperatorNamespace() string {
-	namespace := os.Getenv("POD_NAMESPACE")
-	if namespace == "" {
-		namespace = KbsOperatorNamespace
-	}
-	return namespace
 }

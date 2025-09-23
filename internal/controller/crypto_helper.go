@@ -20,7 +20,6 @@ import (
 	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
 )
 
 // encodeEd25519PrivateKeyToPEM encodes an Ed25519 private key to PEM format
@@ -55,27 +54,4 @@ func encodeEd25519PublicKeyToPEM(publicKey ed25519.PublicKey) ([]byte, error) {
 	})
 
 	return publicKeyPEM, nil
-}
-
-// Legacy functions for backward compatibility (keeping the old function names)
-// These now delegate to the Ed25519 functions
-
-// encodePrivateKeyToPEM encodes an RSA private key to PEM format
-// Deprecated: Use encodeEd25519PrivateKeyToPEM for Ed25519 keys
-func encodePrivateKeyToPEM(privateKey interface{}) ([]byte, error) {
-	if ed25519Key, ok := privateKey.(ed25519.PrivateKey); ok {
-		return encodeEd25519PrivateKeyToPEM(ed25519Key)
-	}
-	// Fallback for other key types if needed
-	return nil, fmt.Errorf("unsupported private key type")
-}
-
-// encodePublicKeyToPEM encodes an RSA public key to PEM format
-// Deprecated: Use encodeEd25519PublicKeyToPEM for Ed25519 keys
-func encodePublicKeyToPEM(publicKey interface{}) ([]byte, error) {
-	if ed25519Key, ok := publicKey.(ed25519.PublicKey); ok {
-		return encodeEd25519PublicKeyToPEM(ed25519Key)
-	}
-	// Fallback for other key types if needed
-	return nil, fmt.Errorf("unsupported public key type")
 }
