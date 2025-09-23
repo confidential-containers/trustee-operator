@@ -18,8 +18,8 @@ package controllers
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/rsa"
 	"fmt"
 	"os"
 
@@ -442,22 +442,22 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context
 func (r *TrusteeConfigReconciler) generateKbsAuthSecret(ctx context.Context) (*corev1.Secret, error) {
 	secretName := r.getKbsAuthSecretName()
 
-	// Generate RSA key pair
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	// Generate Ed25519 key pair
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		r.log.Error(err, "Failed to generate RSA private key")
+		r.log.Error(err, "Failed to generate Ed25519 key pair")
 		return nil, err
 	}
 
 	// Encode private key to PEM format
-	privateKeyPEM, err := encodePrivateKeyToPEM(privateKey)
+	privateKeyPEM, err := encodeEd25519PrivateKeyToPEM(privateKey)
 	if err != nil {
 		r.log.Error(err, "Failed to encode private key to PEM")
 		return nil, err
 	}
 
 	// Encode public key to PEM format
-	publicKeyPEM, err := encodePublicKeyToPEM(&privateKey.PublicKey)
+	publicKeyPEM, err := encodeEd25519PublicKeyToPEM(publicKey)
 	if err != nil {
 		r.log.Error(err, "Failed to encode public key to PEM")
 		return nil, err
