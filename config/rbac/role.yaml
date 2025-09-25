@@ -80,4 +80,16 @@ rules:
   verbs:
   - get
   - list
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
