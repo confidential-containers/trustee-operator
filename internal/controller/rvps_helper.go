@@ -22,7 +22,7 @@ import (
 
 // generateRvpsReferenceValues generates the RVPS reference values JSON content
 func generateRvpsReferenceValues() (string, error) {
-	templateFile := "config/templates/rvps-reference-values.json"
+	templateFile := "/config/templates/rvps-reference-values.json"
 
 	// Read the template file
 	referenceValuesBytes, err := os.ReadFile(templateFile)

@@ -324,13 +324,13 @@ func (r *TrusteeConfigReconciler) generateKbsTomlConfig() (string, error) {
 	// Select template file based on profile type
 	switch r.trusteeConfig.Spec.Profile {
 	case confidentialcontainersorgv1alpha1.ProfileTypeRestrictive:
-		templateFile = "config/templates/kbs-config-restricted.toml"
+		templateFile = "/config/templates/kbs-config-restricted.toml"
 		r.log.Info("Using restricted configuration template")
 	case confidentialcontainersorgv1alpha1.ProfileTypePermissive:
-		templateFile = "config/templates/kbs-config-permissive.toml"
+		templateFile = "/config/templates/kbs-config-permissive.toml"
 		r.log.Info("Using permissive configuration template")
 	default:
-		templateFile = "config/templates/kbs-config-permissive.toml"
+		templateFile = "/config/templates/kbs-config-permissive.toml"
 		r.log.Info("Using default permissive configuration template")
 	}
 
