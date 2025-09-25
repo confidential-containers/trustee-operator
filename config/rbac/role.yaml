@@ -48,6 +48,7 @@ rules:
   - confidentialcontainers.org
   resources:
   - kbsconfigs
+  - trusteeconfigs
   verbs:
   - create
   - delete
@@ -60,12 +61,14 @@ rules:
   - confidentialcontainers.org
   resources:
   - kbsconfigs/finalizers
+  - trusteeconfigs/finalizers
   verbs:
   - update
 - apiGroups:
   - confidentialcontainers.org
   resources:
   - kbsconfigs/status
+  - trusteeconfigs/status
   verbs:
   - get
   - patch
