@@ -577,7 +577,7 @@ func (r *TrusteeConfigReconciler) getKbsConfigMapName() string {
 func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context) error {
 	configMapName := r.getKbsConfigMapName()
 	found := &corev1.ConfigMap{}
-	err := r.Client.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
 
 	if err != nil && k8serrors.IsNotFound(err) {
 		r.log.Info("Creating KBS config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
@@ -585,7 +585,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context
 		if err != nil {
 			return err
 		}
-		return r.Client.Create(ctx, configMap)
+		return r.Create(ctx, configMap)
 	} else if err != nil {
 		return err
 	}
@@ -596,7 +596,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context
 		return err
 	}
 	found.Data = updatedConfigMap.Data
-	return r.Client.Update(ctx, found)
+	return r.Update(ctx, found)
 }
 
 // generateKbsAuthSecret creates a Secret for KBS authentication
@@ -658,7 +658,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsAuthSecret(ctx context.Contex
 
 	// Check if the secret already exists
 	found := &corev1.Secret{}
-	err := r.Client.Get(ctx, client.ObjectKey{
+	err := r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      secretName,
 	}, found)
@@ -670,7 +670,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsAuthSecret(ctx context.Contex
 		if err != nil {
 			return err
 		}
-		err = r.Client.Create(ctx, secret)
+		err = r.Create(ctx, secret)
 		if err != nil {
 			return err
 		}
@@ -684,7 +684,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsAuthSecret(ctx context.Contex
 			return err
 		}
 		found.Data = updatedSecret.Data
-		err = r.Client.Update(ctx, found)
+		err = r.Update(ctx, found)
 		if err != nil {
 			return err
 		}
@@ -727,7 +727,7 @@ func (r *TrusteeConfigReconciler) getResourcePolicyConfigMapName() string {
 func (r *TrusteeConfigReconciler) createOrUpdateResourcePolicyConfigMap(ctx context.Context) error {
 	configMapName := r.getResourcePolicyConfigMapName()
 	found := &corev1.ConfigMap{}
-	err := r.Client.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
 
 	if err != nil && k8serrors.IsNotFound(err) {
 		r.log.Info("Creating resource policy config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
@@ -735,7 +735,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateResourcePolicyConfigMap(ctx cont
 		if err != nil {
 			return err
 		}
-		return r.Client.Create(ctx, configMap)
+		return r.Create(ctx, configMap)
 	} else if err != nil {
 		return err
 	}
@@ -746,7 +746,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateResourcePolicyConfigMap(ctx cont
 		return err
 	}
 	found.Data = updatedConfigMap.Data
-	return r.Client.Update(ctx, found)
+	return r.Update(ctx, found)
 }
 
 // generateRvpsReferenceValuesConfigMap creates a ConfigMap for RVPS reference values
@@ -783,7 +783,7 @@ func (r *TrusteeConfigReconciler) getRvpsReferenceValuesConfigMapName() string {
 func (r *TrusteeConfigReconciler) createOrUpdateRvpsReferenceValuesConfigMap(ctx context.Context) error {
 	configMapName := r.getRvpsReferenceValuesConfigMapName()
 	found := &corev1.ConfigMap{}
-	err := r.Client.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
 
 	if err != nil && k8serrors.IsNotFound(err) {
 		r.log.Info("Creating RVPS reference values config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
@@ -791,7 +791,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateRvpsReferenceValuesConfigMap(ctx
 		if err != nil {
 			return err
 		}
-		return r.Client.Create(ctx, configMap)
+		return r.Create(ctx, configMap)
 	} else if err != nil {
 		return err
 	}
@@ -802,5 +802,5 @@ func (r *TrusteeConfigReconciler) createOrUpdateRvpsReferenceValuesConfigMap(ctx
 		return err
 	}
 	found.Data = updatedConfigMap.Data
-	return r.Client.Update(ctx, found)
+	return r.Update(ctx, found)
 }
