@@ -182,9 +182,22 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfig(ctx context.Context, s
 		return nil
 	}
 
+	// Check if KbsConfig has been manually modified by comparing with generated spec
+	// and checking if user-configurable fields differ from what we would generate
+	hasManualChanges := r.detectManualChanges(found.Spec, spec)
+
+	if hasManualChanges {
+		r.log.Info("Manual changes detected in KbsConfig, performing smart merge",
+			"KbsConfig.Namespace", r.namespace, "KbsConfig.Name", kbsConfigName)
+		mergedSpec := r.mergeKbsConfigSpecs(spec, found.Spec)
+		found.Spec = mergedSpec
+	} else {
+		r.log.Info("No manual changes detected, applying generated spec")
+		found.Spec = spec
+	}
+
 	// Update existing KbsConfig
 	r.log.Info("Updating existing KbsConfig", "KbsConfig.Namespace", r.namespace, "KbsConfig.Name", kbsConfigName)
-	found.Spec = spec
 	err = r.Update(ctx, found)
 	if err != nil {
 		r.log.Error(err, "Failed to update KbsConfig")
@@ -203,6 +216,148 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfig(ctx context.Context, s
 	return found
 }
 
+// detectManualChanges detects if user has made manual changes to configurable fields
+func (r *TrusteeConfigReconciler) detectManualChanges(current, generated confidentialcontainersorgv1alpha1.KbsConfigSpec) bool {
+	// Check user-configurable fields that should be preserved
+	userConfigurableFields := []bool{
+		// Deployment spec
+		current.KbsDeploymentSpec.Replicas != nil &&
+			(generated.KbsDeploymentSpec.Replicas == nil || *current.KbsDeploymentSpec.Replicas != *generated.KbsDeploymentSpec.Replicas),
+
+		// Custom environment variables
+		len(current.KbsEnvVars) > 0 && !r.mapsEqual(current.KbsEnvVars, generated.KbsEnvVars),
+
+		// Custom HTTPS config
+		current.KbsHttpsKeySecretName != "" && current.KbsHttpsKeySecretName != generated.KbsHttpsKeySecretName,
+		current.KbsHttpsCertSecretName != "" && current.KbsHttpsCertSecretName != generated.KbsHttpsCertSecretName,
+
+		// Custom secret resources
+		len(current.KbsSecretResources) > 0 && !r.stringSlicesEqual(current.KbsSecretResources, generated.KbsSecretResources),
+
+		// Custom local cert cache
+		len(current.KbsLocalCertCacheSpec.Secrets) > 0 && !r.certCacheSpecsEqual(current.KbsLocalCertCacheSpec, generated.KbsLocalCertCacheSpec),
+
+		// Custom TDX config
+		current.TdxConfigSpec.KbsTdxConfigMapName != "" && current.TdxConfigSpec.KbsTdxConfigMapName != generated.TdxConfigSpec.KbsTdxConfigMapName,
+
+		// Custom IBM SE config
+		current.IbmSEConfigSpec.CertStorePvc != "" && current.IbmSEConfigSpec.CertStorePvc != generated.IbmSEConfigSpec.CertStorePvc,
+
+		// Custom attestation policy
+		current.KbsAttestationPolicyConfigMapName != "" && current.KbsAttestationPolicyConfigMapName != generated.KbsAttestationPolicyConfigMapName,
+	}
+
+	// Return true if any user-configurable field has been modified
+	for _, hasChange := range userConfigurableFields {
+		if hasChange {
+			return true
+		}
+	}
+	return false
+}
+
+// mapsEqual compares two string maps for equality
+func (r *TrusteeConfigReconciler) mapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, value := range a {
+		if bValue, exists := b[key]; !exists || bValue != value {
+			return false
+		}
+	}
+	return true
+}
+
+// stringSlicesEqual compares two string slices for equality
+func (r *TrusteeConfigReconciler) stringSlicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// certCacheSpecsEqual compares two KbsLocalCertCacheSpec for equality
+func (r *TrusteeConfigReconciler) certCacheSpecsEqual(a, b confidentialcontainersorgv1alpha1.KbsLocalCertCacheSpec) bool {
+	if len(a.Secrets) != len(b.Secrets) {
+		return false
+	}
+	for i := range a.Secrets {
+		if a.Secrets[i].SecretName != b.Secrets[i].SecretName || a.Secrets[i].MountPath != b.Secrets[i].MountPath {
+			return false
+		}
+	}
+	return true
+}
+
+// mergeKbsConfigSpecs intelligently merges TrusteeConfig-generated spec with manually modified spec
+func (r *TrusteeConfigReconciler) mergeKbsConfigSpecs(generatedSpec, manualSpec confidentialcontainersorgv1alpha1.KbsConfigSpec) confidentialcontainersorgv1alpha1.KbsConfigSpec {
+	merged := generatedSpec
+
+	// Preserve user-configurable fields from manual edits
+	// KbsDeploymentSpec.Replicas: preserve user override if different from generated default
+	if manualSpec.KbsDeploymentSpec.Replicas != nil &&
+		(generatedSpec.KbsDeploymentSpec.Replicas == nil || *manualSpec.KbsDeploymentSpec.Replicas != *generatedSpec.KbsDeploymentSpec.Replicas) {
+		merged.KbsDeploymentSpec.Replicas = manualSpec.KbsDeploymentSpec.Replicas
+	}
+
+	// Merge environment variables - preserve manual ones, add generated ones
+	if merged.KbsEnvVars == nil {
+		merged.KbsEnvVars = make(map[string]string)
+	}
+	if manualSpec.KbsEnvVars != nil {
+		for key, value := range manualSpec.KbsEnvVars {
+			merged.KbsEnvVars[key] = value
+		}
+	}
+
+	// Preserve manual HTTPS configuration
+	if manualSpec.KbsHttpsKeySecretName != "" {
+		merged.KbsHttpsKeySecretName = manualSpec.KbsHttpsKeySecretName
+	}
+	if manualSpec.KbsHttpsCertSecretName != "" {
+		merged.KbsHttpsCertSecretName = manualSpec.KbsHttpsCertSecretName
+	}
+
+	// Preserve manual secret resources
+	if len(manualSpec.KbsSecretResources) > 0 {
+		merged.KbsSecretResources = manualSpec.KbsSecretResources
+	}
+
+	// Preserve manual local cert cache configuration
+	if len(manualSpec.KbsLocalCertCacheSpec.Secrets) > 0 {
+		merged.KbsLocalCertCacheSpec.Secrets = manualSpec.KbsLocalCertCacheSpec.Secrets
+	}
+
+	// Preserve manual TDX configuration
+	if manualSpec.TdxConfigSpec.KbsTdxConfigMapName != "" {
+		merged.TdxConfigSpec.KbsTdxConfigMapName = manualSpec.TdxConfigSpec.KbsTdxConfigMapName
+	}
+
+	// Preserve manual IBM SE configuration
+	if manualSpec.IbmSEConfigSpec.CertStorePvc != "" {
+		merged.IbmSEConfigSpec.CertStorePvc = manualSpec.IbmSEConfigSpec.CertStorePvc
+	}
+
+	// Preserve manual attestation policy
+	if manualSpec.KbsAttestationPolicyConfigMapName != "" {
+		merged.KbsAttestationPolicyConfigMapName = manualSpec.KbsAttestationPolicyConfigMapName
+	}
+
+	r.log.Info("Merged KbsConfig specs", "preservedFields", []string{
+		"KbsDeploymentSpec", "KbsEnvVars", "KbsHttpsKeySecretName", "KbsHttpsCertSecretName",
+		"KbsSecretResources", "KbsLocalCertCacheSpec", "TdxConfigSpec", "IbmSEConfigSpec",
+		"KbsAttestationPolicyConfigMapName",
+	})
+
+	return merged
+}
+
 // buildKbsConfigSpec builds the KbsConfigSpec based on TrusteeConfig
 func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) confidentialcontainersorgv1alpha1.KbsConfigSpec {
 	spec := confidentialcontainersorgv1alpha1.KbsConfigSpec{}
@@ -213,6 +368,10 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) confid
 	}
 
 	spec.KbsDeploymentType = confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne
+
+	// Set default replicas to 1
+	defaultReplicas := int32(1)
+	spec.KbsDeploymentSpec.Replicas = &defaultReplicas
 
 	// Configure based on profile type
 	switch r.trusteeConfig.Spec.Profile {
