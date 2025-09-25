@@ -17,9 +17,11 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -417,7 +419,15 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	}
 
 	// auth-secret
-	volume, err = r.createSecretVolume(ctx, "auth-secret", r.kbsConfig.Spec.KbsAuthSecretName)
+	kbsSecretName := r.kbsConfig.Spec.KbsAuthSecretName
+	if kbsSecretName == "" {
+		kbsSecretName = "kbs-auth-public-key"
+		err = r.createDefaultAuthSecret(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	volume, err = r.createSecretVolume(ctx, "auth-secret", kbsSecretName)
 	if err != nil {
 		return nil, err
 	}
@@ -812,7 +822,9 @@ func secretToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFunc,
 				kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName == secret.Name ||
 				kbsConfig.Spec.KbsHttpsKeySecretName == secret.Name ||
 				kbsConfig.Spec.KbsHttpsCertSecretName == secret.Name ||
-				kbsConfig.Spec.KbsSecretResources != nil && contains(kbsConfig.Spec.KbsSecretResources, secret.Name) {
+				kbsConfig.Spec.KbsSecretResources != nil && contains(kbsConfig.Spec.KbsSecretResources, secret.Name) ||
+				(kbsConfig.Spec.KbsAuthSecretName == "" && secret.Name == "kbs-auth-public-key") {
+
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{
 						Namespace: kbsConfig.Namespace,
@@ -889,4 +901,63 @@ func (r *KbsConfigReconciler) createDefaultTdxConfigMap(ctx context.Context) err
 		return err
 	}
 	return nil
+}
+
+func (r *KbsConfigReconciler) createDefaultAuthSecret(ctx context.Context) error {
+	found := &corev1.Secret{}
+	err := r.Client.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      "kbs-auth-public-key",
+	}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		publicKey, err := r.generateED25519PublicKey()
+		if err != nil {
+			return fmt.Errorf("failed to generate ED25519 key pair: %w", err)
+		}
+
+		r.log.Info("Creating default auth secret", "Secret.Namespace", r.namespace, "Secret.Name", "kbs-auth-public-key")
+
+		defaultAuthSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "kbs-auth-public-key",
+				Namespace: r.namespace,
+			},
+			Data: map[string][]byte{
+				"kbs.pem": publicKey,
+			},
+		}
+
+		err = ctrl.SetControllerReference(r.kbsConfig, defaultAuthSecret, r.Scheme)
+		if err != nil {
+			r.log.Info("Error in setting the controller reference for the default auth secret", "err", err)
+			return err
+		}
+
+		err = r.Client.Create(ctx, defaultAuthSecret)
+		if err != nil {
+			return err
+		}
+		r.log.Info("Created default auth secret", "Secret.Namespace", r.namespace, "Secret.Name", "kbs-auth-public-key")
+	} else if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *KbsConfigReconciler) generateED25519PublicKey() ([]byte, error) {
+	privateKeyCmd := exec.Command("openssl", "genpkey", "-algorithm", "ed25519")
+	privateKeyBytes, err := privateKeyCmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	publicKeyCmd := exec.Command("openssl", "pkey", "-in", "/dev/stdin", "-pubout")
+	publicKeyCmd.Stdin = bytes.NewReader(privateKeyBytes)
+	publicKeyBytes, err := publicKeyCmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate public key: %w", err)
+	}
+
+	return publicKeyBytes, nil
 }
