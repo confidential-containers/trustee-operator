@@ -27,11 +27,11 @@ func generateResourcePolicyRego(profileType string) (string, error) {
 	// Select template file based on profile type
 	switch profileType {
 	case "Restricted":
-		templateFile = "config/templates/resource-policy-restrictive.rego"
+		templateFile = "/config/templates/resource-policy-restrictive.rego"
 	case "Permissive":
-		templateFile = "config/templates/resource-policy-permissive.rego"
+		templateFile = "/config/templates/resource-policy-permissive.rego"
 	default:
-		templateFile = "config/templates/resource-policy-permissive.rego"
+		templateFile = "/config/templates/resource-policy-permissive.rego"
 	}
 
 	// Read the template file

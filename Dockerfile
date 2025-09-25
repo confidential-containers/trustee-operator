@@ -12,6 +12,9 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
+
+# Copy the config templates
+COPY config/templates/ config/templates/
 COPY cmd/main.go cmd/main.go
 COPY api/ api/
 COPY internal/controller/ internal/controller/
@@ -28,6 +31,9 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o ma
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY --from=builder /workspace/manager .
+
+# Copy the config templates
+COPY --from=builder /workspace/config/templates/ /config/templates/
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]
