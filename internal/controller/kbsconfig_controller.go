@@ -54,7 +54,7 @@ type KbsConfigReconciler struct {
 //+kubebuilder:rbac:groups=confidentialcontainers.org,resources=kbsconfigs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=confidentialcontainers.org,resources=kbsconfigs/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;update
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
@@ -390,15 +390,20 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	}
 
 	// TDX specific configuration
-	if r.kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName != "" {
-		volume, err = r.createConfigMapVolume(ctx, "tdx-config", r.kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName)
+	tdxConfigName := r.kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName
+	if r.kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName == "" {
+		err = r.createDefaultTdxConfigMap(ctx)
 		if err != nil {
 			return nil, err
 		}
-		volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(kbsDefaultConfigPath, tdxConfigFile), tdxConfigFile)
-		volumes = append(volumes, *volume)
-		kbsVM = append(kbsVM, volumeMount)
 	}
+	volume, err = r.createConfigMapVolume(ctx, "tdx-config", tdxConfigName)
+	if err != nil {
+		return nil, err
+	}
+	volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(kbsDefaultConfigPath, tdxConfigFile), tdxConfigFile)
+	volumes = append(volumes, *volume)
+	kbsVM = append(kbsVM, volumeMount)
 
 	// IBMSE specific configuration
 	if r.kbsConfig.Spec.IbmSEConfigSpec.CertStorePvc != "" {
@@ -764,7 +769,8 @@ func configMapToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFu
 				kbsConfig.Spec.KbsRvpsRefValuesConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsAttestationPolicyConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsResourcePolicyConfigMapName == configMap.Name ||
-				kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName == configMap.Name {
+				kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName == configMap.Name ||
+				(kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName == "" && configMap.Name == "tdx-config") {
 
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{
@@ -843,4 +849,44 @@ func namespacePredicate(namespace string) predicate.Predicate {
 func isResourceInNamespace(obj metav1.Object, namespace string) bool {
 
 	return obj.GetNamespace() == namespace
+}
+
+// createDefaultTdxConfigMap creates a default TDX ConfigMap with sgx_default_qcnl.conf content
+func (r *KbsConfigReconciler) createDefaultTdxConfigMap(ctx context.Context) error {
+	found := &corev1.ConfigMap{}
+	err := r.Client.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      "tdx-config",
+	}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		r.log.Info("Creating default TDX ConfigMap", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", "tdx-config")
+
+		defaultTdxConfigMap := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "tdx-config",
+				Namespace: r.namespace,
+			},
+			Data: map[string]string{
+				tdxConfigFile: `{
+  "collateral_service": "https://api.trustedservices.intel.com/sgx/certification/v4/"
+}`,
+			},
+		}
+
+		err = ctrl.SetControllerReference(r.kbsConfig, defaultTdxConfigMap, r.Scheme)
+		if err != nil {
+			r.log.Info("Error in setting the controller reference for the default TDX ConfigMap", "err", err)
+			return err
+		}
+
+		err = r.Client.Create(ctx, defaultTdxConfigMap)
+		if err != nil {
+			return err
+		}
+		r.log.Info("Created default TDX ConfigMap", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", "tdx-config")
+	} else if err != nil {
+		return err
+	}
+	return nil
 }
