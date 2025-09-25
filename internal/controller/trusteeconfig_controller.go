@@ -22,7 +22,9 @@ import (
 	"crypto/rand"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,10 +32,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	confidentialcontainersorgv1alpha1 "github.com/confidential-containers/trustee-operator/api/v1alpha1"
-	"github.com/go-logr/logr"
 )
 
 // TrusteeConfigReconciler reconciles a TrusteeConfig object
@@ -95,6 +97,29 @@ func (r *TrusteeConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Update the TrusteeConfig status
 	r.trusteeConfig.Status.IsReady = true
+
+	// Set the KbsConfig reference
+	r.trusteeConfig.Status.KbsConfigRef = &corev1.ObjectReference{
+		APIVersion: "confidentialcontainers.org/v1alpha1",
+		Kind:       "KbsConfig",
+		Name:       kbsConfig.Name,
+		Namespace:  kbsConfig.Namespace,
+	} // Set status description based on KbsConfig status
+	r.log.Info("KbsConfig status check", "KbsConfig.IsReady", kbsConfig.Status.IsReady, "KbsConfig.Name", kbsConfig.Name)
+	if kbsConfig.Status.IsReady {
+		r.trusteeConfig.Status.StatusDescription = "TrusteeConfig is ready and KbsConfig is deployed successfully"
+	} else {
+		r.trusteeConfig.Status.StatusDescription = "TrusteeConfig is ready but KbsConfig deployment is in progress"
+		// Requeue to wait for KbsConfig to become ready
+		err = r.Status().Update(ctx, r.trusteeConfig)
+		if err != nil {
+			r.log.Error(err, "Failed to update TrusteeConfig status")
+			return ctrl.Result{}, err
+		}
+		r.log.Info("KbsConfig not ready yet, requeuing in 10 seconds")
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+	}
+
 	err = r.Status().Update(ctx, r.trusteeConfig)
 	if err != nil {
 		r.log.Error(err, "Failed to update TrusteeConfig status")
@@ -109,6 +134,10 @@ func (r *TrusteeConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *TrusteeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&confidentialcontainersorgv1alpha1.TrusteeConfig{}).
+		Watches(
+			&confidentialcontainersorgv1alpha1.KbsConfig{},
+			handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &confidentialcontainersorgv1alpha1.TrusteeConfig{}),
+		).
 		Complete(r)
 }
 
@@ -162,6 +191,15 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfig(ctx context.Context, s
 		return nil
 	}
 
+	// Refresh the KbsConfig to get the latest status
+	err = r.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      kbsConfigName,
+	}, found)
+	if err != nil {
+		r.log.Error(err, "Failed to refresh KbsConfig after update")
+	}
+
 	return found
 }
 
@@ -173,6 +211,8 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) confid
 	if r.trusteeConfig.Spec.KbsServiceType != "" {
 		spec.KbsServiceType = r.trusteeConfig.Spec.KbsServiceType
 	}
+
+	spec.KbsDeploymentType = confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne
 
 	// Configure based on profile type
 	switch r.trusteeConfig.Spec.Profile {

@@ -236,6 +236,14 @@ type TrusteeConfigSpec struct {
 type TrusteeConfigStatus struct {
 	// IsReady is true when the TrusteeConfig configuration is ready
 	IsReady bool `json:"isReady,omitempty"`
+
+	// KbsConfigRef is a reference to the associated KbsConfig object
+	// +optional
+	KbsConfigRef *corev1.ObjectReference `json:"kbsConfigRef,omitempty"`
+
+	// StatusDescription provides a human-readable description of the current status
+	// +optional
+	StatusDescription string `json:"statusDescription,omitempty"`
 }
 
 //+kubebuilder:object:root=true
