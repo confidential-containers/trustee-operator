@@ -233,6 +233,16 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 	spec.KbsConfigMapName = r.getKbsConfigMapName()
 	spec.KbsAuthSecretName = r.getKbsAuthSecretName()
 	spec.KbsResourcePolicyConfigMapName = r.getResourcePolicyConfigMapName()
+
+	// Create the RVPS reference values config map
+	err = r.createOrUpdateRvpsReferenceValuesConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating RVPS reference values config map", "err", err)
+		return spec
+	}
+
+	// Set the RVPS reference values config map name in the spec
+	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
 	return spec
 }
 
@@ -252,6 +262,16 @@ func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context
 
 	// Set the resource policy config map name in the spec
 	spec.KbsResourcePolicyConfigMapName = r.getResourcePolicyConfigMapName()
+
+	// Create the RVPS reference values config map
+	err = r.createOrUpdateRvpsReferenceValuesConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating RVPS reference values config map", "err", err)
+		return spec
+	}
+
+	// Set the RVPS reference values config map name in the spec
+	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
 
 	// TODO: Configure restricted resource policy and enforce HTTPS
 	// This would require creating appropriate ConfigMaps and Secrets
@@ -523,6 +543,62 @@ func (r *TrusteeConfigReconciler) createOrUpdateResourcePolicyConfigMap(ctx cont
 
 	r.log.Info("Updating resource policy config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
 	updatedConfigMap, err := r.generateResourcePolicyConfigMap(ctx)
+	if err != nil {
+		return err
+	}
+	found.Data = updatedConfigMap.Data
+	return r.Client.Update(ctx, found)
+}
+
+// generateRvpsReferenceValuesConfigMap creates a ConfigMap for RVPS reference values
+func (r *TrusteeConfigReconciler) generateRvpsReferenceValuesConfigMap(ctx context.Context) (*corev1.ConfigMap, error) {
+	referenceValuesJson, err := generateRvpsReferenceValues()
+	if err != nil {
+		return nil, err
+	}
+
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.getRvpsReferenceValuesConfigMapName(),
+			Namespace: r.namespace,
+		},
+		Data: map[string]string{
+			"reference-values.json": referenceValuesJson,
+		},
+	}
+
+	err = ctrl.SetControllerReference(r.trusteeConfig, configMap, r.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	return configMap, nil
+}
+
+// getRvpsReferenceValuesConfigMapName returns the name for the RVPS reference values config map
+func (r *TrusteeConfigReconciler) getRvpsReferenceValuesConfigMapName() string {
+	return r.trusteeConfig.Name + "-rvps-reference-values"
+}
+
+// createOrUpdateRvpsReferenceValuesConfigMap creates or updates the RVPS reference values ConfigMap
+func (r *TrusteeConfigReconciler) createOrUpdateRvpsReferenceValuesConfigMap(ctx context.Context) error {
+	configMapName := r.getRvpsReferenceValuesConfigMapName()
+	found := &corev1.ConfigMap{}
+	err := r.Client.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		r.log.Info("Creating RVPS reference values config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+		configMap, err := r.generateRvpsReferenceValuesConfigMap(ctx)
+		if err != nil {
+			return err
+		}
+		return r.Client.Create(ctx, configMap)
+	} else if err != nil {
+		return err
+	}
+
+	r.log.Info("Updating RVPS reference values config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	updatedConfigMap, err := r.generateRvpsReferenceValuesConfigMap(ctx)
 	if err != nil {
 		return err
 	}
