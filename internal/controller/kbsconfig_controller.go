@@ -927,7 +927,7 @@ func isResourceInNamespace(obj metav1.Object, namespace string) bool {
 func (r *KbsConfigReconciler) updateKbsConfigStatus(ctx context.Context) error {
 	// Get the deployment to check its status
 	deployment := &appsv1.Deployment{}
-	err := r.Client.Get(ctx, client.ObjectKey{
+	err := r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      KbsDeploymentName,
 	}, deployment)

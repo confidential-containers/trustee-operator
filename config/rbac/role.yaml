@@ -9,20 +9,6 @@ rules:
   resources:
   - configmaps
   - secrets
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - namespaces
-  verbs:
-  - get
-  - update
-- apiGroups:
-  - ""
-  resources:
   - services
   verbs:
   - create
@@ -32,6 +18,13 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - update
 - apiGroups:
   - apps
   resources:

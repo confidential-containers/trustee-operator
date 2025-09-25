@@ -421,6 +421,13 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 		return spec
 	}
 
+	// Create the sample secret kbsre1
+	err = r.createOrUpdateKbsSampleSecret(ctx)
+	if err != nil {
+		r.log.Info("Error creating KBS sample secret", "err", err)
+		return spec
+	}
+
 	// Create the resource policy config map
 	err = r.createOrUpdateResourcePolicyConfigMap(ctx)
 	if err != nil {
@@ -432,6 +439,8 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 	spec.KbsConfigMapName = r.getKbsConfigMapName()
 	spec.KbsAuthSecretName = r.getKbsAuthSecretName()
 	spec.KbsResourcePolicyConfigMapName = r.getResourcePolicyConfigMapName()
+	// Set the sample secret
+	spec.KbsSecretResources = append(spec.KbsSecretResources, r.getKbsSampleSecretName())
 
 	// Create the RVPS reference values config map
 	err = r.createOrUpdateRvpsReferenceValuesConfigMap(ctx)
@@ -577,7 +586,7 @@ func (r *TrusteeConfigReconciler) getKbsConfigMapName() string {
 func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context) error {
 	configMapName := r.getKbsConfigMapName()
 	found := &corev1.ConfigMap{}
-	err := r.Client.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
 
 	if err != nil && k8serrors.IsNotFound(err) {
 		r.log.Info("Creating KBS config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
@@ -585,7 +594,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context
 		if err != nil {
 			return err
 		}
-		return r.Client.Create(ctx, configMap)
+		return r.Create(ctx, configMap)
 	} else if err != nil {
 		return err
 	}
@@ -596,7 +605,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context
 		return err
 	}
 	found.Data = updatedConfigMap.Data
-	return r.Client.Update(ctx, found)
+	return r.Update(ctx, found)
 }
 
 // generateKbsAuthSecret creates a Secret for KBS authentication
@@ -647,9 +656,41 @@ func (r *TrusteeConfigReconciler) generateKbsAuthSecret(ctx context.Context) (*c
 	return secret, nil
 }
 
+// generateKbsSampleSecret creates a sample Secret for KBS
+func (r *TrusteeConfigReconciler) generateKbsSampleSecret(ctx context.Context) (*corev1.Secret, error) {
+	secretName := r.getKbsSampleSecretName()
+
+	// Prepare secret data
+	data := make(map[string][]byte)
+	data["key1"] = []byte("res1val1")
+	data["key2"] = []byte("res1val2")
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: r.namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: data,
+	}
+
+	// Set TrusteeConfig as the owner
+	err := ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	return secret, nil
+}
+
 // getKbsAuthSecretName returns the name for the KBS auth secret
 func (r *TrusteeConfigReconciler) getKbsAuthSecretName() string {
 	return r.trusteeConfig.Name + "-auth-secret"
+}
+
+// getKbsSampleSecretName returns the name for the KBS sample secret
+func (r *TrusteeConfigReconciler) getKbsSampleSecretName() string {
+	return "kbsres1"
 }
 
 // createOrUpdateKbsAuthSecret creates or updates the KBS auth secret
@@ -658,7 +699,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsAuthSecret(ctx context.Contex
 
 	// Check if the secret already exists
 	found := &corev1.Secret{}
-	err := r.Client.Get(ctx, client.ObjectKey{
+	err := r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      secretName,
 	}, found)
@@ -670,7 +711,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsAuthSecret(ctx context.Contex
 		if err != nil {
 			return err
 		}
-		err = r.Client.Create(ctx, secret)
+		err = r.Create(ctx, secret)
 		if err != nil {
 			return err
 		}
@@ -684,7 +725,48 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsAuthSecret(ctx context.Contex
 			return err
 		}
 		found.Data = updatedSecret.Data
-		err = r.Client.Update(ctx, found)
+		err = r.Update(ctx, found)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// createOrUpdateKbsSampleSecret creates or updates the KBS sample secret
+func (r *TrusteeConfigReconciler) createOrUpdateKbsSampleSecret(ctx context.Context) error {
+	secretName := r.getKbsSampleSecretName()
+
+	// Check if the secret already exists
+	found := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      secretName,
+	}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		// Create the secret
+		r.log.Info("Creating KBS sample secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		secret, err := r.generateKbsSampleSecret(ctx)
+		if err != nil {
+			return err
+		}
+		err = r.Create(ctx, secret)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else {
+		// Update the secret
+		r.log.Info("Updating KBS auth secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		updatedSecret, err := r.generateKbsSampleSecret(ctx)
+		if err != nil {
+			return err
+		}
+		found.Data = updatedSecret.Data
+		err = r.Update(ctx, found)
 		if err != nil {
 			return err
 		}
@@ -727,7 +809,7 @@ func (r *TrusteeConfigReconciler) getResourcePolicyConfigMapName() string {
 func (r *TrusteeConfigReconciler) createOrUpdateResourcePolicyConfigMap(ctx context.Context) error {
 	configMapName := r.getResourcePolicyConfigMapName()
 	found := &corev1.ConfigMap{}
-	err := r.Client.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
 
 	if err != nil && k8serrors.IsNotFound(err) {
 		r.log.Info("Creating resource policy config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
@@ -735,7 +817,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateResourcePolicyConfigMap(ctx cont
 		if err != nil {
 			return err
 		}
-		return r.Client.Create(ctx, configMap)
+		return r.Create(ctx, configMap)
 	} else if err != nil {
 		return err
 	}
@@ -746,7 +828,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateResourcePolicyConfigMap(ctx cont
 		return err
 	}
 	found.Data = updatedConfigMap.Data
-	return r.Client.Update(ctx, found)
+	return r.Update(ctx, found)
 }
 
 // generateRvpsReferenceValuesConfigMap creates a ConfigMap for RVPS reference values
@@ -783,7 +865,7 @@ func (r *TrusteeConfigReconciler) getRvpsReferenceValuesConfigMapName() string {
 func (r *TrusteeConfigReconciler) createOrUpdateRvpsReferenceValuesConfigMap(ctx context.Context) error {
 	configMapName := r.getRvpsReferenceValuesConfigMapName()
 	found := &corev1.ConfigMap{}
-	err := r.Client.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
 
 	if err != nil && k8serrors.IsNotFound(err) {
 		r.log.Info("Creating RVPS reference values config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
@@ -791,7 +873,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateRvpsReferenceValuesConfigMap(ctx
 		if err != nil {
 			return err
 		}
-		return r.Client.Create(ctx, configMap)
+		return r.Create(ctx, configMap)
 	} else if err != nil {
 		return err
 	}
@@ -802,5 +884,5 @@ func (r *TrusteeConfigReconciler) createOrUpdateRvpsReferenceValuesConfigMap(ctx
 		return err
 	}
 	found.Data = updatedConfigMap.Data
-	return r.Client.Update(ctx, found)
+	return r.Update(ctx, found)
 }
