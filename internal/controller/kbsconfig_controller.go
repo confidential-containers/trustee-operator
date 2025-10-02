@@ -369,7 +369,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 			return nil, err
 		}
 		// attestation policy file is "/opt/confidential-containers/attestation-service/policies/opa/default.rego"
-		volumeMount = createVolumeMount(volume.Name, attestationPolicyPath)
+		volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(attestationPolicyPath, defaultAttestationCpuPolicy), defaultAttestationCpuPolicy)
 		volumes = append(volumes, *volume)
 		if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
 			kbsVM = append(kbsVM, volumeMount)

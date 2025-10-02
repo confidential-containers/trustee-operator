@@ -15,6 +15,7 @@ data:
 
     [attestation_token]
     insecure_key = true
+    attestation_token_type = "CoCo"
 
     [attestation_service]
     type = "coco_as_builtin"
