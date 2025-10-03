@@ -43,7 +43,7 @@ func (r *KbsConfigReconciler) createSecretVolume(ctx context.Context, volumeName
 
 	r.log.Info("Retrieving details for ", "Secret.Name", secretName, "Secret.Namespace", r.namespace)
 	foundSecret := &corev1.Secret{}
-	err := r.Client.Get(ctx, client.ObjectKey{
+	err := r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      secretName,
 	}, foundSecret)
@@ -69,7 +69,7 @@ func (r *KbsConfigReconciler) createKbsSecretResourcesVolume(ctx context.Context
 		for _, secretResource := range r.kbsConfig.Spec.KbsSecretResources {
 			r.log.Info("Retrieving KbsSecretResource", "Secret.Namespace", r.namespace, "Secret.Name", secretResource)
 			foundSecret := &corev1.Secret{}
-			err := r.Client.Get(ctx, client.ObjectKey{
+			err := r.Get(ctx, client.ObjectKey{
 				Namespace: r.namespace,
 				Name:      secretResource,
 			}, foundSecret)
@@ -97,7 +97,7 @@ func (r *KbsConfigReconciler) createConfigMapVolume(ctx context.Context, volumeN
 
 	r.log.Info("Retrieving details for ", "ConfigMap.Name", configMapName, "ConfigMap.Namespace", r.namespace)
 	foundConfigMap := &corev1.ConfigMap{}
-	err := r.Client.Get(ctx, client.ObjectKey{
+	err := r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      configMapName,
 	}, foundConfigMap)
