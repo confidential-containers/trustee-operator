@@ -263,6 +263,12 @@ function set_fbc_catalog_image() {
     elif [[ "$ocp_version" =~ 4\.18.* ]] ;
     then
         FBC_IMAGE=$image_prefix/trustee-fbc-4-18
+    elif [[ "$ocp_version" =~ 4\.19.* ]] ;
+    then
+        FBC_IMAGE=$image_prefix/trustee-fbc-4-19
+    elif [[ "$ocp_version" =~ 4\.20.* ]] ;
+    then
+        FBC_IMAGE=$image_prefix/trustee-fbc-4-20
     else
         echo "OCP version "$ocp_version" not supported yet!"
         exit 1
@@ -277,7 +283,7 @@ function apply_operator_manifests() {
     oc apply -f og.yaml || return 1
     if [[ "$GA_RELEASE" == "true" ]]; then
         oc apply -f subs-ga.yaml || return 1
-	approve_installplan_for_target_csv trustee-operator-system "$TRUSTEE_OPERATOR_CSV" || return 1
+        approve_installplan_for_target_csv trustee-operator-system "$TRUSTEE_OPERATOR_CSV" || return 1
     else
         set_fbc_catalog_image
         envsubst < "trustee_catalog.yaml.in" > "trustee_catalog.yaml"
