@@ -32,8 +32,34 @@ spec:
   # omitted all the rest of config
   # ...
   kbsLocalCertCacheSpec:
-    secretName: vcek-secret
-    mountPath: "/etc/kbs/snp/ek"
+    secrets:
+    - secretName: vcek-secret
+      mountPath: "/etc/kbs/snp/ek"
 ```
 
-The `VCEK.crt` certificate will be mounted in the trustee `mountPath` directoty.
+The `VCEK.crt` certificate will be mounted in the trustee `mountPath` directory.
+
+### Multiple Certificates
+
+You can also mount multiple certificate secrets by adding more entries to the `secrets` list:
+
+```yaml
+apiVersion: confidentialcontainers.org/v1alpha1
+kind: KbsConfig
+metadata:  
+  name: kbsconfig-sample
+  namespace: trustee-operator-system
+spec:
+  # omitted all the rest of config
+  # ...
+  kbsLocalCertCacheSpec:
+    secrets:
+    - secretName: vcek-secret
+      mountPath: "/etc/kbs/snp/ek"
+    - secretName: ca-certs-secret
+      mountPath: "/etc/ssl/certs"
+    - secretName: client-certs-secret
+      mountPath: "/etc/ssl/client-certs"
+```
+
+Each secret will be mounted to its specified `mountPath` in the trustee file system.

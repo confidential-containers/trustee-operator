@@ -420,14 +420,14 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
 	kbsVM = append(kbsVM, volumeMount)
 
-	// Mount local directory into a secret
-	if r.kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName != "" {
-		volume, err = r.createSecretVolume(ctx, r.kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName, r.kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName)
+	// Mount local directories into secrets
+	for _, certCacheEntry := range r.kbsConfig.Spec.KbsLocalCertCacheSpec.Secrets {
+		volume, err = r.createSecretVolume(ctx, certCacheEntry.SecretName, certCacheEntry.SecretName)
 		if err != nil {
 			return nil, err
 		}
 		volumes = append(volumes, *volume)
-		volumeMount = createVolumeMount(volume.Name, r.kbsConfig.Spec.KbsLocalCertCacheSpec.MountPath)
+		volumeMount = createVolumeMount(volume.Name, certCacheEntry.MountPath)
 		kbsVM = append(kbsVM, volumeMount)
 	}
 
@@ -802,11 +802,21 @@ func secretToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFunc,
 
 		var requests []reconcile.Request
 		for _, kbsConfig := range kbsConfigList.Items {
-			if kbsConfig.Spec.KbsAuthSecretName == secret.Name ||
-				kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName == secret.Name ||
+			// Check if secret matches any of the known secret references
+			secretMatches := kbsConfig.Spec.KbsAuthSecretName == secret.Name ||
 				kbsConfig.Spec.KbsHttpsKeySecretName == secret.Name ||
 				kbsConfig.Spec.KbsHttpsCertSecretName == secret.Name ||
-				kbsConfig.Spec.KbsSecretResources != nil && contains(kbsConfig.Spec.KbsSecretResources, secret.Name) {
+				(kbsConfig.Spec.KbsSecretResources != nil && contains(kbsConfig.Spec.KbsSecretResources, secret.Name))
+
+			// Check if secret matches any of the local cert cache secrets
+			for _, certCacheEntry := range kbsConfig.Spec.KbsLocalCertCacheSpec.Secrets {
+				if certCacheEntry.SecretName == secret.Name {
+					secretMatches = true
+					break
+				}
+			}
+
+			if secretMatches {
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{
 						Namespace: kbsConfig.Namespace,
