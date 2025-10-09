@@ -5,13 +5,13 @@ metadata:
     alm-examples: '[]'
     capabilities: Basic Install
     categories: Security
-    containerImage: quay.io/confidential-containers/trustee-operator:v0.4.0
+    containerImage: quay.io/confidential-containers/trustee-operator:v0.5.0
     createdAt: "2025-02-04T11:23:24Z"
     operatorframework.io/suggested-namespace: trustee-operator-system
     operators.operatorframework.io/builder: operator-sdk-v1.36.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     support: Confidential Containers Community
-  name: trustee-operator.v0.4.0
+  name: trustee-operator.v0.5.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -146,14 +146,14 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: KBS_IMAGE_NAME
-                  value: ghcr.io/confidential-containers/key-broker-service:built-in-as-v0.13.0
+                  value: ghcr.io/confidential-containers/key-broker-service:built-in-as-v0.15.0
                 - name: KBS_IMAGE_NAME_MICROSERVICES
-                  value: ghcr.io/confidential-containers/key-broker-service:v0.13.0
+                  value: ghcr.io/confidential-containers/key-broker-service:v0.15.0
                 - name: AS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/rvps:latest
-                image: quay.io/confidential-containers/trustee-operator:v0.4.0
+                image: quay.io/confidential-containers/trustee-operator:v0.5.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -246,5 +246,5 @@ spec:
   provider:
     name: Confidential Containers Community
     url: https://github.com/confidential-containers
-  replaces: trustee-operator.v0.3.0
-  version: 0.4.0
+  replaces: trustee-operator.v0.4.0
+  version: 0.5.0
