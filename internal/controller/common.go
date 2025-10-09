@@ -73,6 +73,9 @@ const (
 
 	// Attestation policy path
 	attestationPolicyPath = confidentialContainersPath + "/attestation-service/policies/opa"
+
+	// default attestation policy filename for cpu
+	defaultAttestationCpuPolicy = "default_cpu.rego"
 )
 
 func contains(list []string, s string) bool {
