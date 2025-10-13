@@ -76,7 +76,7 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	// Get the KbsConfig instance
 	r.kbsConfig = &confidentialcontainersorgv1alpha1.KbsConfig{}
-	err := r.Client.Get(ctx, req.NamespacedName, r.kbsConfig)
+	err := r.Get(ctx, req.NamespacedName, r.kbsConfig)
 	// If the KbsConfig instance is not found, then just return
 	// and do nothing
 	if err != nil && k8serrors.IsNotFound(err) {
@@ -142,14 +142,14 @@ func (r *KbsConfigReconciler) finalizeKbsConfig(ctx context.Context) error {
 	r.log.Info("Deleting the KBS deployment")
 	// Get the KbsDeploymentName deployment
 	deployment := &appsv1.Deployment{}
-	err := r.Client.Get(ctx, client.ObjectKey{
+	err := r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      KbsDeploymentName,
 	}, deployment)
 	if err != nil {
 		return err
 	}
-	err = r.Client.Delete(ctx, deployment)
+	err = r.Delete(ctx, deployment)
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 	// If it does not, create the service
 	found := &corev1.Service{}
 
-	err := r.Client.Get(ctx, client.ObjectKey{
+	err := r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      KbsServiceName,
 	}, found)
@@ -179,7 +179,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 			// Create an return new error object
 			return fmt.Errorf("failed to get KBS service definition")
 		}
-		err = r.Client.Create(ctx, service)
+		err = r.Create(ctx, service)
 		if err != nil {
 			return err
 		}
@@ -196,7 +196,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 	if service == nil {
 		return fmt.Errorf("failed to get KBS service definition")
 	}
-	err = r.Client.Update(ctx, service)
+	err = r.Update(ctx, service)
 	if err != nil {
 		return err
 	}
@@ -253,7 +253,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) e
 	// If it does not, create the deployment
 	found := &appsv1.Deployment{}
 
-	err := r.Client.Get(ctx, client.ObjectKey{
+	err := r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      KbsDeploymentName,
 	}, found)
@@ -265,7 +265,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) e
 		if err != nil {
 			return err
 		}
-		err = r.Client.Create(ctx, deployment)
+		err = r.Create(ctx, deployment)
 		if err != nil {
 			return err
 		} else {
@@ -682,7 +682,7 @@ func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deploymen
 	// overwrites the template spec, if any changes
 	deployment.Spec.Template.Spec = *newDeployment.Spec.Template.Spec.DeepCopy()
 
-	err = r.Client.Update(ctx, deployment)
+	err = r.Update(ctx, deployment)
 	if err != nil {
 		return err
 	} else {
