@@ -38,6 +38,7 @@ spec:
 ```
 
 The `VCEK.crt` certificate will be mounted in the trustee `mountPath` directory.
+The `mountPath` directory defaults to `/etc/kbs/certs` if not provided by the user.
 
 ### Multiple Certificates
 
@@ -54,12 +55,12 @@ spec:
   # ...
   kbsLocalCertCacheSpec:
     secrets:
-    - secretName: vcek-secret
-      mountPath: "/etc/kbs/snp/ek"
-    - secretName: ca-certs-secret
-      mountPath: "/etc/ssl/certs"
-    - secretName: client-certs-secret
-      mountPath: "/etc/ssl/client-certs"
+    - secretName: vcek-milan
+      mountPath: "/etc/kbs/snp/ek/milan"
+    - secretName: vcek-genoa
+      mountPath: "/etc/kbs/snp/ek/genoa"
+    - secretName: vcek-turin
+      mountPath: "/etc/kbs/snp/ek/turin"
 ```
 
 Each secret will be mounted to its specified `mountPath` in the trustee file system.

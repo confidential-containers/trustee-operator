@@ -427,6 +427,9 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 			return nil, err
 		}
 		volumes = append(volumes, *volume)
+		if certCacheEntry.MountPath == "" {
+			certCacheEntry.MountPath = kbsDefaultLocalCacheDir
+		}
 		volumeMount = createVolumeMount(volume.Name, certCacheEntry.MountPath)
 		kbsVM = append(kbsVM, volumeMount)
 	}

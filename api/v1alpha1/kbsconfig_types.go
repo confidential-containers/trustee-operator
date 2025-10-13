@@ -55,6 +55,8 @@ type KbsLocalCertCacheEntry struct {
 	// SecretName is the name of the secret that maps to a local directory containing the certificates
 	SecretName string `json:"secretName"`
 	// MountPath is the destination path in the trustee file system
+	// The default path is "/etc/kbs/certs" if not specified by the user
+	// +optional
 	MountPath string `json:"mountPath"`
 }
 
