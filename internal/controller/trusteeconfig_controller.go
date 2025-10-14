@@ -421,6 +421,13 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 		return spec
 	}
 
+	// Create the sample secret kbsre1
+	err = r.createOrUpdateKbsSampleSecret(ctx)
+	if err != nil {
+		r.log.Info("Error creating KBS sample secret", "err", err)
+		return spec
+	}
+
 	// Create the resource policy config map
 	err = r.createOrUpdateResourcePolicyConfigMap(ctx)
 	if err != nil {
@@ -432,6 +439,8 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 	spec.KbsConfigMapName = r.getKbsConfigMapName()
 	spec.KbsAuthSecretName = r.getKbsAuthSecretName()
 	spec.KbsResourcePolicyConfigMapName = r.getResourcePolicyConfigMapName()
+	// Set the sample secret
+	spec.KbsSecretResources = append(spec.KbsSecretResources, r.getKbsSampleSecretName())
 
 	// Create the RVPS reference values config map
 	err = r.createOrUpdateRvpsReferenceValuesConfigMap(ctx)
@@ -647,9 +656,41 @@ func (r *TrusteeConfigReconciler) generateKbsAuthSecret(ctx context.Context) (*c
 	return secret, nil
 }
 
+// generateKbsSampleSecret creates a sample Secret for KBS
+func (r *TrusteeConfigReconciler) generateKbsSampleSecret(ctx context.Context) (*corev1.Secret, error) {
+	secretName := r.getKbsSampleSecretName()
+
+	// Prepare secret data
+	data := make(map[string][]byte)
+	data["key1"] = []byte("res1val1")
+	data["key2"] = []byte("res1val2")
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: r.namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: data,
+	}
+
+	// Set TrusteeConfig as the owner
+	err := ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	return secret, nil
+}
+
 // getKbsAuthSecretName returns the name for the KBS auth secret
 func (r *TrusteeConfigReconciler) getKbsAuthSecretName() string {
 	return r.trusteeConfig.Name + "-auth-secret"
+}
+
+// getKbsSampleSecretName returns the name for the KBS sample secret
+func (r *TrusteeConfigReconciler) getKbsSampleSecretName() string {
+	return "kbsres1"
 }
 
 // createOrUpdateKbsAuthSecret creates or updates the KBS auth secret
@@ -680,6 +721,47 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsAuthSecret(ctx context.Contex
 		// Update the secret
 		r.log.Info("Updating KBS auth secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
 		updatedSecret, err := r.generateKbsAuthSecret(ctx)
+		if err != nil {
+			return err
+		}
+		found.Data = updatedSecret.Data
+		err = r.Update(ctx, found)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// createOrUpdateKbsSampleSecret creates or updates the KBS sample secret
+func (r *TrusteeConfigReconciler) createOrUpdateKbsSampleSecret(ctx context.Context) error {
+	secretName := r.getKbsSampleSecretName()
+
+	// Check if the secret already exists
+	found := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      secretName,
+	}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		// Create the secret
+		r.log.Info("Creating KBS sample secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		secret, err := r.generateKbsSampleSecret(ctx)
+		if err != nil {
+			return err
+		}
+		err = r.Create(ctx, secret)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else {
+		// Update the secret
+		r.log.Info("Updating KBS auth secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		updatedSecret, err := r.generateKbsSampleSecret(ctx)
 		if err != nil {
 			return err
 		}
