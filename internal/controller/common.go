@@ -76,6 +76,9 @@ const (
 
 	// default attestation policy filename for cpu
 	defaultAttestationCpuPolicy = "default_cpu.rego"
+
+	// default directory for locally cached certificates
+	kbsDefaultLocalCacheDir = "/etc/kbs/certs"
 )
 
 func contains(list []string, s string) bool {

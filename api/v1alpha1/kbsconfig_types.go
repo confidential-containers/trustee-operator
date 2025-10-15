@@ -50,14 +50,21 @@ type IbmSEConfigSpec struct {
 	CertStorePvc string `json:"certStorePvc,omitempty"`
 }
 
+// KbsLocalCertCacheEntry defines a single certificate cache entry with secret and mount path
+type KbsLocalCertCacheEntry struct {
+	// SecretName is the name of the secret that maps to a local directory containing the certificates
+	SecretName string `json:"secretName"`
+	// MountPath is the destination path in the trustee file system
+	// The default path is "/etc/kbs/certs" if not specified by the user
+	// +optional
+	MountPath string `json:"mountPath"`
+}
+
 // KbsLocalCertCacheSpec defines the configuration for mounting local certificates into trustee file system
 type KbsLocalCertCacheSpec struct {
-	// SecretName is the name of the secret that maps to a local directory containing the certificates
+	// Secrets is a list of certificate cache entries, each containing a secret name and mount path
 	// +optional
-	SecretName string `json:"secretName,omitempty"`
-	// MountPath is the destination path in the trustee file system
-	// +optional
-	MountPath string `json:"mountPath,omitempty"`
+	Secrets []KbsLocalCertCacheEntry `json:"secrets,omitempty"`
 }
 
 // KbsDeploymentSpec defines the configuration for trustee deployment
