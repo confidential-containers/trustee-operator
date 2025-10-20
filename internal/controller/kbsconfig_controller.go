@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 
+	configv1 "github.com/openshift/api/config/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -58,6 +59,7 @@ type KbsConfigReconciler struct {
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;update
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=config.openshift.io,resources=proxies,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -499,7 +501,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	}
 
 	securityContext := createSecurityContext()
-	env := buildEnvVars(r)
+	env := buildEnvVars(r, ctx)
 	containers := []corev1.Container{r.buildKbsContainer(kbsVM, securityContext, env, kbsDeploymentType)}
 
 	if kbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices {
@@ -656,13 +658,67 @@ func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMoun
 	}
 }
 
-func buildEnvVars(r *KbsConfigReconciler) []corev1.EnvVar {
+// getClusterProxyEnvVars retrieves cluster-wide proxy settings from OpenShift
+func (r *KbsConfigReconciler) getClusterProxyEnvVars(ctx context.Context) map[string]string {
+	proxyEnvVars := make(map[string]string)
+
+	// Try to get the cluster-wide proxy configuration (OpenShift-specific)
+	proxy := &configv1.Proxy{}
+	err := r.Get(ctx, client.ObjectKey{Name: "cluster"}, proxy)
+	if err != nil {
+		// If we can't get the proxy config (e.g., not on OpenShift or doesn't exist),
+		// just log and return empty map
+		r.log.Info("Could not retrieve cluster proxy configuration, skipping proxy auto-configuration", "error", err)
+		return proxyEnvVars
+	}
+
+	// Set proxy environment variables if they are configured
+	if proxy.Spec.HTTPProxy != "" {
+		proxyEnvVars["HTTP_PROXY"] = proxy.Spec.HTTPProxy
+		proxyEnvVars["http_proxy"] = proxy.Spec.HTTPProxy
+	}
+
+	if proxy.Spec.HTTPSProxy != "" {
+		proxyEnvVars["HTTPS_PROXY"] = proxy.Spec.HTTPSProxy
+		proxyEnvVars["https_proxy"] = proxy.Spec.HTTPSProxy
+	}
+
+	if proxy.Spec.NoProxy != "" {
+		proxyEnvVars["NO_PROXY"] = proxy.Spec.NoProxy
+		proxyEnvVars["no_proxy"] = proxy.Spec.NoProxy
+	}
+
+	if len(proxyEnvVars) > 0 {
+		r.log.Info("Auto-configured cluster proxy settings for trustee deployment")
+	}
+
+	return proxyEnvVars
+}
+
+func buildEnvVars(r *KbsConfigReconciler, ctx context.Context) []corev1.EnvVar {
 	env := make([]corev1.EnvVar, 0)
+
+	// First, get cluster-wide proxy settings
+	clusterProxyEnvVars := r.getClusterProxyEnvVars(ctx)
+
+	// Start with cluster proxy settings
+	envVarsMap := make(map[string]string)
+	for k, v := range clusterProxyEnvVars {
+		envVarsMap[k] = v
+	}
+
+	// User-specified KbsEnvVars override cluster proxy settings
 	if r.kbsConfig.Spec.KbsEnvVars != nil {
 		for k, v := range r.kbsConfig.Spec.KbsEnvVars {
-			env = append(env, corev1.EnvVar{Name: k, Value: v})
+			envVarsMap[k] = v
 		}
 	}
+
+	// Convert map to array
+	for k, v := range envVarsMap {
+		env = append(env, corev1.EnvVar{Name: k, Value: v})
+	}
+
 	return env
 }
 
