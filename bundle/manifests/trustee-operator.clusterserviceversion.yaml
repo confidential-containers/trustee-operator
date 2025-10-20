@@ -8,7 +8,7 @@ metadata:
     containerImage: "registry.redhat.io/build-of-trustee/trustee-rhel9-operator@sha256:fe8e23de14ad088c79b1bd5e7aab08a1b88a86679effcbf174be81e761bd9d6d"
     createdAt: "2024-06-07T10:06:06Z"
     operatorframework.io/suggested-namespace: trustee-operator-system
-    operators.operatorframework.io/builder: operator-sdk-v1.36.1
+    operators.operatorframework.io/builder: operator-sdk-v1.40.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     support: Confidential Containers Community
     features.operators.openshift.io/cnf: "false"
@@ -23,7 +23,7 @@ metadata:
     features.operators.openshift.io/token-auth-gcp: "false"
     operators.openshift.io/valid-subscription: '["OpenShift Container Platform", "OpenShift Platform Plus"]'
     repository: https://github.com/openshift/trustee-operator
-  name: trustee-operator.v0.4.2
+  name: trustee-operator.v0.5.0
   namespace: placeholder
   labels:
     operatorframework.io/os.linux: supported
@@ -64,6 +64,18 @@ spec:
           - get
           - update
         - apiGroups:
+          - ""
+          resources:
+          - services
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
           - apps
           resources:
           - deployments
@@ -101,18 +113,6 @@ spec:
           - get
           - patch
           - update
-        - apiGroups:
-          - ""
-          resources:
-          - services
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
         - apiGroups:
           - authentication.k8s.io
           resources:
@@ -257,5 +257,5 @@ spec:
   provider:
     name: Red Hat
     url: https://github.com/confidential-containers
-  replaces: trustee-operator.v0.4.1
-  version: 0.4.2
+  replaces: trustee-operator.v0.4.2
+  version: 0.5.0

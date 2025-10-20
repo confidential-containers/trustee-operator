@@ -9,11 +9,6 @@ data:
       {
         "name": "svn",
         "expiration": "2026-01-01T00:00:00Z",
-        "hash-value": [
-          {
-            "alg": "sha256",
-            "value": "1"
-          }
-        ]
+        "value" : 1
       }
     ]

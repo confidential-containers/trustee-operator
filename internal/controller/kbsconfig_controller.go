@@ -76,7 +76,7 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	// Get the KbsConfig instance
 	r.kbsConfig = &confidentialcontainersorgv1alpha1.KbsConfig{}
-	err := r.Client.Get(ctx, req.NamespacedName, r.kbsConfig)
+	err := r.Get(ctx, req.NamespacedName, r.kbsConfig)
 	// If the KbsConfig instance is not found, then just return
 	// and do nothing
 	if err != nil && k8serrors.IsNotFound(err) {
@@ -142,14 +142,14 @@ func (r *KbsConfigReconciler) finalizeKbsConfig(ctx context.Context) error {
 	r.log.Info("Deleting the KBS deployment")
 	// Get the KbsDeploymentName deployment
 	deployment := &appsv1.Deployment{}
-	err := r.Client.Get(ctx, client.ObjectKey{
+	err := r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      KbsDeploymentName,
 	}, deployment)
 	if err != nil {
 		return err
 	}
-	err = r.Client.Delete(ctx, deployment)
+	err = r.Delete(ctx, deployment)
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 	// If it does not, create the service
 	found := &corev1.Service{}
 
-	err := r.Client.Get(ctx, client.ObjectKey{
+	err := r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      KbsServiceName,
 	}, found)
@@ -179,7 +179,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 			// Create an return new error object
 			return fmt.Errorf("failed to get KBS service definition")
 		}
-		err = r.Client.Create(ctx, service)
+		err = r.Create(ctx, service)
 		if err != nil {
 			return err
 		}
@@ -196,7 +196,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 	if service == nil {
 		return fmt.Errorf("failed to get KBS service definition")
 	}
-	err = r.Client.Update(ctx, service)
+	err = r.Update(ctx, service)
 	if err != nil {
 		return err
 	}
@@ -253,7 +253,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) e
 	// If it does not, create the deployment
 	found := &appsv1.Deployment{}
 
-	err := r.Client.Get(ctx, client.ObjectKey{
+	err := r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      KbsDeploymentName,
 	}, found)
@@ -265,7 +265,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) e
 		if err != nil {
 			return err
 		}
-		err = r.Client.Create(ctx, deployment)
+		err = r.Create(ctx, deployment)
 		if err != nil {
 			return err
 		} else {
@@ -369,9 +369,13 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 			return nil, err
 		}
 		// attestation policy file is "/opt/confidential-containers/attestation-service/policies/opa/default.rego"
-		volumeMount = createVolumeMount(volume.Name, attestationPolicyPath)
+		volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(attestationPolicyPath, defaultAttestationCpuPolicy), defaultAttestationCpuPolicy)
 		volumes = append(volumes, *volume)
-		kbsVM = append(kbsVM, volumeMount)
+		if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
+			kbsVM = append(kbsVM, volumeMount)
+		} else {
+			asVM = append(asVM, volumeMount)
+		}
 	}
 
 	// resource policy
@@ -416,14 +420,17 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
 	kbsVM = append(kbsVM, volumeMount)
 
-	// Mount local directory into a secret
-	if r.kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName != "" {
-		volume, err = r.createSecretVolume(ctx, r.kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName, r.kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName)
+	// Mount local directories into secrets
+	for _, certCacheEntry := range r.kbsConfig.Spec.KbsLocalCertCacheSpec.Secrets {
+		volume, err = r.createSecretVolume(ctx, certCacheEntry.SecretName, certCacheEntry.SecretName)
 		if err != nil {
 			return nil, err
 		}
 		volumes = append(volumes, *volume)
-		volumeMount = createVolumeMount(volume.Name, r.kbsConfig.Spec.KbsLocalCertCacheSpec.MountPath)
+		if certCacheEntry.MountPath == "" {
+			certCacheEntry.MountPath = kbsDefaultLocalCacheDir
+		}
+		volumeMount = createVolumeMount(volume.Name, certCacheEntry.MountPath)
 		kbsVM = append(kbsVM, volumeMount)
 	}
 
@@ -678,7 +685,7 @@ func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deploymen
 	// overwrites the template spec, if any changes
 	deployment.Spec.Template.Spec = *newDeployment.Spec.Template.Spec.DeepCopy()
 
-	err = r.Client.Update(ctx, deployment)
+	err = r.Update(ctx, deployment)
 	if err != nil {
 		return err
 	} else {
@@ -798,11 +805,21 @@ func secretToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFunc,
 
 		var requests []reconcile.Request
 		for _, kbsConfig := range kbsConfigList.Items {
-			if kbsConfig.Spec.KbsAuthSecretName == secret.Name ||
-				kbsConfig.Spec.KbsLocalCertCacheSpec.SecretName == secret.Name ||
+			// Check if secret matches any of the known secret references
+			secretMatches := kbsConfig.Spec.KbsAuthSecretName == secret.Name ||
 				kbsConfig.Spec.KbsHttpsKeySecretName == secret.Name ||
 				kbsConfig.Spec.KbsHttpsCertSecretName == secret.Name ||
-				kbsConfig.Spec.KbsSecretResources != nil && contains(kbsConfig.Spec.KbsSecretResources, secret.Name) {
+				(kbsConfig.Spec.KbsSecretResources != nil && contains(kbsConfig.Spec.KbsSecretResources, secret.Name))
+
+			// Check if secret matches any of the local cert cache secrets
+			for _, certCacheEntry := range kbsConfig.Spec.KbsLocalCertCacheSpec.Secrets {
+				if certCacheEntry.SecretName == secret.Name {
+					secretMatches = true
+					break
+				}
+			}
+
+			if secretMatches {
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{
 						Namespace: kbsConfig.Namespace,
