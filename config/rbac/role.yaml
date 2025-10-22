@@ -70,3 +70,11 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - config.openshift.io
+  resources:
+  - proxies
+  verbs:
+  - get
+  - list
+  - watch
