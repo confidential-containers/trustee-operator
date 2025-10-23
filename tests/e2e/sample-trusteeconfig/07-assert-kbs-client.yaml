@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kbs-client
+  namespace: trustee-operator-system
+status:
+  phase: Running
