@@ -1,0 +1,5 @@
+apiVersion: confidentialcontainers.org/v1alpha1
+kind: KbsConfig
+metadata:
+  name: trusteeconfig-sample-kbs-config
+  namespace: trustee-operator-system
