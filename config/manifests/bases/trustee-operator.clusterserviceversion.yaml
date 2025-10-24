@@ -5,10 +5,17 @@ metadata:
     alm-examples: '[]'
     capabilities: Basic Install
     categories: Security
-    containerImage: quay.io/confidential-containers/trustee-operator:v0.4.2
+    containerImage: quay.io/confidential-containers/trustee-operator:v0.5.0
+    features.operators.openshift.io/disconnected: "true"
+    features.operators.openshift.io/fips-compliant: "false"
+    features.operators.openshift.io/proxy-aware: "true"
+    features.operators.openshift.io/tls-profiles: "false"
+    features.operators.openshift.io/token-auth-aws: "false"
+    features.operators.openshift.io/token-auth-azure: "false"
+    features.operators.openshift.io/token-auth-gcp: "false"
     operatorframework.io/suggested-namespace: trustee-operator-system
     support: Confidential Containers Community
-  name: trustee-operator.v0.4.2
+  name: trustee-operator.v0.5.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -56,5 +63,5 @@ spec:
   provider:
     name: Confidential Containers Community
     url: https://github.com/confidential-containers
-  replaces: trustee-operator.v0.4.1
-  version: 0.4.2
+  replaces: trustee-operator.v0.4.2
+  version: 0.5.0

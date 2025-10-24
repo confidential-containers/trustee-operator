@@ -21,8 +21,9 @@ spec:
   KbsEnvVars: 
     RUST_LOG: debug
   kbsLocalCertCacheSpec:
-    secretName: vcek-secret
-    mountPath: "/etc/kbs/snp/ek"
+    secrets:
+      - secretName: vcek-secret
+        mountPath: "/etc/kbs/snp/ek"
   KbsDeploymentSpec:
     replicas: 2
 
