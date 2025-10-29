@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.18.0
   creationTimestamp: null
   name: trusteeconfigs.confidentialcontainers.org
 spec:
@@ -50,11 +50,10 @@ spec:
               httpsSpec:
                 description: HttpsSpec is the struct that hosts the HTTPS configuration
                 properties:
-                  certificate:
-                    description: Certificate
-                    type: string
-                  privateKey:
-                    description: Private key
+                  tlsSecretName:
+                    description: |-
+                      TlsSecretName is the name of the Kubernetes TLS secret (type: kubernetes.io/tls)
+                      that contains the TLS certificate and private key
                     type: string
                 type: object
               kbsServiceType:

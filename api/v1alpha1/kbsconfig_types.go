@@ -183,10 +183,9 @@ type KbsConfigList struct {
 
 // HttpsSpec defines the desired state for HTTPS configuration
 type HttpsSpec struct {
-	// Private key
-	PrivateKey string `json:"privateKey,omitempty"`
-	// Certificate
-	Certificate string `json:"certificate,omitempty"`
+	// TlsSecretName is the name of the Kubernetes TLS secret (type: kubernetes.io/tls)
+	// that contains the TLS certificate and private key
+	TlsSecretName string `json:"tlsSecretName,omitempty"`
 }
 
 // AttestationTokenVerificationSpec token validation using trusted certificate authorities

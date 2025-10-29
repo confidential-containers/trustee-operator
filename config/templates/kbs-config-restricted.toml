@@ -1,6 +1,8 @@
 [http_server]
 sockets = ["0.0.0.0:8080"]
 insecure_http = false
+private_key = "/etc/https-key/privateKey"
+certificate = "/etc/https-cert/certificate"
 
 [admin]
 insecure_api = false

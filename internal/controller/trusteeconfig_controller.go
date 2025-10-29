@@ -387,7 +387,12 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) confid
 	}
 
 	// Configure HTTPS if specified
-	if r.trusteeConfig.Spec.HttpsSpec.Certificate != "" && r.trusteeConfig.Spec.HttpsSpec.PrivateKey != "" {
+	if r.trusteeConfig.Spec.HttpsSpec.TlsSecretName != "" {
+		err := r.createOrUpdateHttpsSecrets(ctx)
+		if err != nil {
+			r.log.Error(err, "Error creating HTTPS secrets")
+			return spec
+		}
 		spec = r.configureHttps(spec)
 	}
 
@@ -456,13 +461,38 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 
 // configureRestrictedProfile configures KbsConfig for restricted mode
 func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context, spec confidentialcontainersorgv1alpha1.KbsConfigSpec) confidentialcontainersorgv1alpha1.KbsConfigSpec {
-	// Force HTTPS configuration
 	if spec.KbsEnvVars == nil {
 		spec.KbsEnvVars = make(map[string]string)
 	}
 
+	// Create the KBS config map
+	err := r.createOrUpdateKbsConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating KBS config map", "err", err)
+		return spec
+	}
+
+	// Create the KBS auth secret
+	err = r.createOrUpdateKbsAuthSecret(ctx)
+	if err != nil {
+		r.log.Info("Error creating KBS auth secret", "err", err)
+		return spec
+	}
+
+	// Create the sample secret kbsres1
+	err = r.createOrUpdateKbsSampleSecret(ctx)
+	if err != nil {
+		r.log.Info("Error creating KBS sample secret", "err", err)
+		return spec
+	}
+
+	// Set the config map, auth secret, and resource policy config map names in the spec
+	spec.KbsConfigMapName = r.getKbsConfigMapName()
+	spec.KbsAuthSecretName = r.getKbsAuthSecretName()
+	spec.KbsSecretResources = append(spec.KbsSecretResources, r.getKbsSampleSecretName())
+
 	// Create the resource policy config map
-	err := r.createOrUpdateResourcePolicyConfigMap(ctx)
+	err = r.createOrUpdateResourcePolicyConfigMap(ctx)
 	if err != nil {
 		r.log.Info("Error creating resource policy config map", "err", err)
 		return spec
@@ -481,20 +511,14 @@ func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context
 	// Set the RVPS reference values config map name in the spec
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
 
-	// TODO: Configure restricted resource policy and enforce HTTPS
-	// This would require creating appropriate ConfigMaps and Secrets
-
 	return spec
 }
 
 // configureHttps configures HTTPS settings for KbsConfig
 func (r *TrusteeConfigReconciler) configureHttps(spec confidentialcontainersorgv1alpha1.KbsConfigSpec) confidentialcontainersorgv1alpha1.KbsConfigSpec {
-	// TODO: Create secrets from the HTTPS configuration
-	// For now, we'll set placeholder values that would need to be created
-	httpsSecretName := r.getHttpsSecretName()
-
-	spec.KbsHttpsKeySecretName = httpsSecretName + "-key"
-	spec.KbsHttpsCertSecretName = httpsSecretName + "-cert"
+	// Set the secret names for key and certificate
+	spec.KbsHttpsKeySecretName = r.getHttpsKeySecretName()
+	spec.KbsHttpsCertSecretName = r.getHttpsCertSecretName()
 
 	return spec
 }
@@ -515,9 +539,14 @@ func (r *TrusteeConfigReconciler) getKbsConfigName() string {
 	return r.trusteeConfig.Name + "-kbs-config"
 }
 
-// getHttpsSecretName returns the name for the HTTPS secret
-func (r *TrusteeConfigReconciler) getHttpsSecretName() string {
-	return r.trusteeConfig.Name + "-https-secret"
+// getHttpsKeySecretName returns the name for the HTTPS key secret
+func (r *TrusteeConfigReconciler) getHttpsKeySecretName() string {
+	return r.trusteeConfig.Name + "-https-key-secret"
+}
+
+// getHttpsCertSecretName returns the name for the HTTPS certificate secret
+func (r *TrusteeConfigReconciler) getHttpsCertSecretName() string {
+	return r.trusteeConfig.Name + "-https-cert-secret"
 }
 
 // getAttestationSecretName returns the name for the attestation secret
@@ -773,6 +802,173 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsSampleSecret(ctx context.Cont
 	}
 
 	return nil
+}
+
+// createOrUpdateHttpsSecrets creates or updates the HTTPS key and certificate secrets from the TLS secret
+func (r *TrusteeConfigReconciler) createOrUpdateHttpsSecrets(ctx context.Context) error {
+	// Read the TLS secret
+	tlsSecret := &corev1.Secret{}
+	tlsSecretName := r.trusteeConfig.Spec.HttpsSpec.TlsSecretName
+	err := r.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      tlsSecretName,
+	}, tlsSecret)
+	if err != nil {
+		r.log.Error(err, "Failed to get TLS secret", "Secret.Namespace", r.namespace, "Secret.Name", tlsSecretName)
+		return err
+	}
+
+	// Verify it's a TLS secret
+	if tlsSecret.Type != corev1.SecretTypeTLS {
+		err := fmt.Errorf("secret %s is not of type %s, got %s", tlsSecretName, corev1.SecretTypeTLS, tlsSecret.Type)
+		r.log.Error(err, "Invalid secret type")
+		return err
+	}
+
+	// Extract tls.key and tls.crt
+	tlsKey, exists := tlsSecret.Data["tls.key"]
+	if !exists {
+		err := fmt.Errorf("tls.key not found in TLS secret %s", tlsSecretName)
+		r.log.Error(err, "Missing tls.key")
+		return err
+	}
+
+	tlsCert, exists := tlsSecret.Data["tls.crt"]
+	if !exists {
+		err := fmt.Errorf("tls.crt not found in TLS secret %s", tlsSecretName)
+		r.log.Error(err, "Missing tls.crt")
+		return err
+	}
+
+	// Create or update the key secret
+	err = r.createOrUpdateHttpsKeySecret(ctx, tlsKey)
+	if err != nil {
+		return err
+	}
+
+	// Create or update the cert secret
+	err = r.createOrUpdateHttpsCertSecret(ctx, tlsCert)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// createOrUpdateHttpsKeySecret creates or updates the HTTPS key secret
+func (r *TrusteeConfigReconciler) createOrUpdateHttpsKeySecret(ctx context.Context, keyData []byte) error {
+	secretName := r.getHttpsKeySecretName()
+
+	// Check if the secret already exists
+	found := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      secretName,
+	}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		// Create the secret
+		r.log.Info("Creating HTTPS key secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		secret := r.generateHttpsKeySecret(keyData)
+		err = r.Create(ctx, secret)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else {
+		// Update the secret
+		r.log.Info("Updating HTTPS key secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		found.Data = map[string][]byte{
+			"privateKey": keyData,
+		}
+		err = r.Update(ctx, found)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// createOrUpdateHttpsCertSecret creates or updates the HTTPS certificate secret
+func (r *TrusteeConfigReconciler) createOrUpdateHttpsCertSecret(ctx context.Context, certData []byte) error {
+	secretName := r.getHttpsCertSecretName()
+
+	// Check if the secret already exists
+	found := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      secretName,
+	}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		// Create the secret
+		r.log.Info("Creating HTTPS certificate secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		secret := r.generateHttpsCertSecret(certData)
+		err = r.Create(ctx, secret)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else {
+		// Update the secret
+		r.log.Info("Updating HTTPS certificate secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		found.Data = map[string][]byte{
+			"certificate": certData,
+		}
+		err = r.Update(ctx, found)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// generateHttpsKeySecret creates a Secret for HTTPS private key
+func (r *TrusteeConfigReconciler) generateHttpsKeySecret(keyData []byte) *corev1.Secret {
+	secretName := r.getHttpsKeySecretName()
+
+	data := make(map[string][]byte)
+	data["privateKey"] = keyData
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: r.namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: data,
+	}
+
+	// Set TrusteeConfig as the owner
+	_ = ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
+
+	return secret
+}
+
+// generateHttpsCertSecret creates a Secret for HTTPS certificate
+func (r *TrusteeConfigReconciler) generateHttpsCertSecret(certData []byte) *corev1.Secret {
+	secretName := r.getHttpsCertSecretName()
+
+	data := make(map[string][]byte)
+	data["certificate"] = certData
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: r.namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: data,
+	}
+
+	// Set TrusteeConfig as the owner
+	_ = ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
+
+	return secret
 }
 
 // generateResourcePolicyConfigMap creates a ConfigMap for resource policy

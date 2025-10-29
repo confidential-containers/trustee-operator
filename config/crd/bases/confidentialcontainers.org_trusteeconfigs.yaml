@@ -50,11 +50,10 @@ spec:
               httpsSpec:
                 description: HttpsSpec is the struct that hosts the HTTPS configuration
                 properties:
-                  certificate:
-                    description: Certificate
-                    type: string
-                  privateKey:
-                    description: Private key
+                  tlsSecretName:
+                    description: |-
+                      TlsSecretName is the name of the Kubernetes TLS secret (type: kubernetes.io/tls)
+                      that contains the TLS certificate and private key
                     type: string
                 type: object
               kbsServiceType:
