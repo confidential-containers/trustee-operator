@@ -43,8 +43,10 @@ spec:
                 description: AttestationTokenVerificationSpec token validation using
                   trusted certificate authorities
                 properties:
-                  certificate:
-                    description: Certificate
+                  tlsSecretName:
+                    description: |-
+                      TlsSecretName is the name of the Kubernetes TLS secret (type: kubernetes.io/tls)
+                      that contains the TLS certificate for attestation token verification
                     type: string
                 type: object
               httpsSpec:

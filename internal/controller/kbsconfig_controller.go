@@ -463,6 +463,25 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		kbsVM = append(kbsVM, volumeMount)
 	}
 
+	// attestation token
+	if r.isAttestationConfigPresent() {
+		volume, err = r.createSecretVolume(ctx, "attestation-key", r.kbsConfig.Spec.KbsAttestationKeySecretName)
+		if err != nil {
+			return nil, err
+		}
+		volumes = append(volumes, *volume)
+		volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
+		kbsVM = append(kbsVM, volumeMount)
+
+		volume, err = r.createSecretVolume(ctx, "attestation-cert", r.kbsConfig.Spec.KbsAttestationCertSecretName)
+		if err != nil {
+			return nil, err
+		}
+		volumes = append(volumes, *volume)
+		volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
+		kbsVM = append(kbsVM, volumeMount)
+	}
+
 	// kbs secret resources
 	kbsSecretVolumes, err := r.createKbsSecretResourcesVolume(ctx)
 	if err != nil {
@@ -731,6 +750,13 @@ func buildEnvVars(r *KbsConfigReconciler, ctx context.Context) []corev1.EnvVar {
 
 func (r *KbsConfigReconciler) isHttpsConfigPresent() bool {
 	if r.kbsConfig.Spec.KbsHttpsKeySecretName != "" && r.kbsConfig.Spec.KbsHttpsCertSecretName != "" {
+		return true
+	}
+	return false
+}
+
+func (r *KbsConfigReconciler) isAttestationConfigPresent() bool {
+	if r.kbsConfig.Spec.KbsAttestationKeySecretName != "" && r.kbsConfig.Spec.KbsAttestationCertSecretName != "" {
 		return true
 	}
 	return false

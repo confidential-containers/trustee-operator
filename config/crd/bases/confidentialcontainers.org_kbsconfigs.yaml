@@ -71,6 +71,14 @@ spec:
                   KbsAsConfigMapName is the name of the configmap that contains the KBS AS configuration
                   Required only when MicroservicesDeployment is set
                 type: string
+              kbsAttestationCertSecretName:
+                description: KbsAttestationCertSecretName is the name of the secret
+                  that contains the attestation token certificate
+                type: string
+              kbsAttestationKeySecretName:
+                description: KbsAttestationKeySecretName is the name of the secret
+                  that contains the attestation token private key
+                type: string
               kbsAttestationPolicyConfigMapName:
                 description: KbsAttestationPolicyConfigMapName is the name of the
                   configmap that contains the Attestation Policy

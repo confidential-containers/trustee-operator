@@ -397,7 +397,12 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) confid
 	}
 
 	// Configure attestation token verification if specified
-	if r.trusteeConfig.Spec.AttestationTokenVerificationSpec.Certificate != "" {
+	if r.trusteeConfig.Spec.AttestationTokenVerificationSpec.TlsSecretName != "" {
+		err := r.createOrUpdateAttestationSecrets(ctx)
+		if err != nil {
+			r.log.Error(err, "Error creating attestation secrets")
+			return spec
+		}
 		spec = r.configureAttestationTokenVerification(spec)
 	}
 
@@ -525,11 +530,9 @@ func (r *TrusteeConfigReconciler) configureHttps(spec confidentialcontainersorgv
 
 // configureAttestationTokenVerification configures attestation token verification for KbsConfig
 func (r *TrusteeConfigReconciler) configureAttestationTokenVerification(spec confidentialcontainersorgv1alpha1.KbsConfigSpec) confidentialcontainersorgv1alpha1.KbsConfigSpec {
-	// TODO: Create secrets from the attestation token verification configuration
-	// For now, we'll set placeholder values that would need to be created
-	attestationSecretName := r.getAttestationSecretName()
-
-	spec.KbsAttestationPolicyConfigMapName = attestationSecretName + "-policy"
+	// Set the secret names for key and certificate
+	spec.KbsAttestationKeySecretName = r.getAttestationKeySecretName()
+	spec.KbsAttestationCertSecretName = r.getAttestationCertSecretName()
 
 	return spec
 }
@@ -547,11 +550,6 @@ func (r *TrusteeConfigReconciler) getHttpsKeySecretName() string {
 // getHttpsCertSecretName returns the name for the HTTPS certificate secret
 func (r *TrusteeConfigReconciler) getHttpsCertSecretName() string {
 	return r.trusteeConfig.Name + "-https-cert-secret"
-}
-
-// getAttestationSecretName returns the name for the attestation secret
-func (r *TrusteeConfigReconciler) getAttestationSecretName() string {
-	return r.trusteeConfig.Name + "-attestation-secret"
 }
 
 // generateKbsTomlConfig generates the TOML configuration for KBS
@@ -955,6 +953,183 @@ func (r *TrusteeConfigReconciler) generateHttpsCertSecret(certData []byte) *core
 
 	data := make(map[string][]byte)
 	data["certificate"] = certData
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: r.namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: data,
+	}
+
+	// Set TrusteeConfig as the owner
+	_ = ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
+
+	return secret
+}
+
+// createOrUpdateAttestationSecrets creates or updates the attestation key and certificate secrets from the TLS secret
+func (r *TrusteeConfigReconciler) createOrUpdateAttestationSecrets(ctx context.Context) error {
+	// Read the TLS secret
+	tlsSecret := &corev1.Secret{}
+	tlsSecretName := r.trusteeConfig.Spec.AttestationTokenVerificationSpec.TlsSecretName
+	err := r.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      tlsSecretName,
+	}, tlsSecret)
+	if err != nil {
+		r.log.Error(err, "Failed to get TLS secret", "Secret.Namespace", r.namespace, "Secret.Name", tlsSecretName)
+		return err
+	}
+
+	// Verify it's a TLS secret
+	if tlsSecret.Type != corev1.SecretTypeTLS {
+		err := fmt.Errorf("secret %s is not of type %s, got %s", tlsSecretName, corev1.SecretTypeTLS, tlsSecret.Type)
+		r.log.Error(err, "Invalid secret type")
+		return err
+	}
+
+	// Extract tls.key and tls.crt
+	tlsKey, exists := tlsSecret.Data["tls.key"]
+	if !exists {
+		err := fmt.Errorf("tls.key not found in TLS secret %s", tlsSecretName)
+		r.log.Error(err, "Missing tls.key")
+		return err
+	}
+
+	tlsCert, exists := tlsSecret.Data["tls.crt"]
+	if !exists {
+		err := fmt.Errorf("tls.crt not found in TLS secret %s", tlsSecretName)
+		r.log.Error(err, "Missing tls.crt")
+		return err
+	}
+
+	// Create or update the key secret
+	err = r.createOrUpdateAttestationKeySecret(ctx, tlsKey)
+	if err != nil {
+		return err
+	}
+
+	// Create or update the cert secret
+	err = r.createOrUpdateAttestationCertSecret(ctx, tlsCert)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// createOrUpdateAttestationKeySecret creates or updates the attestation key secret
+func (r *TrusteeConfigReconciler) createOrUpdateAttestationKeySecret(ctx context.Context, keyData []byte) error {
+	secretName := r.getAttestationKeySecretName()
+
+	// Check if the secret already exists
+	found := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      secretName,
+	}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		// Create the secret
+		r.log.Info("Creating attestation key secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		secret := r.generateAttestationKeySecret(keyData)
+		err = r.Create(ctx, secret)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else {
+		// Update the secret
+		r.log.Info("Updating attestation key secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		found.Data = map[string][]byte{
+			"token.key": keyData,
+		}
+		err = r.Update(ctx, found)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// createOrUpdateAttestationCertSecret creates or updates the attestation certificate secret
+func (r *TrusteeConfigReconciler) createOrUpdateAttestationCertSecret(ctx context.Context, certData []byte) error {
+	secretName := r.getAttestationCertSecretName()
+
+	// Check if the secret already exists
+	found := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      secretName,
+	}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		// Create the secret
+		r.log.Info("Creating attestation certificate secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		secret := r.generateAttestationCertSecret(certData)
+		err = r.Create(ctx, secret)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else {
+		// Update the secret
+		r.log.Info("Updating attestation certificate secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
+		found.Data = map[string][]byte{
+			"token.crt": certData,
+		}
+		err = r.Update(ctx, found)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// generateAttestationCertSecret creates a Secret for attestation certificate
+func (r *TrusteeConfigReconciler) generateAttestationCertSecret(certData []byte) *corev1.Secret {
+	secretName := r.getAttestationCertSecretName()
+
+	data := make(map[string][]byte)
+	data["token.crt"] = certData
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: r.namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: data,
+	}
+
+	// Set TrusteeConfig as the owner
+	_ = ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
+
+	return secret
+}
+
+// getAttestationKeySecretName returns the name for the attestation key secret
+func (r *TrusteeConfigReconciler) getAttestationKeySecretName() string {
+	return r.trusteeConfig.Name + "-attestation-key-secret"
+}
+
+// getAttestationCertSecretName returns the name for the attestation certificate secret
+func (r *TrusteeConfigReconciler) getAttestationCertSecretName() string {
+	return r.trusteeConfig.Name + "-attestation-cert-secret"
+}
+
+// generateAttestationKeySecret creates a Secret for attestation private key
+func (r *TrusteeConfigReconciler) generateAttestationKeySecret(keyData []byte) *corev1.Secret {
+	secretName := r.getAttestationKeySecretName()
+
+	data := make(map[string][]byte)
+	data["token.key"] = keyData
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

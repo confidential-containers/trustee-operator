@@ -119,6 +119,14 @@ type KbsConfigSpec struct {
 	// KbsHttpsCertSecretName is the name of the secret that contains the KBS https certificate
 	KbsHttpsCertSecretName string `json:"kbsHttpsCertSecretName,omitempty"`
 
+	// KbsAttestationKeySecretName is the name of the secret that contains the attestation token private key
+	// +optional
+	KbsAttestationKeySecretName string `json:"kbsAttestationKeySecretName,omitempty"`
+
+	// KbsAttestationCertSecretName is the name of the secret that contains the attestation token certificate
+	// +optional
+	KbsAttestationCertSecretName string `json:"kbsAttestationCertSecretName,omitempty"`
+
 	// KbsSecretResources is an array of secret names that contain the keys required by clients
 	// +optional
 	KbsSecretResources []string `json:"kbsSecretResources,omitempty"`
@@ -190,8 +198,9 @@ type HttpsSpec struct {
 
 // AttestationTokenVerificationSpec token validation using trusted certificate authorities
 type AttestationTokenVerificationSpec struct {
-	// Certificate
-	Certificate string `json:"certificate,omitempty"`
+	// TlsSecretName is the name of the Kubernetes TLS secret (type: kubernetes.io/tls)
+	// that contains the TLS certificate for attestation token verification
+	TlsSecretName string `json:"tlsSecretName,omitempty"`
 }
 
 // Profile Type string determines the trustee profile
