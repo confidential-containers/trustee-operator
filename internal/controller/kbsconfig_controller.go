@@ -532,6 +532,9 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 				},
 				// Add the KBS container
 				Spec: corev1.PodSpec{
+					SecurityContext: &corev1.PodSecurityContext{
+						FSGroup: pointer(int64(1000)),
+					},
 					Containers: containers,
 					// Add volumes
 					Volumes: volumes,
@@ -556,6 +559,8 @@ func createSecurityContext() *corev1.SecurityContext {
 		SeccompProfile: &corev1.SeccompProfile{
 			Type: corev1.SeccompProfileTypeRuntimeDefault,
 		},
+		RunAsUser:  pointer(int64(1000)),
+		RunAsGroup: pointer(int64(1000)),
 	}
 }
 
