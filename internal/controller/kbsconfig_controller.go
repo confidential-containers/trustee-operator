@@ -364,6 +364,19 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	volumes = append(volumes, *volume)
 	kbsVM = append(kbsVM, volumeMount)
 
+	// attestation policy directory - create empty writable directory
+	volume, err = r.createEmptyDirVolume("attestation-policy-dir")
+	if err != nil {
+		return nil, err
+	}
+	volumes = append(volumes, *volume)
+	volumeMount = createVolumeMount(volume.Name, attestationPolicyPath)
+	if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
+		kbsVM = append(kbsVM, volumeMount)
+	} else {
+		asVM = append(asVM, volumeMount)
+	}
+
 	// attestation policy
 	if r.kbsConfig.Spec.KbsAttestationPolicyConfigMapName != "" {
 		volume, err = r.createConfigMapVolume(ctx, "attestation-policy", r.kbsConfig.Spec.KbsAttestationPolicyConfigMapName)
