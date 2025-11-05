@@ -1,0 +1,6 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: kubectl delete TrusteeConfig -n trustee-operator-system trusteeconfig-sample
+  - script: kubectl delete pod kbs-client -n trustee-operator-system
+  - script: kubectl delete secret trustee-secret -n trustee-operator-system

@@ -6,3 +6,4 @@ commands:
   - script: rm -f publicKey
   - script: rm -f https.crt
   - script: rm -f https.key
+
