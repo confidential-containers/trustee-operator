@@ -13,4 +13,4 @@ spec:
       - "360000"
     env:
       - name: RUST_LOG
-        value:  none
+        value:  info

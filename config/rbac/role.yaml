@@ -9,20 +9,6 @@ rules:
   resources:
   - configmaps
   - secrets
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - namespaces
-  verbs:
-  - get
-  - update
-- apiGroups:
-  - ""
-  resources:
   - services
   verbs:
   - create
@@ -32,6 +18,13 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - update
 - apiGroups:
   - apps
   resources:
@@ -48,6 +41,7 @@ rules:
   - confidentialcontainers.org
   resources:
   - kbsconfigs
+  - trusteeconfigs
   verbs:
   - create
   - delete
@@ -60,12 +54,14 @@ rules:
   - confidentialcontainers.org
   resources:
   - kbsconfigs/finalizers
+  - trusteeconfigs/finalizers
   verbs:
   - update
 - apiGroups:
   - confidentialcontainers.org
   resources:
   - kbsconfigs/status
+  - trusteeconfigs/status
   verbs:
   - get
   - patch
@@ -77,4 +73,16 @@ rules:
   verbs:
   - get
   - list
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
