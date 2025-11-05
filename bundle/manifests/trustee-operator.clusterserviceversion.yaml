@@ -38,6 +38,9 @@ spec:
       kind: KbsConfig
       name: kbsconfigs.confidentialcontainers.org
       version: v1alpha1
+    - kind: TrusteeConfig
+      name: trusteeconfigs.confidentialcontainers.org
+      version: v1alpha1
   description: Remote attestation operator for confidential containers
   displayName: Red Hat build of Trustee
   icon:
@@ -52,20 +55,6 @@ spec:
           resources:
           - configmaps
           - secrets
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - namespaces
-          verbs:
-          - get
-          - update
-        - apiGroups:
-          - ""
-          resources:
           - services
           verbs:
           - create
@@ -75,6 +64,13 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          verbs:
+          - get
+          - update
         - apiGroups:
           - apps
           resources:
@@ -91,6 +87,7 @@ spec:
           - confidentialcontainers.org
           resources:
           - kbsconfigs
+          - trusteeconfigs
           verbs:
           - create
           - delete
@@ -103,12 +100,14 @@ spec:
           - confidentialcontainers.org
           resources:
           - kbsconfigs/finalizers
+          - trusteeconfigs/finalizers
           verbs:
           - update
         - apiGroups:
           - confidentialcontainers.org
           resources:
           - kbsconfigs/status
+          - trusteeconfigs/status
           verbs:
           - get
           - patch

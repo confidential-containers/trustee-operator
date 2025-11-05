@@ -5,4 +5,5 @@ nameSuffix: -sample
 
 resources:
  - all-in-one
+ - trusteeconfig_sample.yaml
 

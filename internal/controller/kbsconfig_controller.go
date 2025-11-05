@@ -134,6 +134,13 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
+	// Update KbsConfig status based on deployment readiness
+	err = r.updateKbsConfigStatus(ctx)
+	if err != nil {
+		r.log.Info("Error updating KbsConfig status", "err", err)
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -364,6 +371,19 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	volumes = append(volumes, *volume)
 	kbsVM = append(kbsVM, volumeMount)
 
+	// attestation policy directory - create empty writable directory
+	volume, err = r.createEmptyDirVolume("attestation-policy-dir")
+	if err != nil {
+		return nil, err
+	}
+	volumes = append(volumes, *volume)
+	volumeMount = createVolumeMount(volume.Name, attestationPolicyPath)
+	if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
+		kbsVM = append(kbsVM, volumeMount)
+	} else {
+		asVM = append(asVM, volumeMount)
+	}
+
 	// attestation policy
 	if r.kbsConfig.Spec.KbsAttestationPolicyConfigMapName != "" {
 		volume, err = r.createConfigMapVolume(ctx, "attestation-policy", r.kbsConfig.Spec.KbsAttestationPolicyConfigMapName)
@@ -448,6 +468,25 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		kbsVM = append(kbsVM, volumeMount)
 
 		volume, err = r.createSecretVolume(ctx, "https-cert", r.kbsConfig.Spec.KbsHttpsCertSecretName)
+		if err != nil {
+			return nil, err
+		}
+		volumes = append(volumes, *volume)
+		volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
+		kbsVM = append(kbsVM, volumeMount)
+	}
+
+	// attestation token
+	if r.isAttestationConfigPresent() {
+		volume, err = r.createSecretVolume(ctx, "attestation-key", r.kbsConfig.Spec.KbsAttestationKeySecretName)
+		if err != nil {
+			return nil, err
+		}
+		volumes = append(volumes, *volume)
+		volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
+		kbsVM = append(kbsVM, volumeMount)
+
+		volume, err = r.createSecretVolume(ctx, "attestation-cert", r.kbsConfig.Spec.KbsAttestationCertSecretName)
 		if err != nil {
 			return nil, err
 		}
@@ -729,6 +768,13 @@ func (r *KbsConfigReconciler) isHttpsConfigPresent() bool {
 	return false
 }
 
+func (r *KbsConfigReconciler) isAttestationConfigPresent() bool {
+	if r.kbsConfig.Spec.KbsAttestationKeySecretName != "" && r.kbsConfig.Spec.KbsAttestationCertSecretName != "" {
+		return true
+	}
+	return false
+}
+
 // updateKbsDeployment updates an existing deployment for the KBS instance
 // Errors are logged by the callee and hence no error is logged in this method
 func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deployment *appsv1.Deployment) error {
@@ -740,6 +786,8 @@ func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deploymen
 
 	// overwrites the template spec, if any changes
 	deployment.Spec.Template.Spec = *newDeployment.Spec.Template.Spec.DeepCopy()
+	// Update replicas if changed
+	deployment.Spec.Replicas = newDeployment.Spec.Replicas
 
 	err = r.Update(ctx, deployment)
 	if err != nil {
@@ -912,4 +960,32 @@ func namespacePredicate(namespace string) predicate.Predicate {
 func isResourceInNamespace(obj metav1.Object, namespace string) bool {
 
 	return obj.GetNamespace() == namespace
+}
+
+// updateKbsConfigStatus checks the deployment status and updates KbsConfig accordingly
+func (r *KbsConfigReconciler) updateKbsConfigStatus(ctx context.Context) error {
+	// Get the deployment to check its status
+	deployment := &appsv1.Deployment{}
+	err := r.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      KbsDeploymentName,
+	}, deployment)
+	if err != nil {
+		r.log.Info("Failed to get deployment for status check", "err", err)
+		// Set status to not ready if deployment doesn't exist
+		r.kbsConfig.Status.IsReady = false
+	} else {
+		// Check if deployment is ready (all replicas are ready)
+		r.kbsConfig.Status.IsReady = deployment.Status.ReadyReplicas >= 1 && deployment.Status.ReadyReplicas == deployment.Status.Replicas
+		r.log.Info("Updated KbsConfig status", "IsReady", r.kbsConfig.Status.IsReady, "ReadyReplicas", deployment.Status.ReadyReplicas, "Replicas", deployment.Status.Replicas, "AvailableReplicas", deployment.Status.AvailableReplicas, "UpdatedReplicas", deployment.Status.UpdatedReplicas)
+	}
+
+	// Update the status
+	err = r.Status().Update(ctx, r.kbsConfig)
+	if err != nil {
+		r.log.Error(err, "Failed to update KbsConfig status")
+		return err
+	}
+
+	return nil
 }
