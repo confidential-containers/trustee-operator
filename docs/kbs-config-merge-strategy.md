@@ -17,6 +17,7 @@ These fields are **always managed** by TrusteeConfig and will be overwritten:
 - `KbsServiceType` - Service type
 - `KbsDeploymentType` - Deployment type (always set to AllInOneDeployment)
 - `KbsResourcePolicyConfigMapName` - Resource policy
+- `TdxConfigSpec.KbsTdxConfigMapName` - TDX configuration
 
 **Behavior**: If you modify these fields manually, they will be **overwritten** by TrusteeConfig during reconciliation.
 
@@ -28,7 +29,6 @@ These fields are **preserved** from manual edits:
 - `KbsHttpsKeySecretName/CertSecretName` - Custom HTTPS certificates
 - `KbsSecretResources` - Additional secret resources
 - `KbsLocalCertCacheSpec` - Local certificate cache
-- `TdxConfigSpec` - TDX configuration
 - `IbmSEConfigSpec` - IBM SE configuration
 - `KbsAttestationPolicyConfigMapName` - Custom attestation policy
 

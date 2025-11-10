@@ -237,9 +237,6 @@ func (r *TrusteeConfigReconciler) detectManualChanges(current, generated confide
 		// Custom local cert cache
 		len(current.KbsLocalCertCacheSpec.Secrets) > 0 && !r.certCacheSpecsEqual(current.KbsLocalCertCacheSpec, generated.KbsLocalCertCacheSpec),
 
-		// Custom TDX config
-		current.TdxConfigSpec.KbsTdxConfigMapName != "" && current.TdxConfigSpec.KbsTdxConfigMapName != generated.TdxConfigSpec.KbsTdxConfigMapName,
-
 		// Custom IBM SE config
 		current.IbmSEConfigSpec.CertStorePvc != "" && current.IbmSEConfigSpec.CertStorePvc != generated.IbmSEConfigSpec.CertStorePvc,
 
@@ -334,11 +331,6 @@ func (r *TrusteeConfigReconciler) mergeKbsConfigSpecs(generatedSpec, manualSpec 
 		merged.KbsLocalCertCacheSpec.Secrets = manualSpec.KbsLocalCertCacheSpec.Secrets
 	}
 
-	// Preserve manual TDX configuration
-	if manualSpec.TdxConfigSpec.KbsTdxConfigMapName != "" {
-		merged.TdxConfigSpec.KbsTdxConfigMapName = manualSpec.TdxConfigSpec.KbsTdxConfigMapName
-	}
-
 	// Preserve manual IBM SE configuration
 	if manualSpec.IbmSEConfigSpec.CertStorePvc != "" {
 		merged.IbmSEConfigSpec.CertStorePvc = manualSpec.IbmSEConfigSpec.CertStorePvc
@@ -351,7 +343,7 @@ func (r *TrusteeConfigReconciler) mergeKbsConfigSpecs(generatedSpec, manualSpec 
 
 	r.log.Info("Merged KbsConfig specs", "preservedFields", []string{
 		"KbsDeploymentSpec", "KbsEnvVars", "KbsHttpsKeySecretName", "KbsHttpsCertSecretName",
-		"KbsSecretResources", "KbsLocalCertCacheSpec", "TdxConfigSpec", "IbmSEConfigSpec",
+		"KbsSecretResources", "KbsLocalCertCacheSpec", "IbmSEConfigSpec",
 		"KbsAttestationPolicyConfigMapName",
 	})
 
@@ -461,6 +453,16 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 
 	// Set the RVPS reference values config map name in the spec
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
+
+	// Create the TDX config map
+	err = r.createOrUpdateTdxConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating TDX config map", "err", err)
+		return spec
+	}
+
+	// Set the TDX config map name in the spec
+	spec.TdxConfigSpec.KbsTdxConfigMapName = r.getTdxConfigMapName()
 	return spec
 }
 
@@ -515,6 +517,16 @@ func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context
 
 	// Set the RVPS reference values config map name in the spec
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
+
+	// Create the TDX config map
+	err = r.createOrUpdateTdxConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating TDX config map", "err", err)
+		return spec
+	}
+
+	// Set the TDX config map name in the spec
+	spec.TdxConfigSpec.KbsTdxConfigMapName = r.getTdxConfigMapName()
 
 	return spec
 }
@@ -1251,6 +1263,62 @@ func (r *TrusteeConfigReconciler) createOrUpdateRvpsReferenceValuesConfigMap(ctx
 
 	r.log.Info("Updating RVPS reference values config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
 	updatedConfigMap, err := r.generateRvpsReferenceValuesConfigMap(ctx)
+	if err != nil {
+		return err
+	}
+	found.Data = updatedConfigMap.Data
+	return r.Update(ctx, found)
+}
+
+// generateTdxConfigMap creates a ConfigMap for TDX configuration
+func (r *TrusteeConfigReconciler) generateTdxConfigMap(ctx context.Context) (*corev1.ConfigMap, error) {
+	tdxConfigJson, err := generateTdxConfigJson()
+	if err != nil {
+		return nil, err
+	}
+
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.getTdxConfigMapName(),
+			Namespace: r.namespace,
+		},
+		Data: map[string]string{
+			tdxConfigFile: tdxConfigJson,
+		},
+	}
+
+	err = ctrl.SetControllerReference(r.trusteeConfig, configMap, r.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	return configMap, nil
+}
+
+// getTdxConfigMapName returns the name for the TDX config map
+func (r *TrusteeConfigReconciler) getTdxConfigMapName() string {
+	return r.trusteeConfig.Name + "-tdx-config"
+}
+
+// createOrUpdateTdxConfigMap creates or updates the TDX ConfigMap
+func (r *TrusteeConfigReconciler) createOrUpdateTdxConfigMap(ctx context.Context) error {
+	configMapName := r.getTdxConfigMapName()
+	found := &corev1.ConfigMap{}
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		r.log.Info("Creating TDX config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+		configMap, err := r.generateTdxConfigMap(ctx)
+		if err != nil {
+			return err
+		}
+		return r.Create(ctx, configMap)
+	} else if err != nil {
+		return err
+	}
+
+	r.log.Info("Updating TDX config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	updatedConfigMap, err := r.generateTdxConfigMap(ctx)
 	if err != nil {
 		return err
 	}
