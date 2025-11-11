@@ -227,10 +227,6 @@ func (r *TrusteeConfigReconciler) detectManualChanges(current, generated confide
 		// Custom environment variables
 		len(current.KbsEnvVars) > 0 && !r.mapsEqual(current.KbsEnvVars, generated.KbsEnvVars),
 
-		// Custom HTTPS config
-		current.KbsHttpsKeySecretName != "" && current.KbsHttpsKeySecretName != generated.KbsHttpsKeySecretName,
-		current.KbsHttpsCertSecretName != "" && current.KbsHttpsCertSecretName != generated.KbsHttpsCertSecretName,
-
 		// Custom secret resources
 		len(current.KbsSecretResources) > 0 && !r.stringSlicesEqual(current.KbsSecretResources, generated.KbsSecretResources),
 
@@ -313,14 +309,6 @@ func (r *TrusteeConfigReconciler) mergeKbsConfigSpecs(generatedSpec, manualSpec 
 		}
 	}
 
-	// Preserve manual HTTPS configuration
-	if manualSpec.KbsHttpsKeySecretName != "" {
-		merged.KbsHttpsKeySecretName = manualSpec.KbsHttpsKeySecretName
-	}
-	if manualSpec.KbsHttpsCertSecretName != "" {
-		merged.KbsHttpsCertSecretName = manualSpec.KbsHttpsCertSecretName
-	}
-
 	// Preserve manual secret resources
 	if len(manualSpec.KbsSecretResources) > 0 {
 		merged.KbsSecretResources = manualSpec.KbsSecretResources
@@ -342,7 +330,7 @@ func (r *TrusteeConfigReconciler) mergeKbsConfigSpecs(generatedSpec, manualSpec 
 	}
 
 	r.log.Info("Merged KbsConfig specs", "preservedFields", []string{
-		"KbsDeploymentSpec", "KbsEnvVars", "KbsHttpsKeySecretName", "KbsHttpsCertSecretName",
+		"KbsDeploymentSpec", "KbsEnvVars",
 		"KbsSecretResources", "KbsLocalCertCacheSpec", "IbmSEConfigSpec",
 		"KbsAttestationPolicyConfigMapName",
 	})
