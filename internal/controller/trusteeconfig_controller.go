@@ -638,13 +638,9 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context
 		return err
 	}
 
-	r.log.Info("Updating KBS config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
-	updatedConfigMap, err := r.generateKbsConfigMap(ctx)
-	if err != nil {
-		return err
-	}
-	found.Data = updatedConfigMap.Data
-	return r.Update(ctx, found)
+	// ConfigMap already exists, preserve its content
+	r.log.Info("KBS config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	return nil
 }
 
 // generateKbsAuthSecret creates a Secret for KBS authentication
@@ -757,17 +753,8 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsAuthSecret(ctx context.Contex
 	} else if err != nil {
 		return err
 	} else {
-		// Update the secret
-		r.log.Info("Updating KBS auth secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		updatedSecret, err := r.generateKbsAuthSecret(ctx)
-		if err != nil {
-			return err
-		}
-		found.Data = updatedSecret.Data
-		err = r.Update(ctx, found)
-		if err != nil {
-			return err
-		}
+		// Secret already exists, preserve its content
+		r.log.Info("KBS auth secret already exists, preserving existing content", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
 	}
 
 	return nil
@@ -798,17 +785,8 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsSampleSecret(ctx context.Cont
 	} else if err != nil {
 		return err
 	} else {
-		// Update the secret
-		r.log.Info("Updating KBS auth secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		updatedSecret, err := r.generateKbsSampleSecret(ctx)
-		if err != nil {
-			return err
-		}
-		found.Data = updatedSecret.Data
-		err = r.Update(ctx, found)
-		if err != nil {
-			return err
-		}
+		// Secret already exists, preserve its content
+		r.log.Info("KBS sample secret already exists, preserving existing content", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
 	}
 
 	return nil
@@ -887,15 +865,8 @@ func (r *TrusteeConfigReconciler) createOrUpdateHttpsKeySecret(ctx context.Conte
 	} else if err != nil {
 		return err
 	} else {
-		// Update the secret
-		r.log.Info("Updating HTTPS key secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		found.Data = map[string][]byte{
-			"privateKey": keyData,
-		}
-		err = r.Update(ctx, found)
-		if err != nil {
-			return err
-		}
+		// Secret already exists, preserve its content
+		r.log.Info("HTTPS key secret already exists, preserving existing content", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
 	}
 
 	return nil
@@ -923,15 +894,8 @@ func (r *TrusteeConfigReconciler) createOrUpdateHttpsCertSecret(ctx context.Cont
 	} else if err != nil {
 		return err
 	} else {
-		// Update the secret
-		r.log.Info("Updating HTTPS certificate secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		found.Data = map[string][]byte{
-			"certificate": certData,
-		}
-		err = r.Update(ctx, found)
-		if err != nil {
-			return err
-		}
+		// Secret already exists, preserve its content
+		r.log.Info("HTTPS certificate secret already exists, preserving existing content", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
 	}
 
 	return nil
@@ -1054,15 +1018,8 @@ func (r *TrusteeConfigReconciler) createOrUpdateAttestationKeySecret(ctx context
 	} else if err != nil {
 		return err
 	} else {
-		// Update the secret
-		r.log.Info("Updating attestation key secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		found.Data = map[string][]byte{
-			"token.key": keyData,
-		}
-		err = r.Update(ctx, found)
-		if err != nil {
-			return err
-		}
+		// Secret already exists, preserve its content
+		r.log.Info("Attestation key secret already exists, preserving existing content", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
 	}
 
 	return nil
@@ -1090,15 +1047,8 @@ func (r *TrusteeConfigReconciler) createOrUpdateAttestationCertSecret(ctx contex
 	} else if err != nil {
 		return err
 	} else {
-		// Update the secret
-		r.log.Info("Updating attestation certificate secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		found.Data = map[string][]byte{
-			"token.crt": certData,
-		}
-		err = r.Update(ctx, found)
-		if err != nil {
-			return err
-		}
+		// Secret already exists, preserve its content
+		r.log.Info("Attestation certificate secret already exists, preserving existing content", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
 	}
 
 	return nil
@@ -1205,13 +1155,9 @@ func (r *TrusteeConfigReconciler) createOrUpdateResourcePolicyConfigMap(ctx cont
 		return err
 	}
 
-	r.log.Info("Updating resource policy config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
-	updatedConfigMap, err := r.generateResourcePolicyConfigMap(ctx)
-	if err != nil {
-		return err
-	}
-	found.Data = updatedConfigMap.Data
-	return r.Update(ctx, found)
+	// ConfigMap already exists, preserve its content
+	r.log.Info("Resource policy config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	return nil
 }
 
 // generateRvpsReferenceValuesConfigMap creates a ConfigMap for RVPS reference values
@@ -1261,13 +1207,9 @@ func (r *TrusteeConfigReconciler) createOrUpdateRvpsReferenceValuesConfigMap(ctx
 		return err
 	}
 
-	r.log.Info("Updating RVPS reference values config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
-	updatedConfigMap, err := r.generateRvpsReferenceValuesConfigMap(ctx)
-	if err != nil {
-		return err
-	}
-	found.Data = updatedConfigMap.Data
-	return r.Update(ctx, found)
+	// ConfigMap already exists, preserve its content
+	r.log.Info("RVPS reference values config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	return nil
 }
 
 // generateTdxConfigMap creates a ConfigMap for TDX configuration
@@ -1317,13 +1259,9 @@ func (r *TrusteeConfigReconciler) createOrUpdateTdxConfigMap(ctx context.Context
 		return err
 	}
 
-	r.log.Info("Updating TDX config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
-	updatedConfigMap, err := r.generateTdxConfigMap(ctx)
-	if err != nil {
-		return err
-	}
-	found.Data = updatedConfigMap.Data
-	return r.Update(ctx, found)
+	// ConfigMap already exists, preserve its content
+	r.log.Info("TDX config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	return nil
 }
 
 // generateAttestationPolicyConfigMap creates a ConfigMap for attestation policy
@@ -1373,11 +1311,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateAttestationPolicyConfigMap(ctx c
 		return err
 	}
 
-	r.log.Info("Updating attestation policy config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
-	updatedConfigMap, err := r.generateAttestationPolicyConfigMap(ctx)
-	if err != nil {
-		return err
-	}
-	found.Data = updatedConfigMap.Data
-	return r.Update(ctx, found)
+	// ConfigMap already exists, preserve its content
+	r.log.Info("Attestation policy config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	return nil
 }
