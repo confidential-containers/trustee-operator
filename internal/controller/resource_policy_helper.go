@@ -42,3 +42,18 @@ func generateResourcePolicyRego(profileType string) (string, error) {
 
 	return string(policyBytes), nil
 }
+
+// generateAttestationPolicyRego generates the Rego policy content for attestation policy
+// Uses the same policy template for both permissive and restrictive profiles
+func generateAttestationPolicyRego(profileType string) (string, error) {
+	// Use the same attestation policy template for all profiles
+	templateFile := "/config/templates/attestation-policy.rego"
+
+	// Read the template file
+	policyBytes, err := os.ReadFile(templateFile)
+	if err != nil {
+		return "", err
+	}
+
+	return string(policyBytes), nil
+}

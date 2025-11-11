@@ -88,7 +88,6 @@ When a KbsConfig already exists, the controller detects manual changes by compar
    - `KbsSecretResources`
    - `KbsLocalCertCacheSpec`
    - `IbmSEConfigSpec`
-   - `KbsAttestationPolicyConfigMapName`
 
 2. **If differences detected**:
    - Perform a smart merge (preserve manual changes, apply generated values)

@@ -235,9 +235,6 @@ func (r *TrusteeConfigReconciler) detectManualChanges(current, generated confide
 
 		// Custom IBM SE config
 		current.IbmSEConfigSpec.CertStorePvc != "" && current.IbmSEConfigSpec.CertStorePvc != generated.IbmSEConfigSpec.CertStorePvc,
-
-		// Custom attestation policy
-		current.KbsAttestationPolicyConfigMapName != "" && current.KbsAttestationPolicyConfigMapName != generated.KbsAttestationPolicyConfigMapName,
 	}
 
 	// Return true if any user-configurable field has been modified
@@ -324,15 +321,9 @@ func (r *TrusteeConfigReconciler) mergeKbsConfigSpecs(generatedSpec, manualSpec 
 		merged.IbmSEConfigSpec.CertStorePvc = manualSpec.IbmSEConfigSpec.CertStorePvc
 	}
 
-	// Preserve manual attestation policy
-	if manualSpec.KbsAttestationPolicyConfigMapName != "" {
-		merged.KbsAttestationPolicyConfigMapName = manualSpec.KbsAttestationPolicyConfigMapName
-	}
-
 	r.log.Info("Merged KbsConfig specs", "preservedFields", []string{
 		"KbsDeploymentSpec", "KbsEnvVars",
 		"KbsSecretResources", "KbsLocalCertCacheSpec", "IbmSEConfigSpec",
-		"KbsAttestationPolicyConfigMapName",
 	})
 
 	return merged
@@ -451,6 +442,17 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 
 	// Set the TDX config map name in the spec
 	spec.TdxConfigSpec.KbsTdxConfigMapName = r.getTdxConfigMapName()
+
+	// Create the attestation policy config map
+	err = r.createOrUpdateAttestationPolicyConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating attestation policy config map", "err", err)
+		return spec
+	}
+
+	// Set the attestation policy config map name in the spec
+	spec.KbsAttestationPolicyConfigMapName = r.getAttestationPolicyConfigMapName()
+
 	return spec
 }
 
@@ -515,6 +517,16 @@ func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context
 
 	// Set the TDX config map name in the spec
 	spec.TdxConfigSpec.KbsTdxConfigMapName = r.getTdxConfigMapName()
+
+	// Create the attestation policy config map
+	err = r.createOrUpdateAttestationPolicyConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating attestation policy config map", "err", err)
+		return spec
+	}
+
+	// Set the attestation policy config map name in the spec
+	spec.KbsAttestationPolicyConfigMapName = r.getAttestationPolicyConfigMapName()
 
 	return spec
 }
@@ -1307,6 +1319,62 @@ func (r *TrusteeConfigReconciler) createOrUpdateTdxConfigMap(ctx context.Context
 
 	r.log.Info("Updating TDX config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
 	updatedConfigMap, err := r.generateTdxConfigMap(ctx)
+	if err != nil {
+		return err
+	}
+	found.Data = updatedConfigMap.Data
+	return r.Update(ctx, found)
+}
+
+// generateAttestationPolicyConfigMap creates a ConfigMap for attestation policy
+func (r *TrusteeConfigReconciler) generateAttestationPolicyConfigMap(ctx context.Context) (*corev1.ConfigMap, error) {
+	policyRego, err := generateAttestationPolicyRego(string(r.trusteeConfig.Spec.Profile))
+	if err != nil {
+		return nil, err
+	}
+
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.getAttestationPolicyConfigMapName(),
+			Namespace: r.namespace,
+		},
+		Data: map[string]string{
+			"default_cpu.rego": policyRego,
+		},
+	}
+
+	err = ctrl.SetControllerReference(r.trusteeConfig, configMap, r.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	return configMap, nil
+}
+
+// getAttestationPolicyConfigMapName returns the name for the attestation policy config map
+func (r *TrusteeConfigReconciler) getAttestationPolicyConfigMapName() string {
+	return r.trusteeConfig.Name + "-attestation-policy"
+}
+
+// createOrUpdateAttestationPolicyConfigMap creates or updates the attestation policy ConfigMap
+func (r *TrusteeConfigReconciler) createOrUpdateAttestationPolicyConfigMap(ctx context.Context) error {
+	configMapName := r.getAttestationPolicyConfigMapName()
+	found := &corev1.ConfigMap{}
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		r.log.Info("Creating attestation policy config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+		configMap, err := r.generateAttestationPolicyConfigMap(ctx)
+		if err != nil {
+			return err
+		}
+		return r.Create(ctx, configMap)
+	} else if err != nil {
+		return err
+	}
+
+	r.log.Info("Updating attestation policy config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	updatedConfigMap, err := r.generateAttestationPolicyConfigMap(ctx)
 	if err != nil {
 		return err
 	}
