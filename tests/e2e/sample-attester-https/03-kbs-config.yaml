@@ -10,6 +10,7 @@ data:
     insecure_http = false
     private_key = "/etc/https-key/https.key"
     certificate = "/etc/https-cert/https.crt"
+    worker_count = 4
 
     [admin]
     insecure_api = true
