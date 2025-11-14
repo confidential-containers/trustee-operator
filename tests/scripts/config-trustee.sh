@@ -15,6 +15,7 @@ data:
     [http_server]
     sockets = ["0.0.0.0:8080"]
     insecure_http = true
+    worker_count = 4
 
     [admin]
     insecure_api = true
