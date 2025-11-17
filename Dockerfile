@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM registry.access.redhat.com/ubi9/go-toolset:9.6-1758501173 as builder
+FROM registry.redhat.io/ubi10/go-toolset as builder
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -26,7 +26,7 @@ COPY internal/controller/ internal/controller/
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
 RUN CGO_ENABLED=1 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager cmd/main.go
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal
+FROM registry.access.redhat.com/ubi10/ubi-minimal
 
 # Install dependencies for FIPS compliance.
 RUN microdnf install -y openssl && microdnf clean all
