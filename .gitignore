@@ -27,3 +27,4 @@ Dockerfile.cross
 kbs.pem
 privateKey
 publicKey
+CLAUDE.md

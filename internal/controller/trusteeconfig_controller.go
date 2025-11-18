@@ -227,24 +227,14 @@ func (r *TrusteeConfigReconciler) detectManualChanges(current, generated confide
 		// Custom environment variables
 		len(current.KbsEnvVars) > 0 && !r.mapsEqual(current.KbsEnvVars, generated.KbsEnvVars),
 
-		// Custom HTTPS config
-		current.KbsHttpsKeySecretName != "" && current.KbsHttpsKeySecretName != generated.KbsHttpsKeySecretName,
-		current.KbsHttpsCertSecretName != "" && current.KbsHttpsCertSecretName != generated.KbsHttpsCertSecretName,
-
 		// Custom secret resources
 		len(current.KbsSecretResources) > 0 && !r.stringSlicesEqual(current.KbsSecretResources, generated.KbsSecretResources),
 
 		// Custom local cert cache
 		len(current.KbsLocalCertCacheSpec.Secrets) > 0 && !r.certCacheSpecsEqual(current.KbsLocalCertCacheSpec, generated.KbsLocalCertCacheSpec),
 
-		// Custom TDX config
-		current.TdxConfigSpec.KbsTdxConfigMapName != "" && current.TdxConfigSpec.KbsTdxConfigMapName != generated.TdxConfigSpec.KbsTdxConfigMapName,
-
 		// Custom IBM SE config
 		current.IbmSEConfigSpec.CertStorePvc != "" && current.IbmSEConfigSpec.CertStorePvc != generated.IbmSEConfigSpec.CertStorePvc,
-
-		// Custom attestation policy
-		current.KbsAttestationPolicyConfigMapName != "" && current.KbsAttestationPolicyConfigMapName != generated.KbsAttestationPolicyConfigMapName,
 	}
 
 	// Return true if any user-configurable field has been modified
@@ -316,14 +306,6 @@ func (r *TrusteeConfigReconciler) mergeKbsConfigSpecs(generatedSpec, manualSpec 
 		}
 	}
 
-	// Preserve manual HTTPS configuration
-	if manualSpec.KbsHttpsKeySecretName != "" {
-		merged.KbsHttpsKeySecretName = manualSpec.KbsHttpsKeySecretName
-	}
-	if manualSpec.KbsHttpsCertSecretName != "" {
-		merged.KbsHttpsCertSecretName = manualSpec.KbsHttpsCertSecretName
-	}
-
 	// Preserve manual secret resources
 	if len(manualSpec.KbsSecretResources) > 0 {
 		merged.KbsSecretResources = manualSpec.KbsSecretResources
@@ -334,25 +316,14 @@ func (r *TrusteeConfigReconciler) mergeKbsConfigSpecs(generatedSpec, manualSpec 
 		merged.KbsLocalCertCacheSpec.Secrets = manualSpec.KbsLocalCertCacheSpec.Secrets
 	}
 
-	// Preserve manual TDX configuration
-	if manualSpec.TdxConfigSpec.KbsTdxConfigMapName != "" {
-		merged.TdxConfigSpec.KbsTdxConfigMapName = manualSpec.TdxConfigSpec.KbsTdxConfigMapName
-	}
-
 	// Preserve manual IBM SE configuration
 	if manualSpec.IbmSEConfigSpec.CertStorePvc != "" {
 		merged.IbmSEConfigSpec.CertStorePvc = manualSpec.IbmSEConfigSpec.CertStorePvc
 	}
 
-	// Preserve manual attestation policy
-	if manualSpec.KbsAttestationPolicyConfigMapName != "" {
-		merged.KbsAttestationPolicyConfigMapName = manualSpec.KbsAttestationPolicyConfigMapName
-	}
-
 	r.log.Info("Merged KbsConfig specs", "preservedFields", []string{
-		"KbsDeploymentSpec", "KbsEnvVars", "KbsHttpsKeySecretName", "KbsHttpsCertSecretName",
-		"KbsSecretResources", "KbsLocalCertCacheSpec", "TdxConfigSpec", "IbmSEConfigSpec",
-		"KbsAttestationPolicyConfigMapName",
+		"KbsDeploymentSpec", "KbsEnvVars",
+		"KbsSecretResources", "KbsLocalCertCacheSpec", "IbmSEConfigSpec",
 	})
 
 	return merged
@@ -461,6 +432,27 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 
 	// Set the RVPS reference values config map name in the spec
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
+
+	// Create the TDX config map
+	err = r.createOrUpdateTdxConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating TDX config map", "err", err)
+		return spec
+	}
+
+	// Set the TDX config map name in the spec
+	spec.TdxConfigSpec.KbsTdxConfigMapName = r.getTdxConfigMapName()
+
+	// Create the attestation policy config map
+	err = r.createOrUpdateAttestationPolicyConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating attestation policy config map", "err", err)
+		return spec
+	}
+
+	// Set the attestation policy config map name in the spec
+	spec.KbsAttestationPolicyConfigMapName = r.getAttestationPolicyConfigMapName()
+
 	return spec
 }
 
@@ -515,6 +507,26 @@ func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context
 
 	// Set the RVPS reference values config map name in the spec
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
+
+	// Create the TDX config map
+	err = r.createOrUpdateTdxConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating TDX config map", "err", err)
+		return spec
+	}
+
+	// Set the TDX config map name in the spec
+	spec.TdxConfigSpec.KbsTdxConfigMapName = r.getTdxConfigMapName()
+
+	// Create the attestation policy config map
+	err = r.createOrUpdateAttestationPolicyConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating attestation policy config map", "err", err)
+		return spec
+	}
+
+	// Set the attestation policy config map name in the spec
+	spec.KbsAttestationPolicyConfigMapName = r.getAttestationPolicyConfigMapName()
 
 	return spec
 }
@@ -626,13 +638,9 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context
 		return err
 	}
 
-	r.log.Info("Updating KBS config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
-	updatedConfigMap, err := r.generateKbsConfigMap(ctx)
-	if err != nil {
-		return err
-	}
-	found.Data = updatedConfigMap.Data
-	return r.Update(ctx, found)
+	// ConfigMap already exists, preserve its content
+	r.log.Info("KBS config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	return nil
 }
 
 // generateKbsAuthSecret creates a Secret for KBS authentication
@@ -745,17 +753,8 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsAuthSecret(ctx context.Contex
 	} else if err != nil {
 		return err
 	} else {
-		// Update the secret
-		r.log.Info("Updating KBS auth secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		updatedSecret, err := r.generateKbsAuthSecret(ctx)
-		if err != nil {
-			return err
-		}
-		found.Data = updatedSecret.Data
-		err = r.Update(ctx, found)
-		if err != nil {
-			return err
-		}
+		// Secret already exists, preserve its content
+		r.log.Info("KBS auth secret already exists, preserving existing content", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
 	}
 
 	return nil
@@ -786,17 +785,8 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsSampleSecret(ctx context.Cont
 	} else if err != nil {
 		return err
 	} else {
-		// Update the secret
-		r.log.Info("Updating KBS auth secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		updatedSecret, err := r.generateKbsSampleSecret(ctx)
-		if err != nil {
-			return err
-		}
-		found.Data = updatedSecret.Data
-		err = r.Update(ctx, found)
-		if err != nil {
-			return err
-		}
+		// Secret already exists, preserve its content
+		r.log.Info("KBS sample secret already exists, preserving existing content", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
 	}
 
 	return nil
@@ -875,15 +865,8 @@ func (r *TrusteeConfigReconciler) createOrUpdateHttpsKeySecret(ctx context.Conte
 	} else if err != nil {
 		return err
 	} else {
-		// Update the secret
-		r.log.Info("Updating HTTPS key secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		found.Data = map[string][]byte{
-			"privateKey": keyData,
-		}
-		err = r.Update(ctx, found)
-		if err != nil {
-			return err
-		}
+		// Secret already exists, preserve its content
+		r.log.Info("HTTPS key secret already exists, preserving existing content", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
 	}
 
 	return nil
@@ -911,15 +894,8 @@ func (r *TrusteeConfigReconciler) createOrUpdateHttpsCertSecret(ctx context.Cont
 	} else if err != nil {
 		return err
 	} else {
-		// Update the secret
-		r.log.Info("Updating HTTPS certificate secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		found.Data = map[string][]byte{
-			"certificate": certData,
-		}
-		err = r.Update(ctx, found)
-		if err != nil {
-			return err
-		}
+		// Secret already exists, preserve its content
+		r.log.Info("HTTPS certificate secret already exists, preserving existing content", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
 	}
 
 	return nil
@@ -1042,15 +1018,8 @@ func (r *TrusteeConfigReconciler) createOrUpdateAttestationKeySecret(ctx context
 	} else if err != nil {
 		return err
 	} else {
-		// Update the secret
-		r.log.Info("Updating attestation key secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		found.Data = map[string][]byte{
-			"token.key": keyData,
-		}
-		err = r.Update(ctx, found)
-		if err != nil {
-			return err
-		}
+		// Secret already exists, preserve its content
+		r.log.Info("Attestation key secret already exists, preserving existing content", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
 	}
 
 	return nil
@@ -1078,15 +1047,8 @@ func (r *TrusteeConfigReconciler) createOrUpdateAttestationCertSecret(ctx contex
 	} else if err != nil {
 		return err
 	} else {
-		// Update the secret
-		r.log.Info("Updating attestation certificate secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		found.Data = map[string][]byte{
-			"token.crt": certData,
-		}
-		err = r.Update(ctx, found)
-		if err != nil {
-			return err
-		}
+		// Secret already exists, preserve its content
+		r.log.Info("Attestation certificate secret already exists, preserving existing content", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
 	}
 
 	return nil
@@ -1193,13 +1155,9 @@ func (r *TrusteeConfigReconciler) createOrUpdateResourcePolicyConfigMap(ctx cont
 		return err
 	}
 
-	r.log.Info("Updating resource policy config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
-	updatedConfigMap, err := r.generateResourcePolicyConfigMap(ctx)
-	if err != nil {
-		return err
-	}
-	found.Data = updatedConfigMap.Data
-	return r.Update(ctx, found)
+	// ConfigMap already exists, preserve its content
+	r.log.Info("Resource policy config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	return nil
 }
 
 // generateRvpsReferenceValuesConfigMap creates a ConfigMap for RVPS reference values
@@ -1249,11 +1207,111 @@ func (r *TrusteeConfigReconciler) createOrUpdateRvpsReferenceValuesConfigMap(ctx
 		return err
 	}
 
-	r.log.Info("Updating RVPS reference values config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
-	updatedConfigMap, err := r.generateRvpsReferenceValuesConfigMap(ctx)
+	// ConfigMap already exists, preserve its content
+	r.log.Info("RVPS reference values config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	return nil
+}
+
+// generateTdxConfigMap creates a ConfigMap for TDX configuration
+func (r *TrusteeConfigReconciler) generateTdxConfigMap(ctx context.Context) (*corev1.ConfigMap, error) {
+	tdxConfigJson, err := generateTdxConfigJson()
 	if err != nil {
+		return nil, err
+	}
+
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.getTdxConfigMapName(),
+			Namespace: r.namespace,
+		},
+		Data: map[string]string{
+			tdxConfigFile: tdxConfigJson,
+		},
+	}
+
+	err = ctrl.SetControllerReference(r.trusteeConfig, configMap, r.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	return configMap, nil
+}
+
+// getTdxConfigMapName returns the name for the TDX config map
+func (r *TrusteeConfigReconciler) getTdxConfigMapName() string {
+	return r.trusteeConfig.Name + "-tdx-config"
+}
+
+// createOrUpdateTdxConfigMap creates or updates the TDX ConfigMap
+func (r *TrusteeConfigReconciler) createOrUpdateTdxConfigMap(ctx context.Context) error {
+	configMapName := r.getTdxConfigMapName()
+	found := &corev1.ConfigMap{}
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		r.log.Info("Creating TDX config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+		configMap, err := r.generateTdxConfigMap(ctx)
+		if err != nil {
+			return err
+		}
+		return r.Create(ctx, configMap)
+	} else if err != nil {
 		return err
 	}
-	found.Data = updatedConfigMap.Data
-	return r.Update(ctx, found)
+
+	// ConfigMap already exists, preserve its content
+	r.log.Info("TDX config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	return nil
+}
+
+// generateAttestationPolicyConfigMap creates a ConfigMap for attestation policy
+func (r *TrusteeConfigReconciler) generateAttestationPolicyConfigMap(ctx context.Context) (*corev1.ConfigMap, error) {
+	policyRego, err := generateAttestationPolicyRego(string(r.trusteeConfig.Spec.Profile))
+	if err != nil {
+		return nil, err
+	}
+
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.getAttestationPolicyConfigMapName(),
+			Namespace: r.namespace,
+		},
+		Data: map[string]string{
+			"default_cpu.rego": policyRego,
+		},
+	}
+
+	err = ctrl.SetControllerReference(r.trusteeConfig, configMap, r.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	return configMap, nil
+}
+
+// getAttestationPolicyConfigMapName returns the name for the attestation policy config map
+func (r *TrusteeConfigReconciler) getAttestationPolicyConfigMapName() string {
+	return r.trusteeConfig.Name + "-attestation-policy"
+}
+
+// createOrUpdateAttestationPolicyConfigMap creates or updates the attestation policy ConfigMap
+func (r *TrusteeConfigReconciler) createOrUpdateAttestationPolicyConfigMap(ctx context.Context) error {
+	configMapName := r.getAttestationPolicyConfigMapName()
+	found := &corev1.ConfigMap{}
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		r.log.Info("Creating attestation policy config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+		configMap, err := r.generateAttestationPolicyConfigMap(ctx)
+		if err != nil {
+			return err
+		}
+		return r.Create(ctx, configMap)
+	} else if err != nil {
+		return err
+	}
+
+	// ConfigMap already exists, preserve its content
+	r.log.Info("Attestation policy config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	return nil
 }
