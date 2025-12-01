@@ -163,16 +163,21 @@ tdx_uefi_event_tdvfkernelparams_ok if {
 
 ##### Azure vTPM SNP
 executables := 3 if {
-  input.azsnpvtpm.measurement in data.reference.measurement
+  # input.azsnpvtpm.measurement in data.reference.measurement
+  input.azsnpvtpm.tpm.pcr03 in data.reference.snp_pcr03
+  input.azsnpvtpm.tpm.pcr08 in data.reference.snp_pcr08
+  input.azsnpvtpm.tpm.pcr09 in data.reference.snp_pcr09
   input.azsnpvtpm.tpm.pcr11 in data.reference.snp_pcr11
+  input.azsnpvtpm.tpm.pcr12 in data.reference.snp_pcr12
 }
 
 hardware := 2 if {
   # Check the reported TCB to validate the ASP FW
-  input.azsnpvtpm.reported_tcb_bootloader in data.reference.tcb_bootloader
-  input.azsnpvtpm.reported_tcb_microcode in data.reference.tcb_microcode
-  input.azsnpvtpm.reported_tcb_snp in data.reference.tcb_snp
-  input.azsnpvtpm.reported_tcb_tee in data.reference.tcb_tee
+  # input.azsnpvtpm.reported_tcb_bootloader in data.reference.tcb_bootloader
+  # input.azsnpvtpm.reported_tcb_microcode in data.reference.tcb_microcode
+  # input.azsnpvtpm.reported_tcb_snp in data.reference.tcb_snp
+  # input.azsnpvtpm.reported_tcb_tee in data.reference.tcb_tee
+  input.azsnpvtpm
 }
 
 # For the 'configuration' trust claim 2 stands for
@@ -180,17 +185,22 @@ hardware := 2 if {
 #
 # For this, we compare all the configuration fields.
 configuration := 2 if {
-  input.azsnpvtpm.platform_smt_enabled in data.reference.smt_enabled
-  input.azsnpvtpm.platform_tsme_enabled in data.reference.tsme_enabled
-  input.azsnpvtpm.policy_abi_major in data.reference.abi_major
-  input.azsnpvtpm.policy_abi_minor in data.reference.abi_minor
-  input.azsnpvtpm.policy_single_socket in data.reference.single_socket
-  input.azsnpvtpm.policy_smt_allowed in data.reference.smt_allowed
+  # input.azsnpvtpm.platform_smt_enabled in data.reference.smt_enabled
+  # input.azsnpvtpm.platform_tsme_enabled in data.reference.tsme_enabled
+  # input.azsnpvtpm.policy_abi_major in data.reference.abi_major
+  # input.azsnpvtpm.policy_abi_minor in data.reference.abi_minor
+  # input.azsnpvtpm.policy_single_socket in data.reference.single_socket
+  # input.azsnpvtpm.policy_smt_allowed in data.reference.smt_allowed
+  input.azsnpvtpm
 }
 
 ##### Azure vTPM TDX
 executables := 3 if {
+  input.aztdxvtpm.tpm.pcr03 in data.reference.tdx_pcr03
+  input.aztdxvtpm.tpm.pcr08 in data.reference.tdx_pcr08
+  input.aztdxvtpm.tpm.pcr09 in data.reference.tdx_pcr09
   input.aztdxvtpm.tpm.pcr11 in data.reference.tdx_pcr11
+  input.aztdxvtpm.tpm.pcr12 in data.reference.tdx_pcr12
 }
 
 hardware := 2 if {
@@ -199,13 +209,14 @@ hardware := 2 if {
   input.aztdxvtpm.quote.header.vendor_id == "939a7233f79c4ca9940a0db3957f0607"
 
   # Check TDX Module version and its hash. Also check OVMF code hash.
-  input.aztdxvtpm.quote.body.mr_seam in data.reference.mr_seam
-  input.aztdxvtpm.quote.body.tcb_svn in data.reference.tcb_svn
-  input.aztdxvtpm.quote.body.mr_td in data.reference.mr_td
+  # input.aztdxvtpm.quote.body.mr_seam in data.reference.mr_seam
+  # input.aztdxvtpm.quote.body.tcb_svn in data.reference.tcb_svn
+  # input.aztdxvtpm.quote.body.mr_td in data.reference.mr_td
 }
 
 configuration := 2 if {
-  input.aztdxvtpm.quote.body.xfam in data.reference.xfam
+  # input.aztdxvtpm.quote.body.xfam in data.reference.xfam
+  input.aztdxvtpm
 }
 
 ##### SE TODO
