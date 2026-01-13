@@ -40,6 +40,7 @@ data:
     insecure_http = true
 
     [admin]
+    type = "DenyAll"
     insecure_api = true
     auth_public_key = "/etc/auth-secret/publicKey"
 

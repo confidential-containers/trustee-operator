@@ -4,6 +4,7 @@ insecure_http = true
 worker_count = 4
 
 [admin]
+type = "DenyAll"
 insecure_api = false
 auth_public_key = "/etc/auth-secret/publicKey"
 
