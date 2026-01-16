@@ -13,6 +13,7 @@ data:
     worker_count = 4
 
     [admin]
+    type = "DenyAll"
     insecure_api = true
     auth_public_key = "/etc/auth-secret/publicKey"
 
