@@ -25,11 +25,13 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -54,6 +56,7 @@ type TrusteeConfigReconciler struct {
 //+kubebuilder:rbac:groups=confidentialcontainers.org,resources=kbsconfigs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -93,6 +96,21 @@ func (r *TrusteeConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if kbsConfig == nil {
 		r.log.Info("Failed to create or update KbsConfig")
 		return ctrl.Result{}, fmt.Errorf("failed to create or update KbsConfig")
+	}
+
+	if r.trusteeConfig.Spec.Profile == confidentialcontainersorgv1alpha1.ProfileTypeRestrictive &&
+		r.trusteeConfig.Spec.HttpsSpec.TlsSecretName != "" {
+		// Create passthrough route for Restricted mode
+		err := r.createKbsRoute(ctx, routev1.TLSTerminationPassthrough)
+		if err != nil {
+			r.log.Info("Error creating Trustee passthrough route", "err", err)
+		}
+	} else {
+		// Create edge route
+		err := r.createKbsRoute(ctx, routev1.TLSTerminationEdge)
+		if err != nil {
+			r.log.Info("Error creating Trustee edge route", "err", err)
+		}
 	}
 
 	// Update the TrusteeConfig status
@@ -1313,5 +1331,68 @@ func (r *TrusteeConfigReconciler) createOrUpdateAttestationPolicyConfigMap(ctx c
 
 	// ConfigMap already exists, preserve its content
 	r.log.Info("Attestation policy config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	return nil
+}
+
+// createKbsRoute creates a route for the KBS service if it doesn't already exist
+// If the route already exists, this function does nothing
+func (r *TrusteeConfigReconciler) createKbsRoute(ctx context.Context, termination routev1.TLSTerminationType) error {
+	routeName := KbsRouteName
+	serviceName := KbsServiceName
+	portName := "kbs-port"
+
+	// Check if the route already exists
+	found := &routev1.Route{}
+	err := r.Get(ctx, client.ObjectKey{
+		Namespace: r.namespace,
+		Name:      routeName,
+	}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		// Create the route
+		terminationType := "passthrough"
+		if termination == routev1.TLSTerminationEdge {
+			terminationType = "edge"
+		}
+		r.log.Info("Creating KBS route", "Route.Namespace", r.namespace, "Route.Name", routeName, "Termination", terminationType)
+
+		route := &routev1.Route{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      routeName,
+				Namespace: r.namespace,
+			},
+			Spec: routev1.RouteSpec{
+				To: routev1.RouteTargetReference{
+					Kind: "Service",
+					Name: serviceName,
+				},
+				Port: &routev1.RoutePort{
+					TargetPort: intstr.FromString(portName),
+				},
+				TLS: &routev1.TLSConfig{
+					Termination: termination,
+				},
+			},
+		}
+
+		// Set TrusteeConfig as the owner
+		err = ctrl.SetControllerReference(r.trusteeConfig, route, r.Scheme)
+		if err != nil {
+			r.log.Info("Error setting controller reference for route", "err", err)
+			// Continue anyway, route can still be created
+		}
+
+		err = r.Create(ctx, route)
+		if err != nil {
+			return err
+		}
+		r.log.Info("Successfully created KBS route", "Route.Namespace", r.namespace, "Route.Name", routeName, "Termination", terminationType)
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	// Route already exists, do nothing
+	r.log.Info("KBS route already exists, skipping creation", "Route.Namespace", r.namespace, "Route.Name", routeName)
 	return nil
 }

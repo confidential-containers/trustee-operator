@@ -39,6 +39,9 @@ const (
 	// KBS service name
 	KbsServiceName = "kbs-service"
 
+	// KBS route name
+	KbsRouteName = "kbs-route"
+
 	// Root path for KBS file system
 	rootPath = "/opt"
 
