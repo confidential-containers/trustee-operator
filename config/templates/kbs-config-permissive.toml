@@ -20,7 +20,6 @@ policy_engine = "opa"
   [attestation_service.attestation_token_broker]
   type = "Ear"
   policy_dir = "/opt/confidential-containers/attestation-service/policies"
-
   [attestation_service.attestation_token_config]
   duration_min = 5
 
@@ -30,6 +29,13 @@ policy_engine = "opa"
     [attestation_service.rvps_config.storage]
     type = "LocalJson"
     file_path = "/opt/confidential-containers/rvps/reference-values/reference-values.json"
+
+  [attestation_service.verifier_config.snp_verifier]
+  # Configure VCEK sources to try, in order. Defaults to [KDS].
+  vcek_sources = [
+      { type = "OfflineStore" },
+      { type = "KDS" }
+  ]
 
 [[plugins]]
 name = "resource"
