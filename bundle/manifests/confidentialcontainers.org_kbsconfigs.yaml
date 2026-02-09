@@ -124,7 +124,7 @@ spec:
                         mountPath:
                           description: |-
                             MountPath is the destination path in the trustee file system
-                            The default path is "/etc/kbs/certs" if not specified by the user
+                            The default path is "/opt/confidential-containers/attestation-service/kds-store/vcek" if not specified by the user
                           type: string
                         secretName:
                           description: SecretName is the name of the secret that maps

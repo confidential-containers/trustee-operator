@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.5.0
+VERSION ?= 0.17.0
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
@@ -175,8 +175,8 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 # Run sample attestation in a kind cluster
 # pre-requirements: kuttl plugin and kind are installed
 # Usage: KBS_IMAGE_NAME=<trustee-image> CLIENT_IMAGE_NAME=<client-image> make test-e2e
-KBS_IMAGE_NAME ?= quay.io/confidential-containers/trustee:v0.15.0
-CLIENT_IMAGE_NAME ?= quay.io/confidential-containers/kbs-client:v0.15.0
+KBS_IMAGE_NAME ?= ghcr.io/confidential-containers/key-broker-service:built-in-as-v0.17.0
+CLIENT_IMAGE_NAME ?= quay.io/confidential-containers/kbs-client:v0.17.0
 .PHONY: test-e2e
 test-e2e:
 	./tests/scripts/kind-with-registry.sh
