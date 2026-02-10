@@ -5,13 +5,20 @@ metadata:
     alm-examples: '[]'
     capabilities: Basic Install
     categories: Security
-    containerImage: quay.io/confidential-containers/trustee-operator:v0.5.0
-    createdAt: "2025-10-09T16:21:23Z"
+    containerImage: quay.io/confidential-containers/trustee-operator:v0.17.0
+    createdAt: "2026-02-09T09:56:10Z"
+    features.operators.openshift.io/disconnected: "true"
+    features.operators.openshift.io/fips-compliant: "false"
+    features.operators.openshift.io/proxy-aware: "true"
+    features.operators.openshift.io/tls-profiles: "false"
+    features.operators.openshift.io/token-auth-aws: "false"
+    features.operators.openshift.io/token-auth-azure: "false"
+    features.operators.openshift.io/token-auth-gcp: "false"
     operatorframework.io/suggested-namespace: trustee-operator-system
     operators.operatorframework.io/builder: operator-sdk-v1.40.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     support: Confidential Containers Community
-  name: trustee-operator.v0.5.0
+  name: trustee-operator.v0.17.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -39,20 +46,6 @@ spec:
           resources:
           - configmaps
           - secrets
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - namespaces
-          verbs:
-          - get
-          - update
-        - apiGroups:
-          - ""
-          resources:
           - services
           verbs:
           - create
@@ -62,6 +55,13 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          verbs:
+          - get
+          - update
         - apiGroups:
           - apps
           resources:
@@ -104,18 +104,12 @@ spec:
           - patch
           - update
         - apiGroups:
-          - ""
+          - config.openshift.io
           resources:
-          - configmaps
-          - secrets
-          - services
+          - proxies
           verbs:
-          - create
-          - delete
           - get
           - list
-          - patch
-          - update
           - watch
         - apiGroups:
           - authentication.k8s.io
@@ -166,14 +160,14 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: KBS_IMAGE_NAME
-                  value: ghcr.io/confidential-containers/key-broker-service:built-in-as-v0.15.0
+                  value: ghcr.io/confidential-containers/key-broker-service:built-in-as-v0.17.0
                 - name: KBS_IMAGE_NAME_MICROSERVICES
-                  value: ghcr.io/confidential-containers/key-broker-service:v0.15.0
+                  value: ghcr.io/confidential-containers/key-broker-service:v0.17.0
                 - name: AS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/rvps:latest
-                image: quay.io/confidential-containers/trustee-operator:v0.5.0
+                image: quay.io/confidential-containers/trustee-operator:v0.17.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -266,5 +260,5 @@ spec:
   provider:
     name: Confidential Containers Community
     url: https://github.com/confidential-containers
-  replaces: trustee-operator.v0.4.0
-  version: 0.5.0
+  replaces: trustee-operator.v0.5.0
+  version: 0.17.0
