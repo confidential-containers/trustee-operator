@@ -1,7 +1,15 @@
 package policy
+import rego.v1
 
 default allow = false
 
-allow {
-  input["submods"]["cpu0"]["ear.status"] == "affirming"
+allow if {
+    not any_not_affirming
+    count(input.submods) > 0
+
+}
+
+any_not_affirming if {
+    some _, submod in input.submods
+    submod["ear.status"] != "affirming"
 }
