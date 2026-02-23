@@ -453,6 +453,16 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 	// Set the CPU attestation policy config map name in the spec
 	spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
 
+	// Create the GPU attestation policy config map
+	err = r.createOrUpdateGpuAttestationPolicyConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating GPU attestation policy config map", "err", err)
+		return spec
+	}
+
+	// Set the GPU attestation policy config map name in the spec
+	spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
+
 	return spec
 }
 
@@ -527,6 +537,16 @@ func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context
 
 	// Set the CPU attestation policy config map name in the spec
 	spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
+
+	// Create the GPU attestation policy config map
+	err = r.createOrUpdateGpuAttestationPolicyConfigMap(ctx)
+	if err != nil {
+		r.log.Info("Error creating GPU attestation policy config map", "err", err)
+		return spec
+	}
+
+	// Set the GPU attestation policy config map name in the spec
+	spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
 
 	return spec
 }
@@ -1289,9 +1309,39 @@ func (r *TrusteeConfigReconciler) generateAttestationPolicyConfigMap(ctx context
 	return configMap, nil
 }
 
+// generateGpuAttestationPolicyConfigMap creates a ConfigMap for GPU attestation policy
+func (r *TrusteeConfigReconciler) generateGpuAttestationPolicyConfigMap(ctx context.Context) (*corev1.ConfigMap, error) {
+	policyRegoGPU, err := generateGpuAttestationPolicyRego(string(r.trusteeConfig.Spec.Profile))
+	if err != nil {
+		return nil, err
+	}
+
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.getGpuAttestationPolicyConfigMapName(),
+			Namespace: r.namespace,
+		},
+		Data: map[string]string{
+			"default_gpu.rego": policyRegoGPU,
+		},
+	}
+
+	err = ctrl.SetControllerReference(r.trusteeConfig, configMap, r.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	return configMap, nil
+}
+
 // getCpuAttestationPolicyConfigMapName returns the name for the CPU attestation policy config map
 func (r *TrusteeConfigReconciler) getCpuAttestationPolicyConfigMapName() string {
-	return r.trusteeConfig.Name + "-attestation-policy"
+	return r.trusteeConfig.Name + "-attestation-policy-cpu"
+}
+
+// getGpuAttestationPolicyConfigMapName returns the name for the GPU attestation policy config map
+func (r *TrusteeConfigReconciler) getGpuAttestationPolicyConfigMapName() string {
+	return r.trusteeConfig.Name + "-attestation-policy-gpu"
 }
 
 // createOrUpdateAttestationPolicyConfigMap creates or updates the CPU attestation policy ConfigMap
@@ -1312,6 +1362,28 @@ func (r *TrusteeConfigReconciler) createOrUpdateAttestationPolicyConfigMap(ctx c
 	}
 
 	// ConfigMap already exists, preserve its content
-	r.log.Info("Attestation policy config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	r.log.Info("CPU attestation policy config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	return nil
+}
+
+// createOrUpdateGpuAttestationPolicyConfigMap creates or updates the GPU attestation policy ConfigMap
+func (r *TrusteeConfigReconciler) createOrUpdateGpuAttestationPolicyConfigMap(ctx context.Context) error {
+	configMapName := r.getGpuAttestationPolicyConfigMapName()
+	found := &corev1.ConfigMap{}
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		r.log.Info("Creating GPU attestation policy config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+		configMap, err := r.generateGpuAttestationPolicyConfigMap(ctx)
+		if err != nil {
+			return err
+		}
+		return r.Create(ctx, configMap)
+	} else if err != nil {
+		return err
+	}
+
+	// ConfigMap already exists, preserve its content
+	r.log.Info("GPU attestation policy config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
 	return nil
 }

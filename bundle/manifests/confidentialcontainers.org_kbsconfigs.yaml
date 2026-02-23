@@ -102,6 +102,10 @@ spec:
                 - AllInOneDeployment
                 - MicroservicesDeployment
                 type: string
+              kbsGpuAttestationPolicyConfigMapName:
+                description: KbsGpuAttestationPolicyConfigMapName is the name of the
+                  configmap that contains the GPU Attestation Policy
+                type: string
               kbsHttpsCertSecretName:
                 description: KbsHttpsCertSecretName is the name of the secret that
                   contains the KBS https certificate

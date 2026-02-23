@@ -6,4 +6,3 @@ images:
 - name: controller
   newName: quay.io/confidential-containers/trustee-operator
   newTag: v0.17.0
-

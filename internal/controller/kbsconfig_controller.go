@@ -400,6 +400,22 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		}
 	}
 
+	// GPU attestation policy
+	if r.kbsConfig.Spec.KbsGpuAttestationPolicyConfigMapName != "" {
+		volume, err = r.createConfigMapVolume(ctx, "attestation-policy-gpu", r.kbsConfig.Spec.KbsGpuAttestationPolicyConfigMapName)
+		if err != nil {
+			return nil, err
+		}
+		// GPU attestation policy file is "/opt/confidential-containers/attestation-service/policies/opa/default_gpu.rego"
+		volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(attestationPolicyPath, defaultAttestationGpuPolicy), defaultAttestationGpuPolicy)
+		volumes = append(volumes, *volume)
+		if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
+			kbsVM = append(kbsVM, volumeMount)
+		} else {
+			asVM = append(asVM, volumeMount)
+		}
+	}
+
 	// resource policy
 	if r.kbsConfig.Spec.KbsResourcePolicyConfigMapName != "" {
 		volume, err = r.createConfigMapVolume(ctx, "opa", r.kbsConfig.Spec.KbsResourcePolicyConfigMapName)
@@ -870,6 +886,7 @@ func configMapToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFu
 				kbsConfig.Spec.KbsRvpsConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsRvpsRefValuesConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsAttestationPolicyConfigMapName == configMap.Name ||
+				kbsConfig.Spec.KbsGpuAttestationPolicyConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsResourcePolicyConfigMapName == configMap.Name ||
 				kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName == configMap.Name {
 

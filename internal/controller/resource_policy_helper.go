@@ -57,3 +57,18 @@ func generateCpuAttestationPolicyRego(profileType string) (string, error) {
 
 	return string(policyBytes), nil
 }
+
+// generateGpuAttestationPolicyRego generates the Rego policy content for GPU attestation policy
+// Uses the same policy template for both permissive and restrictive profiles
+func generateGpuAttestationPolicyRego(profileType string) (string, error) {
+	// Use the GPU attestation policy template for all profiles
+	templateFile := "/config/templates/ear_default_attestation_policy_gpu.rego"
+
+	// Read the template file
+	policyBytes, err := os.ReadFile(templateFile)
+	if err != nil {
+		return "", err
+	}
+
+	return string(policyBytes), nil
+}
