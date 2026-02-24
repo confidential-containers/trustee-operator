@@ -77,6 +77,9 @@ const (
 	// default attestation policy filename for cpu
 	defaultAttestationCpuPolicy = "default_cpu.rego"
 
+	// default attestation policy filename for gpu
+	defaultAttestationGpuPolicy = "default_gpu.rego"
+
 	// default directory for locally cached certificates
 	kbsDefaultLocalCacheDir = "/opt/confidential-containers/attestation-service/kds-store/vcek"
 )

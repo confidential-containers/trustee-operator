@@ -135,6 +135,10 @@ type KbsConfigSpec struct {
 	// +optional
 	KbsAttestationPolicyConfigMapName string `json:"kbsAttestationPolicyConfigMapName,omitempty"`
 
+	// KbsGpuAttestationPolicyConfigMapName is the name of the configmap that contains the GPU Attestation Policy
+	// +optional
+	KbsGpuAttestationPolicyConfigMapName string `json:"kbsGpuAttestationPolicyConfigMapName,omitempty"`
+
 	// KbsResourcePolicyConfigMapName is the name of the configmap that contains the Resource Policy
 	// +optional
 	KbsResourcePolicyConfigMapName string `json:"kbsResourcePolicyConfigMapName,omitempty"`
