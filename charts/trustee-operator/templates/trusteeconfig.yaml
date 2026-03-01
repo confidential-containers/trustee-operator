@@ -1,0 +1,24 @@
+{{- if .Values.trustee.enabled }}
+apiVersion: confidentialcontainers.org/v1alpha1
+kind: TrusteeConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: trusteeconfig
+    app.kubernetes.io/instance: {{ .Values.trustee.name }}
+    app.kubernetes.io/part-of: trustee-operator
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/created-by: trustee-operator
+  name: {{ .Values.trustee.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  profileType: {{ .Values.trustee.profileType }}
+  kbsServiceType: {{ .Values.kbs.serviceType }}
+  {{- if .Values.kbs.https.enabled }}
+  httpsSpec:
+    tlsSecretName: {{ .Values.kbs.https.tlsSecretName }}
+  {{- end }}
+  {{- if .Values.attestation.tokenVerification.enabled }}
+  attestationTokenVerificationSpec:
+    tlsSecretName: {{ .Values.attestation.tokenVerification.tlsSecretName }}
+  {{- end }}
+{{- end }}
