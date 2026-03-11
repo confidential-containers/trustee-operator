@@ -871,8 +871,6 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(secretMapper),
 			builder.WithPredicates(namespacePredicate(r.namespace)),
 		).
-		Owns(&corev1.ConfigMap{}).
-		Owns(&corev1.Secret{}).
 		Complete(r)
 }
 
