@@ -993,26 +993,37 @@ func isResourceInNamespace(obj metav1.Object, namespace string) bool {
 
 // updateKbsConfigStatus checks the deployment status and updates KbsConfig accordingly
 func (r *KbsConfigReconciler) updateKbsConfigStatus(ctx context.Context) error {
+	// Capture current status to detect changes before writing
+	oldIsReady := r.kbsConfig.Status.IsReady
+
 	// Get the deployment to check its status
 	deployment := &appsv1.Deployment{}
 	err := r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      KbsDeploymentName,
 	}, deployment)
+	var newIsReady bool
 	if err != nil {
 		r.log.Info("Failed to get deployment for status check", "err", err)
 		// Set status to not ready if deployment doesn't exist
-		r.kbsConfig.Status.IsReady = false
+		newIsReady = false
 	} else {
 		// Check if deployment is ready (all replicas are ready)
-		r.kbsConfig.Status.IsReady = deployment.Status.ReadyReplicas >= 1 && deployment.Status.ReadyReplicas == deployment.Status.Replicas
-		r.log.Info("Updated KbsConfig status", "IsReady", r.kbsConfig.Status.IsReady, "ReadyReplicas", deployment.Status.ReadyReplicas, "Replicas", deployment.Status.Replicas, "AvailableReplicas", deployment.Status.AvailableReplicas, "UpdatedReplicas", deployment.Status.UpdatedReplicas)
-		if r.kbsConfig.Status.IsReady {
+		newIsReady = deployment.Status.ReadyReplicas >= 1 && deployment.Status.ReadyReplicas == deployment.Status.Replicas
+		r.log.Info("Checked KbsConfig status", "IsReady", newIsReady, "ReadyReplicas", deployment.Status.ReadyReplicas, "Replicas", deployment.Status.Replicas, "AvailableReplicas", deployment.Status.AvailableReplicas, "UpdatedReplicas", deployment.Status.UpdatedReplicas)
+		if newIsReady && !oldIsReady {
 			r.Recorder.Event(r.kbsConfig, corev1.EventTypeNormal, "Ready", "Trustee deployment is ready")
+		} else if !newIsReady && oldIsReady {
+			r.Recorder.Event(r.kbsConfig, corev1.EventTypeWarning, "NotReady", "Trustee deployment is no longer ready")
 		}
 	}
 
-	// Update the status
+	// Only write the status subresource when something actually changed
+	if newIsReady == oldIsReady {
+		return nil
+	}
+
+	r.kbsConfig.Status.IsReady = newIsReady
 	err = r.Status().Update(ctx, r.kbsConfig)
 	if err != nil {
 		r.log.Info("Failed to update KbsConfig status", "err", err)
