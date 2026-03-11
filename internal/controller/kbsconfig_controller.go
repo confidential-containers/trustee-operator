@@ -209,19 +209,26 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 		return err
 	}
 
-	// Service already exists, so update the service
-	r.log.Info("Updating the service", "Service.Namespace", r.namespace, "Service.Name", KbsServiceName)
-	service := r.newKbsService(ctx)
-	// If service object is nil, return error
-	if service == nil {
+	// Service already exists — compute the desired state and apply only if changed.
+	// Update found in-place to preserve ResourceVersion (required by Kubernetes).
+	desired := r.newKbsService(ctx)
+	if desired == nil {
 		return fmt.Errorf("failed to get KBS service definition")
 	}
-	err = r.Update(ctx, service)
+	// Only the service type is user-configurable; ports and selector are fixed.
+	if found.Spec.Type == desired.Spec.Type &&
+		apiequality.Semantic.DeepEqual(found.Spec.Ports, desired.Spec.Ports) {
+		return nil
+	}
+	r.log.Info("Updating the service", "Service.Namespace", r.namespace, "Service.Name", KbsServiceName)
+	found.Spec.Type = desired.Spec.Type
+	found.Spec.Ports = desired.Spec.Ports
+	err = r.Update(ctx, found)
 	if err != nil {
 		r.Recorder.Event(r.kbsConfig, corev1.EventTypeWarning, "ServiceUpdateFailed", err.Error())
 		return err
 	}
-	// Service updated successfully - ret
+	r.Recorder.Event(r.kbsConfig, corev1.EventTypeNormal, "ServiceUpdated", "KBS service updated successfully")
 	return nil
 }
 
@@ -868,6 +875,9 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// deleted so the controller can self-heal. Owner reference is set by
 		// newKbsDeployment via ctrl.SetControllerReference.
 		Owns(&appsv1.Deployment{}).
+		// Owned Service: triggers reconcile when kbs-service is modified or
+		// deleted. Owner reference is set by newKbsService.
+		Owns(&corev1.Service{}).
 		// Watch for changes to ConfigMap, Secret that are in the same namespace as the controller
 		// The ConfigMap and Secret are not owned by the KbsConfig
 		Watches(
