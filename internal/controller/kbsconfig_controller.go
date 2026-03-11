@@ -1000,7 +1000,7 @@ func (r *KbsConfigReconciler) updateKbsConfigStatus(ctx context.Context) error {
 	// Update the status
 	err = r.Status().Update(ctx, r.kbsConfig)
 	if err != nil {
-		r.log.Error(err, "Failed to update KbsConfig status")
+		r.log.Info("Failed to update KbsConfig status", "err", err)
 		return err
 	}
 
