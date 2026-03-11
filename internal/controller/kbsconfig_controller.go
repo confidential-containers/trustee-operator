@@ -947,6 +947,8 @@ func secretToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFunc,
 			secretMatches := kbsConfig.Spec.KbsAuthSecretName == secret.Name ||
 				kbsConfig.Spec.KbsHttpsKeySecretName == secret.Name ||
 				kbsConfig.Spec.KbsHttpsCertSecretName == secret.Name ||
+				kbsConfig.Spec.KbsAttestationKeySecretName == secret.Name ||
+				kbsConfig.Spec.KbsAttestationCertSecretName == secret.Name ||
 				(kbsConfig.Spec.KbsSecretResources != nil && contains(kbsConfig.Spec.KbsSecretResources, secret.Name))
 
 			// Check if secret matches any of the local cert cache secrets
