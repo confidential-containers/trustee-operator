@@ -74,7 +74,7 @@ type KbsConfigReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
 func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.log.Info("Reconciling KbsConfig")
+	r.log.Info("Reconciling KbsConfig", "name", req.Name, "namespace", req.Namespace)
 
 	// Get the KbsConfig instance
 	r.kbsConfig = &confidentialcontainersorgv1alpha1.KbsConfig{}
