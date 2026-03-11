@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -123,10 +124,15 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Create or update the KBS deployment
-	err = r.deployOrUpdateKbsDeployment(ctx)
+	created, err := r.deployOrUpdateKbsDeployment(ctx)
 	if err != nil {
 		r.log.Info("Error in creating/updating KBS deployment", "err", err)
 		return ctrl.Result{}, err
+	}
+	// On a fresh creation the deployment replicas will not be ready yet; requeue
+	// after a short delay so the status check reflects the actual pod state.
+	if created {
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 	}
 
 	// Create or update the KBS service
@@ -258,9 +264,10 @@ func (r *KbsConfigReconciler) newKbsService(ctx context.Context) *corev1.Service
 	return service
 }
 
-// deployOrUpdateKbsDeployment returns a new deployment for the KBS instance
+// deployOrUpdateKbsDeployment creates or updates the KBS deployment.
+// Returns (created, error) where created is true when a new deployment was just made.
 // Errors are logged by the callee and hence no error is logged in this method
-func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) error {
+func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) (bool, error) {
 
 	// Check if the deployment name kbs-deployment in r.namespace already exists
 	// If it does, update the deployment
@@ -277,35 +284,33 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) e
 		r.log.Info("Creating a new deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
 		deployment, err := r.newKbsDeployment(ctx)
 		if err != nil {
-			return err
+			return false, err
 		}
 		err = r.Create(ctx, deployment)
 		if err != nil {
 			r.Recorder.Event(r.kbsConfig, corev1.EventTypeWarning, "DeploymentCreateFailed", err.Error())
-			return err
-		} else {
-			// Deployment created successfully
-			r.log.Info("Created a new deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
-			r.Recorder.Event(r.kbsConfig, corev1.EventTypeNormal, "DeploymentCreated", "Trustee deployment created successfully")
-			// Add the kbsFinalizer to the KbsConfig if it doesn't already exist
-			return r.addKbsConfigFinalizer(ctx)
+			return false, err
 		}
+		// Deployment created successfully
+		r.log.Info("Created a new deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
+		r.Recorder.Event(r.kbsConfig, corev1.EventTypeNormal, "DeploymentCreated", "Trustee deployment created successfully")
+		// Add the kbsFinalizer to the KbsConfig if it doesn't already exist
+		return true, r.addKbsConfigFinalizer(ctx)
 	} else if err != nil {
 		// Unknown error
-		return err
+		return false, err
 	}
 	// Update the found deployment and write the result back if there are any changes
 	err = r.updateKbsDeployment(ctx, found)
 	if err != nil {
 		r.Recorder.Event(r.kbsConfig, corev1.EventTypeWarning, "DeploymentUpdateFailed", err.Error())
-		return err
-	} else {
-		// Deployment updated successfully
-		r.log.Info("Updated Deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
-		r.Recorder.Event(r.kbsConfig, corev1.EventTypeNormal, "DeploymentUpdated", "Trustee deployment updated successfully")
+		return false, err
 	}
+	// Deployment updated successfully
+	r.log.Info("Updated Deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
+	r.Recorder.Event(r.kbsConfig, corev1.EventTypeNormal, "DeploymentUpdated", "Trustee deployment updated successfully")
 
-	return nil
+	return false, nil
 }
 
 func (r *KbsConfigReconciler) addKbsConfigFinalizer(ctx context.Context) error {
