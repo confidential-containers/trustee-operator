@@ -26,6 +26,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -608,6 +609,11 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 			},
 		},
 	}
+	// Set KbsConfig instance as the owner so the deployment is garbage-collected
+	// when the KbsConfig is deleted, and so that Owns() triggers reconcile on changes.
+	if err := ctrl.SetControllerReference(r.kbsConfig, deployment, r.Scheme); err != nil {
+		return nil, err
+	}
 	return deployment, nil
 }
 
@@ -806,27 +812,26 @@ func (r *KbsConfigReconciler) isAttestationConfigPresent() bool {
 }
 
 // updateKbsDeployment updates an existing deployment for the KBS instance
+// only when the desired spec differs from the current one.
 // Errors are logged by the callee and hence no error is logged in this method
 func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deployment *appsv1.Deployment) error {
-	// re-generates the deployment
+	// re-generates the desired deployment
 	newDeployment, err := r.newKbsDeployment(ctx)
 	if err != nil {
 		return err
 	}
 
-	// overwrites the template spec, if any changes
-	deployment.Spec.Template.Spec = *newDeployment.Spec.Template.Spec.DeepCopy()
-	// Update replicas if changed
-	deployment.Spec.Replicas = newDeployment.Spec.Replicas
-
-	err = r.Update(ctx, deployment)
-	if err != nil {
-		return err
-	} else {
-		// Deployment updated successfully
-		r.log.Info("Updated Deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", "kbs-deployment")
+	// Skip the API call when nothing has changed to avoid triggering a
+	// spurious watch event that would re-enqueue reconcile (update loop).
+	if apiequality.Semantic.DeepEqual(deployment.Spec.Template.Spec, newDeployment.Spec.Template.Spec) &&
+		apiequality.Semantic.DeepEqual(deployment.Spec.Replicas, newDeployment.Spec.Replicas) {
 		return nil
 	}
+
+	deployment.Spec.Template.Spec = *newDeployment.Spec.Template.Spec.DeepCopy()
+	deployment.Spec.Replicas = newDeployment.Spec.Replicas
+
+	return r.Update(ctx, deployment)
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -859,6 +864,10 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// KbsConfigMap, KbsSecret, KbsAsConfigMap, KbsRvpsConfigMap in the same namespace as the controller
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&confidentialcontainersorgv1alpha1.KbsConfig{}).
+		// Owned Deployment: triggers reconcile when the deployment is modified or
+		// deleted so the controller can self-heal. Owner reference is set by
+		// newKbsDeployment via ctrl.SetControllerReference.
+		Owns(&appsv1.Deployment{}).
 		// Watch for changes to ConfigMap, Secret that are in the same namespace as the controller
 		// The ConfigMap and Secret are not owned by the KbsConfig
 		Watches(
