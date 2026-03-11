@@ -877,7 +877,7 @@ func configMapToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFu
 			return nil
 		}
 
-		log.Info("Checking KbsConfig", "ConfigMap.Name", configMap.Name, "KbsConfigList", kbsConfigList.Items)
+		log.V(1).Info("Checking KbsConfig", "ConfigMap.Name", configMap.Name)
 
 		var requests []reconcile.Request
 		for _, kbsConfig := range kbsConfigList.Items {
@@ -922,7 +922,7 @@ func secretToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFunc,
 			return nil
 		}
 
-		log.Info("Checking KbsConfig", "Secret.Name", secret.Name, "KbsConfigList", kbsConfigList.Items)
+		log.V(1).Info("Checking KbsConfig", "Secret.Name", secret.Name)
 
 		var requests []reconcile.Request
 		for _, kbsConfig := range kbsConfigList.Items {
