@@ -308,15 +308,16 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) (
 		// Unknown error
 		return false, err
 	}
-	// Update the found deployment and write the result back if there are any changes
-	err = r.updateKbsDeployment(ctx, found)
+	// Update the found deployment if the spec has changed.
+	updated, err := r.updateKbsDeployment(ctx, found)
 	if err != nil {
 		r.Recorder.Event(r.kbsConfig, corev1.EventTypeWarning, "DeploymentUpdateFailed", err.Error())
 		return false, err
 	}
-	// Deployment updated successfully
-	r.log.Info("Updated Deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
-	r.Recorder.Event(r.kbsConfig, corev1.EventTypeNormal, "DeploymentUpdated", "Trustee deployment updated successfully")
+	if updated {
+		r.log.Info("Updated Deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
+		r.Recorder.Event(r.kbsConfig, corev1.EventTypeNormal, "DeploymentUpdated", "Trustee deployment updated successfully")
+	}
 
 	return false, nil
 }
@@ -818,27 +819,28 @@ func (r *KbsConfigReconciler) isAttestationConfigPresent() bool {
 	return false
 }
 
-// updateKbsDeployment updates an existing deployment for the KBS instance
-// only when the desired spec differs from the current one.
-// Errors are logged by the callee and hence no error is logged in this method
-func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deployment *appsv1.Deployment) error {
+// updateKbsDeployment reconciles an existing deployment to match the desired
+// state. Returns (true, nil) when r.Update was called, (false, nil) when the
+// spec was already up to date, and (false, err) on failure.
+// Errors are logged by the callee and hence no error is logged in this method.
+func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deployment *appsv1.Deployment) (bool, error) {
 	// re-generates the desired deployment
 	newDeployment, err := r.newKbsDeployment(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// Skip the API call when nothing has changed to avoid triggering a
 	// spurious watch event that would re-enqueue reconcile (update loop).
 	if apiequality.Semantic.DeepEqual(deployment.Spec.Template.Spec, newDeployment.Spec.Template.Spec) &&
 		apiequality.Semantic.DeepEqual(deployment.Spec.Replicas, newDeployment.Spec.Replicas) {
-		return nil
+		return false, nil
 	}
 
 	deployment.Spec.Template.Spec = *newDeployment.Spec.Template.Spec.DeepCopy()
 	deployment.Spec.Replicas = newDeployment.Spec.Replicas
 
-	return r.Update(ctx, deployment)
+	return true, r.Update(ctx, deployment)
 }
 
 // SetupWithManager sets up the controller with the Manager.

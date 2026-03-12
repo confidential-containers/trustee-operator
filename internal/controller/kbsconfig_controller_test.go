@@ -252,12 +252,14 @@ func TestUpdateKbsDeployment_SkipsUpdateWhenSpecUnchanged(t *testing.T) {
 		Name: KbsDeploymentName, Namespace: KbsOperatorNamespace,
 	}, existing)).To(gomega.Succeed())
 
-	g.Expect(r.updateKbsDeployment(ctx, existing)).To(gomega.Succeed())
+	updated, err := r.updateKbsDeployment(ctx, existing)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(updated).To(gomega.BeFalse(), "updated must be false when spec is unchanged")
 	g.Expect(cc.updateCount).To(gomega.Equal(0), "Update must not be called when spec is unchanged")
 }
 
 // TestUpdateKbsDeployment_CallsUpdateWhenReplicasDiffer verifies that
-// updateKbsDeployment calls r.Update when Replicas differ from the desired state.
+// updateKbsDeployment calls r.Update and returns true when Replicas differ.
 func TestUpdateKbsDeployment_CallsUpdateWhenReplicasDiffer(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
@@ -281,7 +283,9 @@ func TestUpdateKbsDeployment_CallsUpdateWhenReplicasDiffer(t *testing.T) {
 	different := int32(5)
 	existing.Spec.Replicas = &different
 
-	g.Expect(r.updateKbsDeployment(ctx, existing)).To(gomega.Succeed())
+	updated, err := r.updateKbsDeployment(ctx, existing)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(updated).To(gomega.BeTrue(), "updated must be true when Replicas differ")
 	g.Expect(cc.updateCount).To(gomega.Equal(1), "Update must be called when Replicas differ")
 }
 
