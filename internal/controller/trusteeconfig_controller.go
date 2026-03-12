@@ -130,10 +130,18 @@ func (r *TrusteeConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *TrusteeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&confidentialcontainersorgv1alpha1.TrusteeConfig{}).
+		// Watch the KbsConfig this controller creates so that a status change
+		// (e.g. IsReady transitioning to true) re-triggers TrusteeConfig reconcile.
 		Watches(
 			&confidentialcontainersorgv1alpha1.KbsConfig{},
 			handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &confidentialcontainersorgv1alpha1.TrusteeConfig{}),
 		).
+		// Watch owned ConfigMaps and Secrets so that accidental deletion triggers
+		// reconcile and the controller recreates them. Safe because all
+		// createOrUpdate helpers are create-once: they never call r.Update on
+		// an existing resource, so no update loop can form.
+		Owns(&corev1.ConfigMap{}).
+		Owns(&corev1.Secret{}).
 		Complete(r)
 }
 
@@ -873,9 +881,11 @@ func (r *TrusteeConfigReconciler) createOrUpdateHttpsKeySecret(ctx context.Conte
 	if err != nil && k8serrors.IsNotFound(err) {
 		// Create the secret
 		r.log.Info("Creating HTTPS key secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		secret := r.generateHttpsKeySecret(keyData)
-		err = r.Create(ctx, secret)
+		secret, err := r.generateHttpsKeySecret(keyData)
 		if err != nil {
+			return err
+		}
+		if err = r.Create(ctx, secret); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -902,9 +912,11 @@ func (r *TrusteeConfigReconciler) createOrUpdateHttpsCertSecret(ctx context.Cont
 	if err != nil && k8serrors.IsNotFound(err) {
 		// Create the secret
 		r.log.Info("Creating HTTPS certificate secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		secret := r.generateHttpsCertSecret(certData)
-		err = r.Create(ctx, secret)
+		secret, err := r.generateHttpsCertSecret(certData)
 		if err != nil {
+			return err
+		}
+		if err = r.Create(ctx, secret); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -918,7 +930,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateHttpsCertSecret(ctx context.Cont
 }
 
 // generateHttpsKeySecret creates a Secret for HTTPS private key
-func (r *TrusteeConfigReconciler) generateHttpsKeySecret(keyData []byte) *corev1.Secret {
+func (r *TrusteeConfigReconciler) generateHttpsKeySecret(keyData []byte) (*corev1.Secret, error) {
 	secretName := r.getHttpsKeySecretName()
 
 	data := make(map[string][]byte)
@@ -933,14 +945,14 @@ func (r *TrusteeConfigReconciler) generateHttpsKeySecret(keyData []byte) *corev1
 		Data: data,
 	}
 
-	// Set TrusteeConfig as the owner
-	_ = ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
-
-	return secret
+	if err := ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme); err != nil {
+		return nil, err
+	}
+	return secret, nil
 }
 
 // generateHttpsCertSecret creates a Secret for HTTPS certificate
-func (r *TrusteeConfigReconciler) generateHttpsCertSecret(certData []byte) *corev1.Secret {
+func (r *TrusteeConfigReconciler) generateHttpsCertSecret(certData []byte) (*corev1.Secret, error) {
 	secretName := r.getHttpsCertSecretName()
 
 	data := make(map[string][]byte)
@@ -955,10 +967,10 @@ func (r *TrusteeConfigReconciler) generateHttpsCertSecret(certData []byte) *core
 		Data: data,
 	}
 
-	// Set TrusteeConfig as the owner
-	_ = ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
-
-	return secret
+	if err := ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme); err != nil {
+		return nil, err
+	}
+	return secret, nil
 }
 
 // createOrUpdateAttestationSecrets creates or updates the attestation key and certificate secrets from the TLS secret
@@ -1026,9 +1038,11 @@ func (r *TrusteeConfigReconciler) createOrUpdateAttestationKeySecret(ctx context
 	if err != nil && k8serrors.IsNotFound(err) {
 		// Create the secret
 		r.log.Info("Creating attestation key secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		secret := r.generateAttestationKeySecret(keyData)
-		err = r.Create(ctx, secret)
+		secret, err := r.generateAttestationKeySecret(keyData)
 		if err != nil {
+			return err
+		}
+		if err = r.Create(ctx, secret); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -1055,9 +1069,11 @@ func (r *TrusteeConfigReconciler) createOrUpdateAttestationCertSecret(ctx contex
 	if err != nil && k8serrors.IsNotFound(err) {
 		// Create the secret
 		r.log.Info("Creating attestation certificate secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		secret := r.generateAttestationCertSecret(certData)
-		err = r.Create(ctx, secret)
+		secret, err := r.generateAttestationCertSecret(certData)
 		if err != nil {
+			return err
+		}
+		if err = r.Create(ctx, secret); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -1071,7 +1087,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateAttestationCertSecret(ctx contex
 }
 
 // generateAttestationCertSecret creates a Secret for attestation certificate
-func (r *TrusteeConfigReconciler) generateAttestationCertSecret(certData []byte) *corev1.Secret {
+func (r *TrusteeConfigReconciler) generateAttestationCertSecret(certData []byte) (*corev1.Secret, error) {
 	secretName := r.getAttestationCertSecretName()
 
 	data := make(map[string][]byte)
@@ -1086,10 +1102,10 @@ func (r *TrusteeConfigReconciler) generateAttestationCertSecret(certData []byte)
 		Data: data,
 	}
 
-	// Set TrusteeConfig as the owner
-	_ = ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
-
-	return secret
+	if err := ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme); err != nil {
+		return nil, err
+	}
+	return secret, nil
 }
 
 // getAttestationKeySecretName returns the name for the attestation key secret
@@ -1103,7 +1119,7 @@ func (r *TrusteeConfigReconciler) getAttestationCertSecretName() string {
 }
 
 // generateAttestationKeySecret creates a Secret for attestation private key
-func (r *TrusteeConfigReconciler) generateAttestationKeySecret(keyData []byte) *corev1.Secret {
+func (r *TrusteeConfigReconciler) generateAttestationKeySecret(keyData []byte) (*corev1.Secret, error) {
 	secretName := r.getAttestationKeySecretName()
 
 	data := make(map[string][]byte)
@@ -1118,10 +1134,10 @@ func (r *TrusteeConfigReconciler) generateAttestationKeySecret(keyData []byte) *
 		Data: data,
 	}
 
-	// Set TrusteeConfig as the owner
-	_ = ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
-
-	return secret
+	if err := ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme); err != nil {
+		return nil, err
+	}
+	return secret, nil
 }
 
 // generateResourcePolicyConfigMap creates a ConfigMap for resource policy
