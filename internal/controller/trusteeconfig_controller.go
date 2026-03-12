@@ -22,7 +22,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -104,20 +103,17 @@ func (r *TrusteeConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		Kind:       "KbsConfig",
 		Name:       kbsConfig.Name,
 		Namespace:  kbsConfig.Namespace,
-	} // Set status description based on KbsConfig status
-	r.log.Info("KbsConfig status check", "KbsConfig.IsReady", kbsConfig.Status.IsReady, "KbsConfig.Name", kbsConfig.Name)
+	}
+	// Set status description based on KbsConfig readiness.
+	// The Watches(&KbsConfig{}) in SetupWithManager will re-trigger this
+	// reconcile when KbsConfig.Status.IsReady transitions to true, so there
+	// is no need to poll with RequeueAfter.
+	r.log.V(1).Info("KbsConfig status check", "KbsConfig.IsReady", kbsConfig.Status.IsReady, "KbsConfig.Name", kbsConfig.Name)
 	if kbsConfig.Status.IsReady {
 		r.trusteeConfig.Status.StatusDescription = "TrusteeConfig is ready and KbsConfig is deployed successfully"
 	} else {
 		r.trusteeConfig.Status.StatusDescription = "TrusteeConfig is ready but KbsConfig deployment is in progress"
-		// Requeue to wait for KbsConfig to become ready
-		err = r.Status().Update(ctx, r.trusteeConfig)
-		if err != nil {
-			r.log.Error(err, "Failed to update TrusteeConfig status")
-			return ctrl.Result{}, err
-		}
-		r.log.Info("KbsConfig not ready yet, requeuing in 10 seconds")
-		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		r.log.Info("KbsConfig not ready yet, waiting for KbsConfig status update")
 	}
 
 	err = r.Status().Update(ctx, r.trusteeConfig)
