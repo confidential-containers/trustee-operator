@@ -859,8 +859,8 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// KbsConfigMap, KbsSecret, KbsAsConfigMap, KbsRvpsConfigMap in the same namespace as the controller
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&confidentialcontainersorgv1alpha1.KbsConfig{}).
-		// Watch for changes to ConfigMap, Secret that are in the same namespace as the controller
-		// The ConfigMap and Secret are not owned by the KbsConfig
+		// Watch externally-referenced ConfigMaps and Secrets (not owned by KbsConfig)
+		// so that changes to user-supplied configuration trigger reconciliation.
 		Watches(
 			&corev1.ConfigMap{},
 			handler.EnqueueRequestsFromMapFunc(configMapMapper),
@@ -871,6 +871,8 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(secretMapper),
 			builder.WithPredicates(namespacePredicate(r.namespace)),
 		).
+		// Watch ConfigMaps and Secrets owned by KbsConfig so that accidental
+		// deletion triggers reconciliation and the controller recreates them.
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Secret{}).
 		Complete(r)
