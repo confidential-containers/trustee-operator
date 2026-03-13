@@ -26,6 +26,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -85,7 +86,11 @@ func (r *TrusteeConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// Build the KbsConfigSpec based on TrusteeConfig
-	kbsConfigSpec := r.buildKbsConfigSpec(ctx)
+	kbsConfigSpec, err := r.buildKbsConfigSpec(ctx)
+	if err != nil {
+		r.log.Error(err, "Failed to build KbsConfig spec")
+		return ctrl.Result{}, err
+	}
 
 	// Create or update the KbsConfig
 	kbsConfig := r.createOrUpdateKbsConfig(ctx, kbsConfigSpec)
@@ -130,10 +135,18 @@ func (r *TrusteeConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *TrusteeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&confidentialcontainersorgv1alpha1.TrusteeConfig{}).
+		// Watch the KbsConfig this controller creates so that a status change
+		// (e.g. IsReady transitioning to true) re-triggers TrusteeConfig reconcile.
 		Watches(
 			&confidentialcontainersorgv1alpha1.KbsConfig{},
 			handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &confidentialcontainersorgv1alpha1.TrusteeConfig{}),
 		).
+		// Watch owned ConfigMaps and Secrets so that accidental deletion triggers
+		// reconcile and the controller recreates them. Safe because all
+		// createOrUpdate helpers are create-once: they never call r.Update on
+		// an existing resource, so no update loop can form.
+		Owns(&corev1.ConfigMap{}).
+		Owns(&corev1.Secret{}).
 		Complete(r)
 }
 
@@ -178,29 +191,32 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfig(ctx context.Context, s
 		return nil
 	}
 
-	// Check if KbsConfig has been manually modified by comparing with generated spec
-	// and checking if user-configurable fields differ from what we would generate
-	hasManualChanges := r.detectManualChanges(found.Spec, spec)
-
-	if hasManualChanges {
+	// Compute the desired spec, preserving any manual overrides.
+	var desiredSpec confidentialcontainersorgv1alpha1.KbsConfigSpec
+	if r.detectManualChanges(found.Spec, spec) {
 		r.log.Info("Manual changes detected in KbsConfig, performing smart merge",
 			"KbsConfig.Namespace", r.namespace, "KbsConfig.Name", kbsConfigName)
-		mergedSpec := r.mergeKbsConfigSpecs(spec, found.Spec)
-		found.Spec = mergedSpec
+		desiredSpec = r.mergeKbsConfigSpecs(spec, found.Spec)
 	} else {
 		r.log.Info("No manual changes detected, applying generated spec")
-		found.Spec = spec
+		desiredSpec = spec
 	}
 
-	// Update existing KbsConfig
-	r.log.Info("Updating existing KbsConfig", "KbsConfig.Namespace", r.namespace, "KbsConfig.Name", kbsConfigName)
-	err = r.Update(ctx, found)
-	if err != nil {
-		r.log.Error(err, "Failed to update KbsConfig")
-		return nil
+	// Only call r.Update when the spec has actually changed. An unconditional
+	// Update increments resourceVersion which fires the Watches(&KbsConfig{})
+	// handler in SetupWithManager, enqueuing another TrusteeConfig reconcile,
+	// which would update KbsConfig again — an infinite reconcile loop.
+	if !apiequality.Semantic.DeepEqual(found.Spec, desiredSpec) {
+		found.Spec = desiredSpec
+		r.log.Info("Updating existing KbsConfig", "KbsConfig.Namespace", r.namespace, "KbsConfig.Name", kbsConfigName)
+		err = r.Update(ctx, found)
+		if err != nil {
+			r.log.Error(err, "Failed to update KbsConfig")
+			return nil
+		}
 	}
 
-	// Refresh the KbsConfig to get the latest status
+	// Refresh to pick up the latest status written by the KbsConfig controller.
 	err = r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      kbsConfigName,
@@ -325,8 +341,11 @@ func (r *TrusteeConfigReconciler) mergeKbsConfigSpecs(generatedSpec, manualSpec 
 	return merged
 }
 
-// buildKbsConfigSpec builds the KbsConfigSpec based on TrusteeConfig
-func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) confidentialcontainersorgv1alpha1.KbsConfigSpec {
+// buildKbsConfigSpec builds the KbsConfigSpec based on TrusteeConfig.
+// Returns an error if any required resource cannot be created so that
+// Reconcile can return the error and let controller-runtime retry rather
+// than silently applying a partial spec to KbsConfig.
+func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) (confidentialcontainersorgv1alpha1.KbsConfigSpec, error) {
 	spec := confidentialcontainersorgv1alpha1.KbsConfigSpec{}
 
 	// Set service type from TrusteeConfig
@@ -341,210 +360,136 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) confid
 	spec.KbsDeploymentSpec.Replicas = &defaultReplicas
 
 	// Configure based on profile type
+	var err error
 	switch r.trusteeConfig.Spec.Profile {
 	case confidentialcontainersorgv1alpha1.ProfileTypePermissive:
 		r.log.Info("Configuring KbsConfig for Permissive profile")
-		spec = r.configurePermissiveProfile(ctx, spec)
+		spec, err = r.configurePermissiveProfile(ctx, spec)
 	case confidentialcontainersorgv1alpha1.ProfileTypeRestrictive:
 		r.log.Info("Configuring KbsConfig for Restricted profile")
-		spec = r.configureRestrictedProfile(ctx, spec)
+		spec, err = r.configureRestrictedProfile(ctx, spec)
 	default:
 		r.log.Info("Unknown profile type, using default Permissive profile")
-		spec = r.configurePermissiveProfile(ctx, spec)
+		spec, err = r.configurePermissiveProfile(ctx, spec)
+	}
+	if err != nil {
+		return spec, err
 	}
 
 	// Configure HTTPS if specified
 	if r.trusteeConfig.Spec.HttpsSpec.TlsSecretName != "" {
-		err := r.createOrUpdateHttpsSecrets(ctx)
-		if err != nil {
-			r.log.Error(err, "Error creating HTTPS secrets")
-			return spec
+		if err = r.createOrUpdateHttpsSecrets(ctx); err != nil {
+			return spec, err
 		}
 		spec = r.configureHttps(spec)
 	}
 
 	// Configure attestation token verification if specified
 	if r.trusteeConfig.Spec.AttestationTokenVerificationSpec.TlsSecretName != "" {
-		err := r.createOrUpdateAttestationSecrets(ctx)
-		if err != nil {
-			r.log.Error(err, "Error creating attestation secrets")
-			return spec
+		if err = r.createOrUpdateAttestationSecrets(ctx); err != nil {
+			return spec, err
 		}
 		spec = r.configureAttestationTokenVerification(spec)
 	}
 
-	return spec
+	return spec, nil
 }
 
 // configurePermissiveProfile configures KbsConfig for permissive mode
-func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context, spec confidentialcontainersorgv1alpha1.KbsConfigSpec) confidentialcontainersorgv1alpha1.KbsConfigSpec {
+func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context, spec confidentialcontainersorgv1alpha1.KbsConfigSpec) (confidentialcontainersorgv1alpha1.KbsConfigSpec, error) {
 	// Set environment variables for permissive mode
 	if spec.KbsEnvVars == nil {
 		spec.KbsEnvVars = make(map[string]string)
 	}
 	spec.KbsEnvVars["RUST_LOG"] = "debug"
 
-	// Create the KBS config map
-	err := r.createOrUpdateKbsConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating KBS config map", "err", err)
-		return spec
+	if err := r.createOrUpdateKbsConfigMap(ctx); err != nil {
+		return spec, err
+	}
+	if err := r.createOrUpdateKbsAuthSecret(ctx); err != nil {
+		return spec, err
+	}
+	if err := r.createOrUpdateKbsSampleSecret(ctx); err != nil {
+		return spec, err
+	}
+	if err := r.createOrUpdateResourcePolicyConfigMap(ctx); err != nil {
+		return spec, err
 	}
 
-	// Create the KBS auth secret
-	err = r.createOrUpdateKbsAuthSecret(ctx)
-	if err != nil {
-		r.log.Info("Error creating KBS auth secret", "err", err)
-		return spec
-	}
-
-	// Create the sample secret kbsre1
-	err = r.createOrUpdateKbsSampleSecret(ctx)
-	if err != nil {
-		r.log.Info("Error creating KBS sample secret", "err", err)
-		return spec
-	}
-
-	// Create the resource policy config map
-	err = r.createOrUpdateResourcePolicyConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating resource policy config map", "err", err)
-		return spec
-	}
-
-	// Set the config map, auth secret, and resource policy config map names in the spec
 	spec.KbsConfigMapName = r.getKbsConfigMapName()
 	spec.KbsAuthSecretName = r.getKbsAuthSecretName()
 	spec.KbsResourcePolicyConfigMapName = r.getResourcePolicyConfigMapName()
-	// Set the sample secret
 	spec.KbsSecretResources = append(spec.KbsSecretResources, r.getKbsSampleSecretName())
 
-	// Create the RVPS reference values config map
-	err = r.createOrUpdateRvpsReferenceValuesConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating RVPS reference values config map", "err", err)
-		return spec
+	if err := r.createOrUpdateRvpsReferenceValuesConfigMap(ctx); err != nil {
+		return spec, err
 	}
-
-	// Set the RVPS reference values config map name in the spec
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
 
-	// Create the TDX config map
-	err = r.createOrUpdateTdxConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating TDX config map", "err", err)
-		return spec
+	if err := r.createOrUpdateTdxConfigMap(ctx); err != nil {
+		return spec, err
 	}
-
-	// Set the TDX config map name in the spec
 	spec.TdxConfigSpec.KbsTdxConfigMapName = r.getTdxConfigMapName()
 
-	// Create the CPU attestation policy config map
-	err = r.createOrUpdateAttestationPolicyConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating CPU attestation policy config map", "err", err)
-		return spec
+	if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
+		return spec, err
 	}
-
-	// Set the CPU attestation policy config map name in the spec
 	spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
 
-	// Create the GPU attestation policy config map
-	err = r.createOrUpdateGpuAttestationPolicyConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating GPU attestation policy config map", "err", err)
-		return spec
+	if err := r.createOrUpdateGpuAttestationPolicyConfigMap(ctx); err != nil {
+		return spec, err
 	}
-
-	// Set the GPU attestation policy config map name in the spec
 	spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
 
-	return spec
+	return spec, nil
 }
 
 // configureRestrictedProfile configures KbsConfig for restricted mode
-func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context, spec confidentialcontainersorgv1alpha1.KbsConfigSpec) confidentialcontainersorgv1alpha1.KbsConfigSpec {
+func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context, spec confidentialcontainersorgv1alpha1.KbsConfigSpec) (confidentialcontainersorgv1alpha1.KbsConfigSpec, error) {
 	if spec.KbsEnvVars == nil {
 		spec.KbsEnvVars = make(map[string]string)
 	}
 
-	// Create the KBS config map
-	err := r.createOrUpdateKbsConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating KBS config map", "err", err)
-		return spec
+	if err := r.createOrUpdateKbsConfigMap(ctx); err != nil {
+		return spec, err
+	}
+	if err := r.createOrUpdateKbsAuthSecret(ctx); err != nil {
+		return spec, err
+	}
+	if err := r.createOrUpdateKbsSampleSecret(ctx); err != nil {
+		return spec, err
 	}
 
-	// Create the KBS auth secret
-	err = r.createOrUpdateKbsAuthSecret(ctx)
-	if err != nil {
-		r.log.Info("Error creating KBS auth secret", "err", err)
-		return spec
-	}
-
-	// Create the sample secret kbsres1
-	err = r.createOrUpdateKbsSampleSecret(ctx)
-	if err != nil {
-		r.log.Info("Error creating KBS sample secret", "err", err)
-		return spec
-	}
-
-	// Set the config map, auth secret, and resource policy config map names in the spec
 	spec.KbsConfigMapName = r.getKbsConfigMapName()
 	spec.KbsAuthSecretName = r.getKbsAuthSecretName()
 	spec.KbsSecretResources = append(spec.KbsSecretResources, r.getKbsSampleSecretName())
 
-	// Create the resource policy config map
-	err = r.createOrUpdateResourcePolicyConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating resource policy config map", "err", err)
-		return spec
+	if err := r.createOrUpdateResourcePolicyConfigMap(ctx); err != nil {
+		return spec, err
 	}
-
-	// Set the resource policy config map name in the spec
 	spec.KbsResourcePolicyConfigMapName = r.getResourcePolicyConfigMapName()
 
-	// Create the RVPS reference values config map
-	err = r.createOrUpdateRvpsReferenceValuesConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating RVPS reference values config map", "err", err)
-		return spec
+	if err := r.createOrUpdateRvpsReferenceValuesConfigMap(ctx); err != nil {
+		return spec, err
 	}
-
-	// Set the RVPS reference values config map name in the spec
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
 
-	// Create the TDX config map
-	err = r.createOrUpdateTdxConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating TDX config map", "err", err)
-		return spec
+	if err := r.createOrUpdateTdxConfigMap(ctx); err != nil {
+		return spec, err
 	}
-
-	// Set the TDX config map name in the spec
 	spec.TdxConfigSpec.KbsTdxConfigMapName = r.getTdxConfigMapName()
 
-	// Create the CPU attestation policy config map
-	err = r.createOrUpdateAttestationPolicyConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating CPU attestation policy config map", "err", err)
-		return spec
+	if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
+		return spec, err
 	}
-
-	// Set the CPU attestation policy config map name in the spec
 	spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
 
-	// Create the GPU attestation policy config map
-	err = r.createOrUpdateGpuAttestationPolicyConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating GPU attestation policy config map", "err", err)
-		return spec
+	if err := r.createOrUpdateGpuAttestationPolicyConfigMap(ctx); err != nil {
+		return spec, err
 	}
-
-	// Set the GPU attestation policy config map name in the spec
 	spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
 
-	return spec
+	return spec, nil
 }
 
 // configureHttps configures HTTPS settings for KbsConfig
@@ -873,9 +818,11 @@ func (r *TrusteeConfigReconciler) createOrUpdateHttpsKeySecret(ctx context.Conte
 	if err != nil && k8serrors.IsNotFound(err) {
 		// Create the secret
 		r.log.Info("Creating HTTPS key secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		secret := r.generateHttpsKeySecret(keyData)
-		err = r.Create(ctx, secret)
+		secret, err := r.generateHttpsKeySecret(keyData)
 		if err != nil {
+			return err
+		}
+		if err = r.Create(ctx, secret); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -902,9 +849,11 @@ func (r *TrusteeConfigReconciler) createOrUpdateHttpsCertSecret(ctx context.Cont
 	if err != nil && k8serrors.IsNotFound(err) {
 		// Create the secret
 		r.log.Info("Creating HTTPS certificate secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		secret := r.generateHttpsCertSecret(certData)
-		err = r.Create(ctx, secret)
+		secret, err := r.generateHttpsCertSecret(certData)
 		if err != nil {
+			return err
+		}
+		if err = r.Create(ctx, secret); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -918,7 +867,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateHttpsCertSecret(ctx context.Cont
 }
 
 // generateHttpsKeySecret creates a Secret for HTTPS private key
-func (r *TrusteeConfigReconciler) generateHttpsKeySecret(keyData []byte) *corev1.Secret {
+func (r *TrusteeConfigReconciler) generateHttpsKeySecret(keyData []byte) (*corev1.Secret, error) {
 	secretName := r.getHttpsKeySecretName()
 
 	data := make(map[string][]byte)
@@ -933,14 +882,14 @@ func (r *TrusteeConfigReconciler) generateHttpsKeySecret(keyData []byte) *corev1
 		Data: data,
 	}
 
-	// Set TrusteeConfig as the owner
-	_ = ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
-
-	return secret
+	if err := ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme); err != nil {
+		return nil, err
+	}
+	return secret, nil
 }
 
 // generateHttpsCertSecret creates a Secret for HTTPS certificate
-func (r *TrusteeConfigReconciler) generateHttpsCertSecret(certData []byte) *corev1.Secret {
+func (r *TrusteeConfigReconciler) generateHttpsCertSecret(certData []byte) (*corev1.Secret, error) {
 	secretName := r.getHttpsCertSecretName()
 
 	data := make(map[string][]byte)
@@ -955,10 +904,10 @@ func (r *TrusteeConfigReconciler) generateHttpsCertSecret(certData []byte) *core
 		Data: data,
 	}
 
-	// Set TrusteeConfig as the owner
-	_ = ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
-
-	return secret
+	if err := ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme); err != nil {
+		return nil, err
+	}
+	return secret, nil
 }
 
 // createOrUpdateAttestationSecrets creates or updates the attestation key and certificate secrets from the TLS secret
@@ -1026,9 +975,11 @@ func (r *TrusteeConfigReconciler) createOrUpdateAttestationKeySecret(ctx context
 	if err != nil && k8serrors.IsNotFound(err) {
 		// Create the secret
 		r.log.Info("Creating attestation key secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		secret := r.generateAttestationKeySecret(keyData)
-		err = r.Create(ctx, secret)
+		secret, err := r.generateAttestationKeySecret(keyData)
 		if err != nil {
+			return err
+		}
+		if err = r.Create(ctx, secret); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -1055,9 +1006,11 @@ func (r *TrusteeConfigReconciler) createOrUpdateAttestationCertSecret(ctx contex
 	if err != nil && k8serrors.IsNotFound(err) {
 		// Create the secret
 		r.log.Info("Creating attestation certificate secret", "Secret.Namespace", r.namespace, "Secret.Name", secretName)
-		secret := r.generateAttestationCertSecret(certData)
-		err = r.Create(ctx, secret)
+		secret, err := r.generateAttestationCertSecret(certData)
 		if err != nil {
+			return err
+		}
+		if err = r.Create(ctx, secret); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -1071,7 +1024,7 @@ func (r *TrusteeConfigReconciler) createOrUpdateAttestationCertSecret(ctx contex
 }
 
 // generateAttestationCertSecret creates a Secret for attestation certificate
-func (r *TrusteeConfigReconciler) generateAttestationCertSecret(certData []byte) *corev1.Secret {
+func (r *TrusteeConfigReconciler) generateAttestationCertSecret(certData []byte) (*corev1.Secret, error) {
 	secretName := r.getAttestationCertSecretName()
 
 	data := make(map[string][]byte)
@@ -1086,10 +1039,10 @@ func (r *TrusteeConfigReconciler) generateAttestationCertSecret(certData []byte)
 		Data: data,
 	}
 
-	// Set TrusteeConfig as the owner
-	_ = ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
-
-	return secret
+	if err := ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme); err != nil {
+		return nil, err
+	}
+	return secret, nil
 }
 
 // getAttestationKeySecretName returns the name for the attestation key secret
@@ -1103,7 +1056,7 @@ func (r *TrusteeConfigReconciler) getAttestationCertSecretName() string {
 }
 
 // generateAttestationKeySecret creates a Secret for attestation private key
-func (r *TrusteeConfigReconciler) generateAttestationKeySecret(keyData []byte) *corev1.Secret {
+func (r *TrusteeConfigReconciler) generateAttestationKeySecret(keyData []byte) (*corev1.Secret, error) {
 	secretName := r.getAttestationKeySecretName()
 
 	data := make(map[string][]byte)
@@ -1118,10 +1071,10 @@ func (r *TrusteeConfigReconciler) generateAttestationKeySecret(keyData []byte) *
 		Data: data,
 	}
 
-	// Set TrusteeConfig as the owner
-	_ = ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme)
-
-	return secret
+	if err := ctrl.SetControllerReference(r.trusteeConfig, secret, r.Scheme); err != nil {
+		return nil, err
+	}
+	return secret, nil
 }
 
 // generateResourcePolicyConfigMap creates a ConfigMap for resource policy
