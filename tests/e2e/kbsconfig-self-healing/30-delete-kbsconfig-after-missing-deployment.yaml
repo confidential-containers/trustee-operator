@@ -1,0 +1,10 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  # Delete the deployment first to simulate it being absent at deletion time,
+  # then immediately delete KbsConfig before the operator can recreate it.
+  # Without the IsNotFound guard in finalizeKbsConfig, the finalizer would
+  # fail and KbsConfig would be stuck in Terminating state forever.
+  - script: |
+      kubectl delete deployment trustee-deployment -n trustee-operator-system --ignore-not-found
+      kubectl delete kbsconfig kbsconfig-sample -n trustee-operator-system

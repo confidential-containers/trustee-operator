@@ -165,6 +165,12 @@ func (r *KbsConfigReconciler) finalizeKbsConfig(ctx context.Context) error {
 		Name:      KbsDeploymentName,
 	}, deployment)
 	if err != nil {
+		// If the deployment is already gone there is nothing to delete.
+		// Treat this as success so the finalizer can be removed and
+		// KbsConfig is not left stuck in Terminating state.
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 	err = r.Delete(ctx, deployment)
