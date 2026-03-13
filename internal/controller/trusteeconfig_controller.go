@@ -28,6 +28,7 @@ import (
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -186,29 +187,32 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfig(ctx context.Context, s
 		return nil
 	}
 
-	// Check if KbsConfig has been manually modified by comparing with generated spec
-	// and checking if user-configurable fields differ from what we would generate
-	hasManualChanges := r.detectManualChanges(found.Spec, spec)
-
-	if hasManualChanges {
+	// Compute the desired spec, preserving any manual overrides.
+	var desiredSpec confidentialcontainersorgv1alpha1.KbsConfigSpec
+	if r.detectManualChanges(found.Spec, spec) {
 		r.log.Info("Manual changes detected in KbsConfig, performing smart merge",
 			"KbsConfig.Namespace", r.namespace, "KbsConfig.Name", kbsConfigName)
-		mergedSpec := r.mergeKbsConfigSpecs(spec, found.Spec)
-		found.Spec = mergedSpec
+		desiredSpec = r.mergeKbsConfigSpecs(spec, found.Spec)
 	} else {
 		r.log.Info("No manual changes detected, applying generated spec")
-		found.Spec = spec
+		desiredSpec = spec
 	}
 
-	// Update existing KbsConfig
-	r.log.Info("Updating existing KbsConfig", "KbsConfig.Namespace", r.namespace, "KbsConfig.Name", kbsConfigName)
-	err = r.Update(ctx, found)
-	if err != nil {
-		r.log.Error(err, "Failed to update KbsConfig")
-		return nil
+	// Only call r.Update when the spec has actually changed. An unconditional
+	// Update increments resourceVersion which fires the Watches(&KbsConfig{})
+	// handler in SetupWithManager, enqueuing another TrusteeConfig reconcile,
+	// which would update KbsConfig again — an infinite reconcile loop.
+	if !apiequality.Semantic.DeepEqual(found.Spec, desiredSpec) {
+		found.Spec = desiredSpec
+		r.log.Info("Updating existing KbsConfig", "KbsConfig.Namespace", r.namespace, "KbsConfig.Name", kbsConfigName)
+		err = r.Update(ctx, found)
+		if err != nil {
+			r.log.Error(err, "Failed to update KbsConfig")
+			return nil
+		}
 	}
 
-	// Refresh the KbsConfig to get the latest status
+	// Refresh to pick up the latest status written by the KbsConfig controller.
 	err = r.Get(ctx, client.ObjectKey{
 		Namespace: r.namespace,
 		Name:      kbsConfigName,
