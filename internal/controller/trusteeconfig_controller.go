@@ -26,9 +26,9 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -86,7 +86,11 @@ func (r *TrusteeConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// Build the KbsConfigSpec based on TrusteeConfig
-	kbsConfigSpec := r.buildKbsConfigSpec(ctx)
+	kbsConfigSpec, err := r.buildKbsConfigSpec(ctx)
+	if err != nil {
+		r.log.Error(err, "Failed to build KbsConfig spec")
+		return ctrl.Result{}, err
+	}
 
 	// Create or update the KbsConfig
 	kbsConfig := r.createOrUpdateKbsConfig(ctx, kbsConfigSpec)
@@ -337,8 +341,11 @@ func (r *TrusteeConfigReconciler) mergeKbsConfigSpecs(generatedSpec, manualSpec 
 	return merged
 }
 
-// buildKbsConfigSpec builds the KbsConfigSpec based on TrusteeConfig
-func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) confidentialcontainersorgv1alpha1.KbsConfigSpec {
+// buildKbsConfigSpec builds the KbsConfigSpec based on TrusteeConfig.
+// Returns an error if any required resource cannot be created so that
+// Reconcile can return the error and let controller-runtime retry rather
+// than silently applying a partial spec to KbsConfig.
+func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) (confidentialcontainersorgv1alpha1.KbsConfigSpec, error) {
 	spec := confidentialcontainersorgv1alpha1.KbsConfigSpec{}
 
 	// Set service type from TrusteeConfig
@@ -353,210 +360,136 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) confid
 	spec.KbsDeploymentSpec.Replicas = &defaultReplicas
 
 	// Configure based on profile type
+	var err error
 	switch r.trusteeConfig.Spec.Profile {
 	case confidentialcontainersorgv1alpha1.ProfileTypePermissive:
 		r.log.Info("Configuring KbsConfig for Permissive profile")
-		spec = r.configurePermissiveProfile(ctx, spec)
+		spec, err = r.configurePermissiveProfile(ctx, spec)
 	case confidentialcontainersorgv1alpha1.ProfileTypeRestrictive:
 		r.log.Info("Configuring KbsConfig for Restricted profile")
-		spec = r.configureRestrictedProfile(ctx, spec)
+		spec, err = r.configureRestrictedProfile(ctx, spec)
 	default:
 		r.log.Info("Unknown profile type, using default Permissive profile")
-		spec = r.configurePermissiveProfile(ctx, spec)
+		spec, err = r.configurePermissiveProfile(ctx, spec)
+	}
+	if err != nil {
+		return spec, err
 	}
 
 	// Configure HTTPS if specified
 	if r.trusteeConfig.Spec.HttpsSpec.TlsSecretName != "" {
-		err := r.createOrUpdateHttpsSecrets(ctx)
-		if err != nil {
-			r.log.Error(err, "Error creating HTTPS secrets")
-			return spec
+		if err = r.createOrUpdateHttpsSecrets(ctx); err != nil {
+			return spec, fmt.Errorf("HTTPS secrets: %w", err)
 		}
 		spec = r.configureHttps(spec)
 	}
 
 	// Configure attestation token verification if specified
 	if r.trusteeConfig.Spec.AttestationTokenVerificationSpec.TlsSecretName != "" {
-		err := r.createOrUpdateAttestationSecrets(ctx)
-		if err != nil {
-			r.log.Error(err, "Error creating attestation secrets")
-			return spec
+		if err = r.createOrUpdateAttestationSecrets(ctx); err != nil {
+			return spec, fmt.Errorf("attestation secrets: %w", err)
 		}
 		spec = r.configureAttestationTokenVerification(spec)
 	}
 
-	return spec
+	return spec, nil
 }
 
 // configurePermissiveProfile configures KbsConfig for permissive mode
-func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context, spec confidentialcontainersorgv1alpha1.KbsConfigSpec) confidentialcontainersorgv1alpha1.KbsConfigSpec {
+func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context, spec confidentialcontainersorgv1alpha1.KbsConfigSpec) (confidentialcontainersorgv1alpha1.KbsConfigSpec, error) {
 	// Set environment variables for permissive mode
 	if spec.KbsEnvVars == nil {
 		spec.KbsEnvVars = make(map[string]string)
 	}
 	spec.KbsEnvVars["RUST_LOG"] = "debug"
 
-	// Create the KBS config map
-	err := r.createOrUpdateKbsConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating KBS config map", "err", err)
-		return spec
+	if err := r.createOrUpdateKbsConfigMap(ctx); err != nil {
+		return spec, fmt.Errorf("KBS ConfigMap: %w", err)
+	}
+	if err := r.createOrUpdateKbsAuthSecret(ctx); err != nil {
+		return spec, fmt.Errorf("KBS auth Secret: %w", err)
+	}
+	if err := r.createOrUpdateKbsSampleSecret(ctx); err != nil {
+		return spec, fmt.Errorf("KBS sample Secret: %w", err)
+	}
+	if err := r.createOrUpdateResourcePolicyConfigMap(ctx); err != nil {
+		return spec, fmt.Errorf("resource policy ConfigMap: %w", err)
 	}
 
-	// Create the KBS auth secret
-	err = r.createOrUpdateKbsAuthSecret(ctx)
-	if err != nil {
-		r.log.Info("Error creating KBS auth secret", "err", err)
-		return spec
-	}
-
-	// Create the sample secret kbsre1
-	err = r.createOrUpdateKbsSampleSecret(ctx)
-	if err != nil {
-		r.log.Info("Error creating KBS sample secret", "err", err)
-		return spec
-	}
-
-	// Create the resource policy config map
-	err = r.createOrUpdateResourcePolicyConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating resource policy config map", "err", err)
-		return spec
-	}
-
-	// Set the config map, auth secret, and resource policy config map names in the spec
 	spec.KbsConfigMapName = r.getKbsConfigMapName()
 	spec.KbsAuthSecretName = r.getKbsAuthSecretName()
 	spec.KbsResourcePolicyConfigMapName = r.getResourcePolicyConfigMapName()
-	// Set the sample secret
 	spec.KbsSecretResources = append(spec.KbsSecretResources, r.getKbsSampleSecretName())
 
-	// Create the RVPS reference values config map
-	err = r.createOrUpdateRvpsReferenceValuesConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating RVPS reference values config map", "err", err)
-		return spec
+	if err := r.createOrUpdateRvpsReferenceValuesConfigMap(ctx); err != nil {
+		return spec, fmt.Errorf("RVPS reference values ConfigMap: %w", err)
 	}
-
-	// Set the RVPS reference values config map name in the spec
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
 
-	// Create the TDX config map
-	err = r.createOrUpdateTdxConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating TDX config map", "err", err)
-		return spec
+	if err := r.createOrUpdateTdxConfigMap(ctx); err != nil {
+		return spec, fmt.Errorf("TDX ConfigMap: %w", err)
 	}
-
-	// Set the TDX config map name in the spec
 	spec.TdxConfigSpec.KbsTdxConfigMapName = r.getTdxConfigMapName()
 
-	// Create the CPU attestation policy config map
-	err = r.createOrUpdateAttestationPolicyConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating CPU attestation policy config map", "err", err)
-		return spec
+	if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
+		return spec, fmt.Errorf("CPU attestation policy ConfigMap: %w", err)
 	}
-
-	// Set the CPU attestation policy config map name in the spec
 	spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
 
-	// Create the GPU attestation policy config map
-	err = r.createOrUpdateGpuAttestationPolicyConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating GPU attestation policy config map", "err", err)
-		return spec
+	if err := r.createOrUpdateGpuAttestationPolicyConfigMap(ctx); err != nil {
+		return spec, fmt.Errorf("GPU attestation policy ConfigMap: %w", err)
 	}
-
-	// Set the GPU attestation policy config map name in the spec
 	spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
 
-	return spec
+	return spec, nil
 }
 
 // configureRestrictedProfile configures KbsConfig for restricted mode
-func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context, spec confidentialcontainersorgv1alpha1.KbsConfigSpec) confidentialcontainersorgv1alpha1.KbsConfigSpec {
+func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context, spec confidentialcontainersorgv1alpha1.KbsConfigSpec) (confidentialcontainersorgv1alpha1.KbsConfigSpec, error) {
 	if spec.KbsEnvVars == nil {
 		spec.KbsEnvVars = make(map[string]string)
 	}
 
-	// Create the KBS config map
-	err := r.createOrUpdateKbsConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating KBS config map", "err", err)
-		return spec
+	if err := r.createOrUpdateKbsConfigMap(ctx); err != nil {
+		return spec, fmt.Errorf("KBS ConfigMap: %w", err)
+	}
+	if err := r.createOrUpdateKbsAuthSecret(ctx); err != nil {
+		return spec, fmt.Errorf("KBS auth Secret: %w", err)
+	}
+	if err := r.createOrUpdateKbsSampleSecret(ctx); err != nil {
+		return spec, fmt.Errorf("KBS sample Secret: %w", err)
 	}
 
-	// Create the KBS auth secret
-	err = r.createOrUpdateKbsAuthSecret(ctx)
-	if err != nil {
-		r.log.Info("Error creating KBS auth secret", "err", err)
-		return spec
-	}
-
-	// Create the sample secret kbsres1
-	err = r.createOrUpdateKbsSampleSecret(ctx)
-	if err != nil {
-		r.log.Info("Error creating KBS sample secret", "err", err)
-		return spec
-	}
-
-	// Set the config map, auth secret, and resource policy config map names in the spec
 	spec.KbsConfigMapName = r.getKbsConfigMapName()
 	spec.KbsAuthSecretName = r.getKbsAuthSecretName()
 	spec.KbsSecretResources = append(spec.KbsSecretResources, r.getKbsSampleSecretName())
 
-	// Create the resource policy config map
-	err = r.createOrUpdateResourcePolicyConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating resource policy config map", "err", err)
-		return spec
+	if err := r.createOrUpdateResourcePolicyConfigMap(ctx); err != nil {
+		return spec, fmt.Errorf("resource policy ConfigMap: %w", err)
 	}
-
-	// Set the resource policy config map name in the spec
 	spec.KbsResourcePolicyConfigMapName = r.getResourcePolicyConfigMapName()
 
-	// Create the RVPS reference values config map
-	err = r.createOrUpdateRvpsReferenceValuesConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating RVPS reference values config map", "err", err)
-		return spec
+	if err := r.createOrUpdateRvpsReferenceValuesConfigMap(ctx); err != nil {
+		return spec, fmt.Errorf("RVPS reference values ConfigMap: %w", err)
 	}
-
-	// Set the RVPS reference values config map name in the spec
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
 
-	// Create the TDX config map
-	err = r.createOrUpdateTdxConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating TDX config map", "err", err)
-		return spec
+	if err := r.createOrUpdateTdxConfigMap(ctx); err != nil {
+		return spec, fmt.Errorf("TDX ConfigMap: %w", err)
 	}
-
-	// Set the TDX config map name in the spec
 	spec.TdxConfigSpec.KbsTdxConfigMapName = r.getTdxConfigMapName()
 
-	// Create the CPU attestation policy config map
-	err = r.createOrUpdateAttestationPolicyConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating CPU attestation policy config map", "err", err)
-		return spec
+	if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
+		return spec, fmt.Errorf("CPU attestation policy ConfigMap: %w", err)
 	}
-
-	// Set the CPU attestation policy config map name in the spec
 	spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
 
-	// Create the GPU attestation policy config map
-	err = r.createOrUpdateGpuAttestationPolicyConfigMap(ctx)
-	if err != nil {
-		r.log.Info("Error creating GPU attestation policy config map", "err", err)
-		return spec
+	if err := r.createOrUpdateGpuAttestationPolicyConfigMap(ctx); err != nil {
+		return spec, fmt.Errorf("GPU attestation policy ConfigMap: %w", err)
 	}
-
-	// Set the GPU attestation policy config map name in the spec
 	spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
 
-	return spec
+	return spec, nil
 }
 
 // configureHttps configures HTTPS settings for KbsConfig
