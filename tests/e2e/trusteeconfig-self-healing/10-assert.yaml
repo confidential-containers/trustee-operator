@@ -1,0 +1,19 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+timeout: 180
+---
+apiVersion: confidentialcontainers.org/v1alpha1
+kind: TrusteeConfig
+metadata:
+  name: trusteeconfig-sample
+  namespace: trustee-operator-system
+status:
+  isReady: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trustee-deployment
+  namespace: trustee-operator-system
+status:
+  readyReplicas: 1
