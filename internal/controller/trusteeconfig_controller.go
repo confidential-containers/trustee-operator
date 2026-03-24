@@ -99,9 +99,6 @@ func (r *TrusteeConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, fmt.Errorf("failed to create or update KbsConfig")
 	}
 
-	// Update the TrusteeConfig status
-	r.trusteeConfig.Status.IsReady = true
-
 	// Set the KbsConfig reference
 	r.trusteeConfig.Status.KbsConfigRef = &corev1.ObjectReference{
 		APIVersion: "confidentialcontainers.org/v1alpha1",
@@ -109,15 +106,16 @@ func (r *TrusteeConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		Name:       kbsConfig.Name,
 		Namespace:  kbsConfig.Namespace,
 	}
-	// Set status description based on KbsConfig readiness.
-	// The Watches(&KbsConfig{}) in SetupWithManager will re-trigger this
-	// reconcile when KbsConfig.Status.IsReady transitions to true, so there
-	// is no need to poll with RequeueAfter.
+	// TrusteeConfig is only considered ready when the underlying KbsConfig
+	// deployment is also ready. The Watches(&KbsConfig{}) in SetupWithManager
+	// will re-trigger this reconcile when KbsConfig.Status.IsReady transitions
+	// to true, so there is no need to poll with RequeueAfter.
 	r.log.V(1).Info("KbsConfig status check", "KbsConfig.IsReady", kbsConfig.Status.IsReady, "KbsConfig.Name", kbsConfig.Name)
+	r.trusteeConfig.Status.IsReady = kbsConfig.Status.IsReady
 	if kbsConfig.Status.IsReady {
 		r.trusteeConfig.Status.StatusDescription = "TrusteeConfig is ready and KbsConfig is deployed successfully"
 	} else {
-		r.trusteeConfig.Status.StatusDescription = "TrusteeConfig is ready but KbsConfig deployment is in progress"
+		r.trusteeConfig.Status.StatusDescription = "TrusteeConfig reconciled but KbsConfig deployment is in progress"
 		r.log.Info("KbsConfig not ready yet, waiting for KbsConfig status update")
 	}
 
