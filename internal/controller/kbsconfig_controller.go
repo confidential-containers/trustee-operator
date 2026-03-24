@@ -608,6 +608,11 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 			},
 		},
 	}
+	// Set KbsConfig instance as the owner and controller
+	err = ctrl.SetControllerReference(r.kbsConfig, deployment, r.Scheme)
+	if err != nil {
+		return nil, err
+	}
 	return deployment, nil
 }
 
@@ -875,6 +880,9 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// deletion triggers reconciliation and the controller recreates them.
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Secret{}).
+		// Watch Deployment and Service to trigger reconciliation when their status changes
+		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Service{}).
 		Complete(r)
 }
 
@@ -1027,11 +1035,8 @@ func (r *KbsConfigReconciler) updateKbsConfigStatus(ctx context.Context) error {
 		}
 	}
 
-	// Only write the status subresource when something actually changed
-	if newIsReady == oldIsReady {
-		return nil
-	}
-
+	// Always update status to ensure it's initialized, even on first reconcile.
+	// The Status().Update() call will handle deduplication if nothing changed.
 	r.kbsConfig.Status.IsReady = newIsReady
 	err = r.Status().Update(ctx, r.kbsConfig)
 	if err != nil {
