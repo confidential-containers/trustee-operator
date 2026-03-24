@@ -169,7 +169,7 @@ type KbsConfigStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// IsReady is true when the KBS configuration is ready
-	IsReady bool `json:"isReady,omitempty"`
+	IsReady bool `json:"isReady"`
 }
 
 //+kubebuilder:object:root=true
