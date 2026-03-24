@@ -208,19 +208,23 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 		return err
 	}
 
-	// Service already exists, so update the service
+	// Service already exists, so update the mutable fields on the fetched
+	// object (which carries the required ResourceVersion) rather than
+	// on a freshly-constructed one.
 	r.log.Info("Updating the service", "Service.Namespace", r.namespace, "Service.Name", KbsServiceName)
-	service := r.newKbsService(ctx)
-	// If service object is nil, return error
-	if service == nil {
+	desired := r.newKbsService(ctx)
+	if desired == nil {
 		return fmt.Errorf("failed to get KBS service definition")
 	}
-	err = r.Update(ctx, service)
+	found.Spec.Ports = desired.Spec.Ports
+	found.Spec.Selector = desired.Spec.Selector
+	found.Spec.Type = desired.Spec.Type
+	err = r.Update(ctx, found)
 	if err != nil {
 		r.Recorder.Event(r.kbsConfig, corev1.EventTypeWarning, "ServiceUpdateFailed", err.Error())
 		return err
 	}
-	// Service updated successfully - ret
+	// Service updated successfully
 	return nil
 }
 
