@@ -706,6 +706,9 @@ func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMoun
 	} else {
 		imageName = os.Getenv("KBS_IMAGE_NAME_MICROSERVICES")
 	}
+	if imageName == "" {
+		imageName = DefaultKbsImageName
+	}
 
 	// command array for the KBS container
 	command := []string{
