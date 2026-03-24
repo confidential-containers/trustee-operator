@@ -1,0 +1,22 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  # Record the KbsConfig resourceVersion, wait long enough for multiple
+  # reconcile cycles to occur if there is a loop, then verify it has not
+  # changed.  An unconditional r.Update in createOrUpdateKbsConfig would
+  # cause the Watches(&KbsConfig{}) handler to re-enqueue TrusteeConfig
+  # reconcile on every cycle, incrementing resourceVersion continuously.
+  - script: |
+      KBSCONFIG=trusteeconfig-sample-kbs-config
+      NS=trustee-operator-system
+      RV_BEFORE=$(kubectl get kbsconfig "$KBSCONFIG" -n "$NS" \
+        -o jsonpath='{.metadata.resourceVersion}')
+      echo "resourceVersion before: $RV_BEFORE"
+      sleep 20
+      RV_AFTER=$(kubectl get kbsconfig "$KBSCONFIG" -n "$NS" \
+        -o jsonpath='{.metadata.resourceVersion}')
+      echo "resourceVersion after:  $RV_AFTER"
+      if [ "$RV_BEFORE" != "$RV_AFTER" ]; then
+        echo "KbsConfig resourceVersion changed during idle period — reconcile loop detected"
+        exit 1
+      fi
