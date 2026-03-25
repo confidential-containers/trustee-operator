@@ -1,0 +1,15 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+timeout: 120
+---
+# Verify the service type was actually updated on the live Service object.
+# Before the fix, the operator passed a freshly-constructed Service (no
+# ResourceVersion) to r.Update, causing a 422 conflict; the type was
+# therefore permanently stuck at ClusterIP regardless of what KbsConfig said.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kbs-service
+  namespace: trustee-operator-system
+spec:
+  type: NodePort
