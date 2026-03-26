@@ -183,20 +183,20 @@ hardware := 2 if {
  # Check TCB status (covers quote.body.tcb_svn claim check)
   input.tdx.tcb_status == "UpToDate"
 
-	# Check minimum TCB date
-	# An alternative check to tcb_status is to define a minimum acceptable
-	# TCB date. TCB dates are associated with TCB Recovery events to which
-	# the platforms are certified.
-	#
-	# Available TCB dates can be checked using:
-	# curl -s https://api.trustedservices.intel.com/tdx/certification/v4/tcbevaluationdatanumbers | jq
-	#
-	# Example: in some cases, "OutOfDate" tcb_status can be accepted as long as
-	# the tcb_date is not older than a given date from a past TCB Recovery event:
-	# min_tcb_date := "2025-08-13T00:00:00Z"
-	# attester_tcb_date_ns := time.parse_rfc3339_ns(input.tdx.tcb_date)
-	# min_tcb_date_ns := time.parse_rfc3339_ns(min_tcb_date)
-	# attester_tcb_date_ns >= min_tcb_date_ns
+# Check minimum TCB date
+# An alternative check to tcb_status is to define a minimum acceptable
+# TCB date. TCB dates are associated with TCB Recovery events to which
+# the platforms are certified.
+#
+# Available TCB dates can be checked using:
+# curl -s https://api.trustedservices.intel.com/tdx/certification/v4/tcbevaluationdatanumbers | jq
+#
+# Example: in some cases, "OutOfDate" tcb_status can be accepted as long as
+# the tcb_date is not older than a given date from a past TCB Recovery event:
+# min_tcb_date := "2025-08-13T00:00:00Z"
+# attester_tcb_date_ns := time.parse_rfc3339_ns(input.tdx.tcb_date)
+# min_tcb_date_ns := time.parse_rfc3339_ns(min_tcb_date)
+# attester_tcb_date_ns >= min_tcb_date_ns
 
   # Check collateral expiration status
   input.tdx.collateral_expiration_status == "0"
@@ -285,16 +285,16 @@ hardware := 2 if {
   input.az_tdx_vtpm.quote.header.tee_type == "81000000"
   input.az_tdx_vtpm.quote.header.vendor_id == "939a7233f79c4ca9940a0db3957f0607"
 
-	# Check TDX Module hash
-	# input.tdx.quote.body.mr_seam in query_reference_value("mr_seam")
-	#
-	# Check OVMF code hash
-	input.az_tdx_vtpm.quote.body.mr_td in query_reference_value("mr_td")
+# Check TDX Module hash
+# input.tdx.quote.body.mr_seam in query_reference_value("mr_seam")
+#
+# Check OVMF code hash
+input.az_tdx_vtpm.quote.body.mr_td in query_reference_value("mr_td")
 
-	# Check TCB status (covers quote.body.tcb_svn claim check)
-	input.az_tdx_vtpm.tcb_status == "UpToDate"
+# Check TCB status (covers quote.body.tcb_svn claim check)
+input.az_tdx_vtpm.tcb_status == "UpToDate"
 
-	# Check minimum TCB date (See TDX section for details.)
+# Check minimum TCB date (See TDX section for details.)
 }
 
 configuration := 2 if {
