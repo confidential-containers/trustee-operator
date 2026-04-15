@@ -5,8 +5,8 @@ metadata:
     alm-examples: '[]'
     capabilities: Basic Install
     categories: Security
-    containerImage: quay.io/confidential-containers/trustee-operator:v0.18.0
-    createdAt: "2026-04-13T18:28:49Z"
+    containerImage: quay.io/confidential-containers/trustee-operator:v0.19.0
+    createdAt: "2026-04-15T11:53:42Z"
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
     features.operators.openshift.io/proxy-aware: "true"
@@ -18,7 +18,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.42.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     support: Confidential Containers Community
-  name: trustee-operator.v0.18.0
+  name: trustee-operator.v0.19.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -160,14 +160,14 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: KBS_IMAGE_NAME
-                  value: ghcr.io/confidential-containers/key-broker-service:built-in-as-v0.18.0
+                  value: ghcr.io/confidential-containers/key-broker-service:built-in-as-v0.19.0
                 - name: KBS_IMAGE_NAME_MICROSERVICES
-                  value: ghcr.io/confidential-containers/key-broker-service:v0.18.0
+                  value: ghcr.io/confidential-containers/key-broker-service:v0.19.0
                 - name: AS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/rvps:latest
-                image: quay.io/confidential-containers/trustee-operator:v0.18.0
+                image: quay.io/confidential-containers/trustee-operator:v0.19.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -260,5 +260,5 @@ spec:
   provider:
     name: Confidential Containers Community
     url: https://github.com/confidential-containers
-  replaces: trustee-operator.v0.17.0
-  version: 0.18.0
+  replaces: trustee-operator.v0.18.0
+  version: 0.19.0
