@@ -1,0 +1,43 @@
+apiVersion: confidentialcontainers.org/v1alpha1
+kind: TrusteeConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: trusteeconfig
+    app.kubernetes.io/instance: trusteeconfig-restricted
+    app.kubernetes.io/part-of: trustee-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: trustee-operator
+  name: trusteeconfig-restricted
+  namespace: trustee-operator-system
+spec:
+  # Restricted profile for production use:
+  # - Enforces HTTPS configuration (required)
+  # - Restrictive resource policy
+  # - insecure_api set to false
+  # - insecure_key set to false
+  # - No debug logging
+  profileType: Restricted
+
+  # Service type for KBS
+  # For production, consider using LoadBalancer or Ingress
+  kbsServiceType: ClusterIP
+
+  # HTTPS configuration (REQUIRED for Restricted profile)
+  # You must create a Kubernetes TLS secret before applying this configuration
+  # Example:
+  #   kubectl create secret tls kbs-https-certificate \
+  #     --cert=path/to/tls.crt \
+  #     --key=path/to/tls.key \
+  #     -n trustee-operator-system
+  httpsSpec:
+    tlsSecretName: kbs-https-certificate
+
+  # Attestation token verification (RECOMMENDED for production)
+  # Verifies attestation tokens using a trusted certificate authority
+  # Create the secret with your CA certificate:
+  #   kubectl create secret tls attestation-token-certificate \
+  #     --cert=path/to/token.crt \
+  #     --key=path/to/token.key \
+  #     -n trustee-operator-system
+  attestationTokenVerificationSpec:
+    tlsSecretName: attestation-token-certificate
