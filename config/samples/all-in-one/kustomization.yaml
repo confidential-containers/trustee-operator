@@ -1,44 +1,23 @@
-## Append samples you want in your CSV to this file as resources ##
+## TrusteeConfig samples - Recommended approach ##
+# TrusteeConfig automatically generates all required ConfigMaps and Secrets
+# for KBS deployment, simplifying the configuration process.
+
 namespace: trustee-operator-system
-generatorOptions:
-  disableNameSuffixHash: true
-
-# uncomment to generate secrets for kbs authorization
-secretGenerator:
-- name: kbs-auth-public-key
-  files:
-  - kbs.pem
-- name: kbs-client
-  files:
-  - privateKey
-
-# uncomment the following lines for injecting sample resources in kbs
-- name: kbsres1
-  literals:
-  - key1=res1val1
-  - key2=res1val2
-
-patches:
-- path: patch-ref-values.yaml
-- path: patch-attestation-policy.yaml
-- path: patch-resource-policy.yaml
-- path: patch-tdx-config.yaml
-# uncomment the following line for injecting sample resources in kbs
-- path: patch-kbs-resources.yaml
-# uncomment the following line for enabling DEBUG logs
-- path: patch-env-vars.yaml
 
 resources:
-- kbsconfig_sample.yaml
-- kbs-config.yaml
-- rvps-reference-values.yaml
-- attestation-policy.yaml
-- ibmse-attestation-policy.yaml
-- ibmse-resource-policy.yaml
-- resource-policy.yaml
-- tdx-config.yaml
-- ita-kbs-config.yaml
-- ita-resource-policy.yaml
-- ibmse-pv.yaml
-- ibmse-pvc.yaml
+# Basic permissive configuration (recommended for development/testing)
+- trusteeconfig-basic.yaml
+
+# Uncomment for production-ready restricted configuration
+# - trusteeconfig-restricted.yaml
+
+# Platform-specific examples (IBM SE)
+# Uncomment if you need IBM Secure Execution support
+# - ibmse-pv.yaml
+# - ibmse-pvc.yaml
+
+# Legacy KbsConfig approach (deprecated - for reference only)
+# See the legacy/ directory for old-style manual ConfigMap/Secret samples
+# - kbsconfig_sample.yaml
+
 #+kubebuilder:scaffold:manifestskustomizesamples

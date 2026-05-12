@@ -1,0 +1,35 @@
+apiVersion: confidentialcontainers.org/v1alpha1
+kind: TrusteeConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: trusteeconfig
+    app.kubernetes.io/instance: trusteeconfig-basic
+    app.kubernetes.io/part-of: trustee-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: trustee-operator
+  name: trusteeconfig-basic
+  namespace: trustee-operator-system
+spec:
+  # Permissive profile auto-generates all required ConfigMaps and Secrets:
+  # - kbs-config.toml with insecure settings for development
+  # - attestation policies (CPU and GPU)
+  # - resource policy (permissive)
+  # - reference values
+  # - TDX configuration
+  # - sample secrets for testing
+  # - debug logging enabled (RUST_LOG=debug)
+  profileType: Permissive
+
+  # Service type for KBS (default: ClusterIP)
+  # Can be changed to NodePort or LoadBalancer for external access
+  kbsServiceType: ClusterIP
+
+  # HTTPS configuration (optional)
+  # Uncomment to enable HTTPS with your own TLS certificate
+  # httpsSpec:
+  #   tlsSecretName: kbs-https-certificate
+
+  # Attestation token verification (optional)
+  # Uncomment to enable attestation token verification with a trusted CA
+  # attestationTokenVerificationSpec:
+  #   tlsSecretName: attestation-token-certificate

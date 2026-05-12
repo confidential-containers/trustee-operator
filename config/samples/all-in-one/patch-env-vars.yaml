@@ -1,8 +1,0 @@
-apiVersion: confidentialcontainers.org/v1alpha1
-kind: KbsConfig
-metadata:
-  name: kbsconfig-sample
-  namespace: trustee-operator-system
-spec:
-  KbsEnvVars: 
-    RUST_LOG: debug
