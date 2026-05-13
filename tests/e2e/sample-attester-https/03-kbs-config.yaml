@@ -19,12 +19,12 @@ data:
 
     [attestation_token]
     insecure_key = true
-    attestation_token_type = "CoCo"
 
     [attestation_service]
     type = "coco_as_builtin"
+    timeout = 5
 
-    [attestation_service.attestation_token_config]
+    [attestation_service.attestation_token_broker]
     duration_min = 5
 
     [attestation_service.rvps_config]
@@ -50,4 +50,3 @@ data:
     [[plugins]]
     name = "resource"
     storage_backend_type = "kvstorage"
-  
