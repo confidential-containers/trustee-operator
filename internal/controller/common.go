@@ -48,10 +48,16 @@ const (
 
 	confidentialContainersPath = rootPath + "/" + confidentialContainers
 
-	repositoryPath = confidentialContainersPath + "/kbs/repository"
+	repositoryPath = confidentialContainersPath + "/storage/repository"
 
 	// Default KBS Resources Path
 	kbsResourcesPath = repositoryPath + "/" + defaultRepository
+
+	// KBS storage path
+	kbsStoragePath = confidentialContainersPath + "/storage/kbs"
+
+	// Resource policy filename
+	resourcePolicyFilename = "resource-policy.rego"
 
 	// Default KBS config path
 	kbsDefaultConfigPath = "/etc"
@@ -63,7 +69,7 @@ const (
 	rvpsDefaultConfigPath = "/etc"
 
 	// Default RVPS reference values Path
-	rvpsReferenceValuesPath = confidentialContainersPath + "/rvps"
+	rvpsReferenceValuesPath = confidentialContainersPath + "/storage/local_json"
 
 	// TDX config file
 	tdxConfigFile = "sgx_default_qcnl.conf"
@@ -72,7 +78,7 @@ const (
 	ibmSePath = "/run/confidential-containers/ibmse/"
 
 	// Attestation policy path
-	attestationPolicyPath = confidentialContainersPath + "/attestation-service/policies/opa"
+	attestationPolicyPath = confidentialContainersPath + "/storage/attestation_service_policy"
 
 	// default attestation policy filename for cpu
 	defaultAttestationCpuPolicy = "default_cpu.rego"

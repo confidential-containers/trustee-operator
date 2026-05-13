@@ -4,7 +4,7 @@ metadata:
   name: ibmse-resource-policy
   namespace: trustee-operator-system
 data:
-  policy.rego: |
+  resource-policy.rego: |
     package policy
     default allow = false
     path := split(data["resource-path"], "/")

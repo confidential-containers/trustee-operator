@@ -4,7 +4,7 @@ metadata:
   name: resource-policy
   namespace: trustee-operator-system
 data:
-  policy.rego: |
+  resource-policy.rego: |
     package policy
     import rego.v1
 

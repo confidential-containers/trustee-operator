@@ -4,22 +4,11 @@ metadata:
   name: rvps-reference-values
   namespace: trustee-operator-system
 data:
-  reference-values.json: |
-    [
-      {
-        "name": "svn",
-        "expiration": "2027-01-01T00:00:00Z",
-        "value" : 1
-      },
-      {
-        "name": "major_version",
-        "expiration": "2027-01-01T00:00:00Z",
-        "value" : 1
-      },
-      {
-        "name": "minimum_minor_version",
-        "expiration": "2027-01-01T00:00:00Z",
-        "value" : 4
-      }
-    ]
+  reference_value: |
+    {
+      "svn":"eyJuYW1lIjoic3ZuIiwiZXhwaXJhdGlvbiI6IjIwMjctMDEtMDFUMDA6MDA6MDBaIiwidmFsdWUiOjF9",
+      "major_version":"eyJuYW1lIjoibWFqb3JfdmVyc2lvbiIsImV4cGlyYXRpb24iOiIyMDI3LTAxLTAxVDAwOjAwOjAwWiIsInZhbHVlIjoxfQ==",
+      "minimum_minor_version":"eyJuYW1lIjoibWluaW11bV9taW5vcl92ZXJzaW9uIiwiZXhwaXJhdGlvbiI6IjIwMjctMDEtMDFUMDA6MDA6MDBaIiwidmFsdWUiOjR9"
+    }
+
 
