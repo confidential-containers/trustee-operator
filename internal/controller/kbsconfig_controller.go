@@ -356,7 +356,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	var asVM []corev1.VolumeMount
 	var rvpsVM []corev1.VolumeMount
 
-	// The paths /opt/confidential-container and /opt/confidential-container/kbs/repository/default
+	// The paths /opt/confidential-container and /opt/confidential-container/storage/repository/default
 	// are mounted as a RW volume in memory to allow trustee components
 	// to have full access to the filesystem
 	// confidential-containers
@@ -404,7 +404,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		if err != nil {
 			return nil, err
 		}
-		// attestation policy file is "/opt/confidential-containers/attestation-service/policies/opa/default_cpu.rego"
+		// attestation policy file is "/opt/confidential-containers/storage/attestation_service_policy/default_cpu.rego"
 		volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(attestationPolicyPath, defaultAttestationCpuPolicy), defaultAttestationCpuPolicy)
 		volumes = append(volumes, *volume)
 		if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
@@ -420,7 +420,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		if err != nil {
 			return nil, err
 		}
-		// GPU attestation policy file is "/opt/confidential-containers/attestation-service/policies/opa/default_gpu.rego"
+		// GPU attestation policy file is "/opt/confidential-containers/storage/attestation_service_policy/default_gpu.rego"
 		volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(attestationPolicyPath, defaultAttestationGpuPolicy), defaultAttestationGpuPolicy)
 		volumes = append(volumes, *volume)
 		if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
@@ -432,11 +432,11 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 
 	// resource policy
 	if r.kbsConfig.Spec.KbsResourcePolicyConfigMapName != "" {
-		volume, err = r.createConfigMapVolume(ctx, "opa", r.kbsConfig.Spec.KbsResourcePolicyConfigMapName)
+		volume, err = r.createConfigMapVolume(ctx, "resource-policy", r.kbsConfig.Spec.KbsResourcePolicyConfigMapName)
 		if err != nil {
 			return nil, err
 		}
-		volumeMount = createVolumeMount(volume.Name, filepath.Join(confidentialContainersPath, volume.Name))
+		volumeMount = createVolumeMount(volume.Name, kbsStoragePath)
 		volumes = append(volumes, *volume)
 		kbsVM = append(kbsVM, volumeMount)
 	}
@@ -536,19 +536,38 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		kbsVM = append(kbsVM, volumeMount)
 	}
 
-	// reference-values
-	volume, err = r.createConfigMapVolume(ctx, "reference-values", r.kbsConfig.Spec.KbsRvpsRefValuesConfigMapName)
+	// rvps directory - create empty writable directory for RVPS storage
+	volume, err = r.createEmptyDirVolume("rvps-dir")
 	if err != nil {
 		return nil, err
 	}
 	volumes = append(volumes, *volume)
-	volumeMount = createVolumeMount(volume.Name, filepath.Join(rvpsReferenceValuesPath, volume.Name))
+	volumeMount = createVolumeMount(volume.Name, rvpsReferenceValuesPath)
 
-	// For the DeploymentTypeAllInOne case, if reference-values.json file is provided must be mounted in kbs
+	// For the DeploymentTypeAllInOne case, mount the rvps directory in kbs
 	if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
 		kbsVM = append(kbsVM, volumeMount)
 	} else {
 		rvpsVM = append(rvpsVM, volumeMount)
+	}
+
+	// reference-values from ConfigMap (if provided, mount as a file into the rvps directory)
+	if r.kbsConfig.Spec.KbsRvpsRefValuesConfigMapName != "" {
+		volume, err = r.createConfigMapVolume(ctx, "reference-values", r.kbsConfig.Spec.KbsRvpsRefValuesConfigMapName)
+		if err != nil {
+			return nil, err
+		}
+		// Mount the reference_value file from ConfigMap into the rvps directory with subpath
+		volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(rvpsReferenceValuesPath, "reference_value"), "reference_value")
+		volumes = append(volumes, *volume)
+		if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
+			kbsVM = append(kbsVM, volumeMount)
+		} else {
+			rvpsVM = append(rvpsVM, volumeMount)
+		}
+	}
+
+	if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices {
 
 		// as-config
 		volume, err = r.createConfigMapVolume(ctx, "as-config", r.kbsConfig.Spec.KbsAsConfigMapName)
@@ -601,6 +620,9 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 				},
 				// Add the KBS container
 				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{
+						r.buildSecretConverterInitContainer(kbsVM),
+					},
 					Containers: containers,
 					// Add volumes
 					Volumes: volumes,
@@ -694,6 +716,74 @@ func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMou
 		// Add volume mount for config
 		VolumeMounts: volumeMounts,
 		Env:          env,
+	}
+}
+
+func (r *KbsConfigReconciler) buildSecretConverterInitContainer(volumeMounts []corev1.VolumeMount) corev1.Container {
+	// Script that converts directory-mounted secrets to flat files with escaped slashes
+	// This is needed because kvstorage backend expects flat files like "default\x2Fkbsres1\x2Fkey1"
+	// but Kubernetes mounts secrets as directories like "default/kbsres1/key1"
+	script := `#!/bin/sh
+set -e
+echo "Converting secret directories to flat files..."
+REPO_DIR="/opt/confidential-containers/storage/repository"
+DEFAULT_DIR="$REPO_DIR/default"
+
+# Exit if default directory doesn't exist or is empty
+if [ ! -d "$DEFAULT_DIR" ] || [ -z "$(ls -A $DEFAULT_DIR 2>/dev/null)" ]; then
+  echo "No secrets found in $DEFAULT_DIR, skipping conversion"
+  exit 0
+fi
+
+# Scan all secret directories under default/
+cd "$DEFAULT_DIR"
+for secret_dir in */; do
+  if [ ! -d "$secret_dir" ]; then continue; fi
+  secret_name="${secret_dir%/}"
+  echo "Processing secret: $secret_name"
+
+  # Process each key file in the secret directory
+  cd "$secret_dir"
+  for key_file in *; do
+    # Skip . and .. and directories
+    if [ "$key_file" = "." ] || [ "$key_file" = ".." ] || [ "$key_file" = "..data" ] || [ "$key_file" = "..*" ]; then
+      continue
+    fi
+    if [ -d "$key_file" ]; then continue; fi
+
+    # Create flat file name with escaped slashes: default\x2Fsecret\x2Fkey
+    flat_name="default\x2F${secret_name}\x2F${key_file}"
+    echo "  Converting $key_file -> $REPO_DIR/$flat_name"
+
+    # Copy file content to flat file in repository root
+    cp "$key_file" "$REPO_DIR/$flat_name"
+  done
+  cd "$DEFAULT_DIR"
+done
+
+echo "Secret conversion complete"
+ls -la "$REPO_DIR" | grep "\\\\x2F" || echo "No converted files found (this might be an issue)"
+`
+
+	return corev1.Container{
+		Name:  "secret-converter",
+		Image: "busybox:latest",
+		Command: []string{
+			"/bin/sh",
+			"-c",
+			script,
+		},
+		VolumeMounts: volumeMounts,
+		SecurityContext: &corev1.SecurityContext{
+			AllowPrivilegeEscalation: pointer(false),
+			Capabilities: &corev1.Capabilities{
+				Drop: []corev1.Capability{"ALL"},
+			},
+			RunAsNonRoot: pointer(false), // Need root to write to emptyDir
+			SeccompProfile: &corev1.SeccompProfile{
+				Type: corev1.SeccompProfileTypeRuntimeDefault,
+			},
+		},
 	}
 }
 
