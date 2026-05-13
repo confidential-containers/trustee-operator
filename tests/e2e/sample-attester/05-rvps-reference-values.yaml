@@ -4,21 +4,18 @@ metadata:
   name: rvps-reference-values
   namespace: trustee-operator-system
 data:
-  reference-values.json: |
-    [
-      {
-        "name": "svn",
+  reference-value: |
+    {
+      "svn": {
         "expiration": "2027-01-01T00:00:00Z",
-        "value" : 1
+        "value": 1
       },
-      {
-        "name": "major_version",
+      "major_version": {
         "expiration": "2027-01-01T00:00:00Z",
-        "value" : 1
+        "value": 1
       },
-      {
-        "name": "minimum_minor_version",
+      "minimum_minor_version": {
         "expiration": "2027-01-01T00:00:00Z",
-        "value" : 4
+        "value": 4
       }
-    ]
+    }
