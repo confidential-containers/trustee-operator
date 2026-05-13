@@ -14,7 +14,7 @@ data:
 
     [admin]
     type = "DenyAll"
-    insecure_api = true
+    insecure_api = false
     auth_public_key = "/etc/auth-secret/publicKey"
 
     [attestation_token]
@@ -23,27 +23,31 @@ data:
 
     [attestation_service]
     type = "coco_as_builtin"
-    work_dir = "/opt/confidential-containers/attestation-service"
-    policy_engine = "opa"
-
-    [attestation_service.attestation_token_broker]
-    type = "Ear"
-    policy_dir = "/opt/confidential-containers/attestation-service/policies"
 
     [attestation_service.attestation_token_config]
     duration_min = 5
 
     [attestation_service.rvps_config]
     type = "BuiltIn"
+    storage_type = "LocalJson"
 
-    [attestation_service.rvps_config.storage]
-    type = "LocalJson"
-    file_path = "/opt/confidential-containers/rvps/reference-values/reference-values.json"
+    [storage_backend]
+    storage_type = "LocalFs"
+
+    [storage_backend.backends.local_fs]
+    dir_path = "/opt/confidential-containers/storage"
+
+    [storage_backend.backends.local_json]
+    dir_path = "/opt/confidential-containers/storage/rvps"
+
+    [attestation_service.verifier_config.snp_verifier]
+    # Configure VCEK sources to try, in order. Defaults to [KDS].
+    vcek_sources = [
+        { type = "OfflineStore" },
+        { type = "KDS" }
+    ]
 
     [[plugins]]
     name = "resource"
-    type = "LocalFs"
-    dir_path = "/opt/confidential-containers/kbs/repository"
-
-    [policy_engine]
-    policy_path = "/opt/confidential-containers/opa/policy.rego"
+    storage_backend_type = "kvstorage"
+  

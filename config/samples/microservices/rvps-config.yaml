@@ -7,7 +7,11 @@ data:
   rvps-config.json: |
     {
       "storage" : {
-        "type": "LocalJson",
-        "file_path": "/opt/confidential-containers/rvps/reference-values/reference-values.json"
+        "storage_type": "LocalJson",
+        "backends": {
+          "local_json": {
+            "file_dir_path": "/opt/confidential-containers/storage/rvps"
+          }
+        }
       }
     }

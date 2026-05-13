@@ -33,16 +33,18 @@ data:
 
       [attestation_service.rvps_config]
       type = "BuiltIn"
-      
+
         [attestation_service.rvps_config.storage]
-        type = "LocalJson"
-        file_path = "/opt/confidential-containers/rvps/reference-values/reference-values.json"
+        storage_type = "LocalJson"
+
+        [attestation_service.rvps_config.storage.backends.local_json]
+        file_dir_path = "/opt/confidential-containers/storage/rvps"
 
     [[plugins]]
     name = "resource"
     type = "LocalFs"
-    dir_path = "/opt/confidential-containers/kbs/repository"
+    dir_path = "/opt/confidential-containers/storage/repository"
 
     [policy_engine]
-    policy_path = "/opt/confidential-containers/opa/policy.rego"
+    policy_path = "/opt/confidential-containers/storage/repository/kbs/resource-policy.rego"
 
