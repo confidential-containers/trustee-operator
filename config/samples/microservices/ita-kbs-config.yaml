@@ -31,4 +31,4 @@ data:
     dir_path = "/opt/confidential-containers/storage/repository"
 
     [policy_engine]
-    policy_path = "/opt/confidential-containers/storage/repository/kbs/resource-policy.rego"
+    policy_path = "/opt/confidential-containers/storage/kbs/resource-policy.rego"

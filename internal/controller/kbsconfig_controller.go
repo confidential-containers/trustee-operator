@@ -356,7 +356,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	var asVM []corev1.VolumeMount
 	var rvpsVM []corev1.VolumeMount
 
-	// The paths /opt/confidential-container and /opt/confidential-container/storage/repository/default
+	// The paths /opt/confidential-containers and /opt/confidential-containers/storage/repository/default
 	// are mounted as a RW volume in memory to allow trustee components
 	// to have full access to the filesystem
 	// confidential-containers
@@ -366,14 +366,6 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	}
 	volumes = append(volumes, *volume)
 	volumeMount := createVolumeMount(volume.Name, filepath.Join(rootPath, volume.Name))
-	kbsVM = append(kbsVM, volumeMount)
-	// default repo
-	volume, err = r.createEmptyDirVolume(defaultRepository)
-	if err != nil {
-		return nil, err
-	}
-	volumes = append(volumes, *volume)
-	volumeMount = createVolumeMount(volume.Name, filepath.Join(repositoryPath, volume.Name))
 	kbsVM = append(kbsVM, volumeMount)
 
 	// kbs-config
@@ -742,21 +734,17 @@ for secret_dir in */; do
   secret_name="${secret_dir%/}"
   echo "Processing secret: $secret_name"
 
-  # Process each key file in the secret directory
+  # Process each regular, non-hidden key file in the secret directory (follow symlinks)
   cd "$secret_dir"
-  for key_file in *; do
-    # Skip . and .. and directories
-    if [ "$key_file" = "." ] || [ "$key_file" = ".." ] || [ "$key_file" = "..data" ] || [ "$key_file" = "..*" ]; then
-      continue
-    fi
-    if [ -d "$key_file" ]; then continue; fi
+  find . -follow -mindepth 1 -maxdepth 1 -type f ! -name '.*' -print | while IFS= read -r key_path; do
+    key_file="${key_path#./}"
 
     # Create flat file name with escaped slashes: default\x2Fsecret\x2Fkey
     flat_name="default\x2F${secret_name}\x2F${key_file}"
     echo "  Converting $key_file -> $REPO_DIR/$flat_name"
 
     # Copy file content to flat file in repository root
-    cp "$key_file" "$REPO_DIR/$flat_name"
+    cp "$key_path" "$REPO_DIR/$flat_name"
   done
   cd "$DEFAULT_DIR"
 done
@@ -767,7 +755,7 @@ ls -la "$REPO_DIR" | grep "\\\\x2F" || echo "No converted files found (this migh
 
 	return corev1.Container{
 		Name:  "secret-converter",
-		Image: "busybox:latest",
+		Image: "busybox:stable",
 		Command: []string{
 			"/bin/sh",
 			"-c",
