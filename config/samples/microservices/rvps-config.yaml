@@ -10,7 +10,7 @@ data:
         "storage_type": "LocalJson",
         "backends": {
           "local_json": {
-            "file_dir_path": "/opt/confidential-containers/storage/rvps"
+            "file_dir_path": "/opt/confidential-containers/storage/local_json"
           }
         }
       }

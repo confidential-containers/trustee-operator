@@ -38,7 +38,7 @@ data:
         storage_type = "LocalJson"
 
         [attestation_service.rvps_config.storage.backends.local_json]
-        file_dir_path = "/opt/confidential-containers/storage/rvps"
+        file_dir_path = "/opt/confidential-containers/storage/local_json"
 
     [[plugins]]
     name = "resource"

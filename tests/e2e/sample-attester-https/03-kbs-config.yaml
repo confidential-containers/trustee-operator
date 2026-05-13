@@ -38,7 +38,7 @@ data:
     dir_path = "/opt/confidential-containers/storage"
 
     [storage_backend.backends.local_json]
-    dir_path = "/opt/confidential-containers/storage/rvps"
+    dir_path = "/opt/confidential-containers/storage/local_json"
 
     [attestation_service.verifier_config.snp_verifier]
     # Configure VCEK sources to try, in order. Defaults to [KDS].
