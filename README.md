@@ -207,7 +207,7 @@ spec:
   kbsHttpsKeySecretName: kbs-https-key
   kbsHttpsCertSecretName: kbs-https-certificate
   # K8s Secrets to be made available to KBS clients
-  kbsSecretResources: ["kbsres1"]
+  kbsSecretResources: ["attestation-status"]
   # Attestation policy
   kbsAttestationPolicyConfigMapName: attestation-policy
   # Resource policy
@@ -316,7 +316,7 @@ data:
         ]
 ```
 
-The default installation creates a sample K8s secret named `kbsres1` to be made available to clients.
+The default installation creates a sample K8s secret named `attestation-status` to be made available to clients.
 Take a look at [patch-kbs-resources.yaml](config/samples/microservices/patch-kbs-resources.yaml) and update it
 with the K8s secrets that you want to deliver to clients via Trustee.
 

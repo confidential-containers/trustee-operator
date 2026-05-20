@@ -140,11 +140,11 @@ EOF
 ### Create secrets
 
 How to create secrets to be shared with the attested clients?
-In this example we create a secret *kbsres1* with two entries. These resources (key1, key2) can be retrieved by the Trustee clients.
+In this example we create a secret *attestation-status* with one entry. This resource (status) can be retrieved by the Trustee clients.
 You can add more secrets as per your requirements.
 
 ```bash
-oc create secret generic kbsres1 --from-literal key1=res1val1 --from-literal key2=res1val2 -n trustee-operator-system
+oc create secret generic attestation-status --from-literal status=success -n trustee-operator-system
 ```
 
 ### Create KbsConfig CRD
@@ -169,7 +169,7 @@ spec:
   kbsAuthSecretName: kbs-auth-public-key
   kbsDeploymentType: AllInOneDeployment
   kbsRvpsRefValuesConfigMapName: rvps-reference-values
-  kbsSecretResources: ["kbsres1"]
+  kbsSecretResources: ["attestation-status"]
   kbsResourcePolicyConfigMapName: ita-resource-policy
 EOF
 ```

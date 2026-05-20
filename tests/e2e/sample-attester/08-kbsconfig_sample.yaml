@@ -17,7 +17,7 @@ spec:
   kbsResourcePolicyConfigMapName: resource-policy
   kbsAttestationPolicyConfigMapName: attestation-policy
   kbsSecretResources:
-    - "kbsres1"
+    - "attestation-status"
   KbsEnvVars: 
     RUST_LOG: debug
   kbsLocalCertCacheSpec:
