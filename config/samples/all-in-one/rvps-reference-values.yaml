@@ -4,11 +4,10 @@ metadata:
   name: rvps-reference-values
   namespace: trustee-operator-system
 data:
-  reference-values.json: |
-    [
-      {
-        "name": "svn",
+  reference_value: |
+    {
+      "svn": {
         "expiration": "2026-01-01T00:00:00Z",
-        "value" : 1
+        "value": 1
       }
-    ]
+    }

@@ -356,7 +356,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	var asVM []corev1.VolumeMount
 	var rvpsVM []corev1.VolumeMount
 
-	// The paths /opt/confidential-container and /opt/confidential-container/kbs/repository/default
+	// The paths /opt/confidential-containers and /opt/confidential-containers/storage/repository/default
 	// are mounted as a RW volume in memory to allow trustee components
 	// to have full access to the filesystem
 	// confidential-containers
@@ -366,14 +366,6 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	}
 	volumes = append(volumes, *volume)
 	volumeMount := createVolumeMount(volume.Name, filepath.Join(rootPath, volume.Name))
-	kbsVM = append(kbsVM, volumeMount)
-	// default repo
-	volume, err = r.createEmptyDirVolume(defaultRepository)
-	if err != nil {
-		return nil, err
-	}
-	volumes = append(volumes, *volume)
-	volumeMount = createVolumeMount(volume.Name, filepath.Join(repositoryPath, volume.Name))
 	kbsVM = append(kbsVM, volumeMount)
 
 	// kbs-config
@@ -404,7 +396,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		if err != nil {
 			return nil, err
 		}
-		// attestation policy file is "/opt/confidential-containers/attestation-service/policies/opa/default_cpu.rego"
+		// attestation policy file is "/opt/confidential-containers/storage/attestation_service_policy/default_cpu.rego"
 		volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(attestationPolicyPath, defaultAttestationCpuPolicy), defaultAttestationCpuPolicy)
 		volumes = append(volumes, *volume)
 		if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
@@ -420,7 +412,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		if err != nil {
 			return nil, err
 		}
-		// GPU attestation policy file is "/opt/confidential-containers/attestation-service/policies/opa/default_gpu.rego"
+		// GPU attestation policy file is "/opt/confidential-containers/storage/attestation_service_policy/default_gpu.rego"
 		volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(attestationPolicyPath, defaultAttestationGpuPolicy), defaultAttestationGpuPolicy)
 		volumes = append(volumes, *volume)
 		if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
@@ -430,13 +422,22 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		}
 	}
 
+	// resource policy directory - create empty writable directory
+	volume, err = r.createEmptyDirVolume(resourcePolicyDirVolume)
+	if err != nil {
+		return nil, err
+	}
+	volumes = append(volumes, *volume)
+	volumeMount = createVolumeMount(volume.Name, kbsStoragePath)
+	kbsVM = append(kbsVM, volumeMount)
+
 	// resource policy
 	if r.kbsConfig.Spec.KbsResourcePolicyConfigMapName != "" {
-		volume, err = r.createConfigMapVolume(ctx, "opa", r.kbsConfig.Spec.KbsResourcePolicyConfigMapName)
+		volume, err = r.createConfigMapVolume(ctx, "resource-policy", r.kbsConfig.Spec.KbsResourcePolicyConfigMapName)
 		if err != nil {
 			return nil, err
 		}
-		volumeMount = createVolumeMount(volume.Name, filepath.Join(confidentialContainersPath, volume.Name))
+		volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(kbsStoragePath, resourcePolicyFilename), resourcePolicyFilename)
 		volumes = append(volumes, *volume)
 		kbsVM = append(kbsVM, volumeMount)
 	}
@@ -536,19 +537,38 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		kbsVM = append(kbsVM, volumeMount)
 	}
 
-	// reference-values
-	volume, err = r.createConfigMapVolume(ctx, "reference-values", r.kbsConfig.Spec.KbsRvpsRefValuesConfigMapName)
+	// rvps directory - create empty writable directory for RVPS storage
+	volume, err = r.createEmptyDirVolume("rvps-dir")
 	if err != nil {
 		return nil, err
 	}
 	volumes = append(volumes, *volume)
-	volumeMount = createVolumeMount(volume.Name, filepath.Join(rvpsReferenceValuesPath, volume.Name))
+	volumeMount = createVolumeMount(volume.Name, rvpsReferenceValuesPath)
 
-	// For the DeploymentTypeAllInOne case, if reference-values.json file is provided must be mounted in kbs
+	// For the DeploymentTypeAllInOne case, mount the rvps directory in kbs
 	if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
 		kbsVM = append(kbsVM, volumeMount)
 	} else {
 		rvpsVM = append(rvpsVM, volumeMount)
+	}
+
+	// reference-values from ConfigMap (if provided, mount as a file into the rvps directory)
+	if r.kbsConfig.Spec.KbsRvpsRefValuesConfigMapName != "" {
+		volume, err = r.createConfigMapVolume(ctx, "reference-values", r.kbsConfig.Spec.KbsRvpsRefValuesConfigMapName)
+		if err != nil {
+			return nil, err
+		}
+		// Mount the reference_value file from ConfigMap into the rvps directory with subpath
+		volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(rvpsReferenceValuesPath, "reference_value"), "reference_value")
+		volumes = append(volumes, *volume)
+		if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeAllInOne {
+			kbsVM = append(kbsVM, volumeMount)
+		} else {
+			rvpsVM = append(rvpsVM, volumeMount)
+		}
+	}
+
+	if r.kbsConfig.Spec.KbsDeploymentType == confidentialcontainersorgv1alpha1.DeploymentTypeMicroservices {
 
 		// as-config
 		volume, err = r.createConfigMapVolume(ctx, "as-config", r.kbsConfig.Spec.KbsAsConfigMapName)
@@ -696,7 +716,6 @@ func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMou
 		Env:          env,
 	}
 }
-
 func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMount,
 	securityContext *corev1.SecurityContext, env []corev1.EnvVar,
 	kbsDeploymentType confidentialcontainersorgv1alpha1.DeploymentType) corev1.Container {
