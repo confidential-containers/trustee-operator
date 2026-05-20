@@ -83,6 +83,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: OPERATOR_IMAGE_NAME
+          value: quay.io/confidential-containers/trustee-operator:v0.19.0
         - name: KBS_IMAGE_NAME
           # kbs image for AllInOneDeployment
           value: ghcr.io/confidential-containers/key-broker-service:built-in-as-v0.18.0

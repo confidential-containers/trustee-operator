@@ -31,6 +31,12 @@ pushd config/manager
 kustomize edit add patch --patch "- op: replace
   path: '/spec/template/spec/containers/0/env/1'
   value:
+    name: OPERATOR_IMAGE_NAME
+    value: localhost:5001/trustee-operator:test" --kind Deployment --name controller-manager
+
+kustomize edit add patch --patch "- op: replace
+  path: '/spec/template/spec/containers/0/env/2'
+  value:
     name: KBS_IMAGE_NAME
     value: ${KBS_IMAGE_NAME}" --kind Deployment --name controller-manager
 
@@ -40,13 +46,13 @@ kustomize edit add patch --patch "- op: replace
 
 if [[ "$ALL_IN_ONE" != "true" ]] ; then
   kustomize edit add patch --patch "- op: replace
-  path: '/spec/template/spec/containers/0/env/2'
+  path: '/spec/template/spec/containers/0/env/4'
   value:
     name: AS_IMAGE_NAME
     value: ${AS_IMAGE_NAME}" --kind Deployment --name controller-manager
 
   kustomize edit add patch --patch "- op: replace
-  path: '/spec/template/spec/containers/0/env/3'
+  path: '/spec/template/spec/containers/0/env/5'
   value:
     name: RVPS_IMAGE_NAME
     value: ${RVPS_IMAGE_NAME}" --kind Deployment --name controller-manager

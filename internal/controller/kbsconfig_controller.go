@@ -621,6 +621,9 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 				},
 				// Add the KBS container
 				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{
+						r.buildSecretConverterInitContainer(kbsVM),
+					},
 					Containers: containers,
 					// Add volumes
 					Volumes: volumes,
@@ -716,6 +719,44 @@ func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMou
 		Env:          env,
 	}
 }
+
+func (r *KbsConfigReconciler) buildSecretConverterInitContainer(volumeMounts []corev1.VolumeMount) corev1.Container {
+	// Converts directory-mounted secrets to flat files with escaped slashes
+	// This is needed because kvstorage backend expects flat files like "default\x2Fkbsres1\x2Fkey1"
+	// but Kubernetes mounts secrets as directories like "default/kbsres1/key1"
+	operatorImageName := os.Getenv("OPERATOR_IMAGE_NAME")
+	if operatorImageName == "" {
+		operatorImageName = "controller:latest"
+	}
+
+	return corev1.Container{
+		Name:  "secret-converter",
+		Image: operatorImageName,
+		Command: []string{
+			"/secret-converter",
+		},
+		VolumeMounts: volumeMounts,
+		SecurityContext: &corev1.SecurityContext{
+			AllowPrivilegeEscalation: pointer(false),
+			Capabilities: &corev1.Capabilities{
+				Drop: []corev1.Capability{"ALL"},
+			},
+			// Must run as root to write to emptyDir directories created by secret mounts.
+			// Security: This is safe because:
+			// - Init container only, runs once before main containers
+			// - AllowPrivilegeEscalation=false prevents gaining additional privileges
+			// - All capabilities dropped
+			// - Seccomp profile restricts syscalls
+			// - Only writes to emptyDir volumes, not host filesystem
+			RunAsNonRoot: pointer(false),
+			RunAsUser:    pointer(int64(0)),
+			SeccompProfile: &corev1.SeccompProfile{
+				Type: corev1.SeccompProfileTypeRuntimeDefault,
+			},
+		},
+	}
+}
+
 func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMount,
 	securityContext *corev1.SecurityContext, env []corev1.EnvVar,
 	kbsDeploymentType confidentialcontainersorgv1alpha1.DeploymentType) corev1.Container {
