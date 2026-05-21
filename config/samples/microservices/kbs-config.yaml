@@ -25,7 +25,7 @@ data:
     [[plugins]]
     name = "resource"
     type = "LocalFs"
-    dir_path = "/opt/confidential-containers/kbs/repository"
+    dir_path = "/opt/confidential-containers/storage/repository"
 
     [policy_engine]
-    policy_path = "/opt/confidential-containers/opa/policy.rego"
+    policy_path = "/opt/confidential-containers/storage/kbs/resource-policy.rego"

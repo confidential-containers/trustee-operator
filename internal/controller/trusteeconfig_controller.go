@@ -1088,7 +1088,7 @@ func (r *TrusteeConfigReconciler) generateResourcePolicyConfigMap(ctx context.Co
 			Namespace: r.namespace,
 		},
 		Data: map[string]string{
-			"policy.rego": policyRego,
+			resourcePolicyFilename: policyRego,
 		},
 	}
 
@@ -1140,7 +1140,7 @@ func (r *TrusteeConfigReconciler) generateRvpsReferenceValuesConfigMap(ctx conte
 			Namespace: r.namespace,
 		},
 		Data: map[string]string{
-			"reference-values.json": referenceValuesJson,
+			"reference_value": referenceValuesJson,
 		},
 	}
 
