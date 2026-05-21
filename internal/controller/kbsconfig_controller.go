@@ -600,6 +600,12 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		containers = append(containers, r.buildRvpsContainer(rvpsVM, securityContext, env))
 	}
 
+	// Build the secret converter init container (fails fast if OPERATOR_IMAGE_NAME is not set)
+	secretConverterContainer, err := r.buildSecretConverterInitContainer(kbsVM)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the deployment
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -622,7 +628,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 				// Add the KBS container
 				Spec: corev1.PodSpec{
 					InitContainers: []corev1.Container{
-						r.buildSecretConverterInitContainer(kbsVM),
+						secretConverterContainer,
 					},
 					Containers: containers,
 					// Add volumes
@@ -720,13 +726,13 @@ func (r *KbsConfigReconciler) buildRvpsContainer(volumeMounts []corev1.VolumeMou
 	}
 }
 
-func (r *KbsConfigReconciler) buildSecretConverterInitContainer(volumeMounts []corev1.VolumeMount) corev1.Container {
+func (r *KbsConfigReconciler) buildSecretConverterInitContainer(volumeMounts []corev1.VolumeMount) (corev1.Container, error) {
 	// Converts directory-mounted secrets to flat files with escaped slashes
 	// This is needed because kvstorage backend expects flat files like "default\x2Fkbsres1\x2Fkey1"
 	// but Kubernetes mounts secrets as directories like "default/kbsres1/key1"
 	operatorImageName := os.Getenv("OPERATOR_IMAGE_NAME")
 	if operatorImageName == "" {
-		operatorImageName = "controller:latest"
+		return corev1.Container{}, fmt.Errorf("OPERATOR_IMAGE_NAME environment variable must be set (required for secret-converter init container)")
 	}
 
 	return corev1.Container{
@@ -754,7 +760,7 @@ func (r *KbsConfigReconciler) buildSecretConverterInitContainer(volumeMounts []c
 				Type: corev1.SeccompProfileTypeRuntimeDefault,
 			},
 		},
-	}
+	}, nil
 }
 
 func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMount,

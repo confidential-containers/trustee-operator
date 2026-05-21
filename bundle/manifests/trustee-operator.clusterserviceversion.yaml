@@ -6,7 +6,7 @@ metadata:
     capabilities: Basic Install
     categories: Security
     containerImage: quay.io/confidential-containers/trustee-operator:v0.19.0
-    createdAt: "2026-04-13T18:28:49Z"
+    createdAt: "2026-05-21T15:49:55Z"
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
     features.operators.openshift.io/proxy-aware: "true"
@@ -159,6 +159,8 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
+                - name: OPERATOR_IMAGE_NAME
+                  value: quay.io/confidential-containers/trustee-operator:v0.19.0
                 - name: KBS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/key-broker-service:built-in-as-v0.19.0-trustee-operator
                 - name: KBS_IMAGE_NAME_MICROSERVICES
