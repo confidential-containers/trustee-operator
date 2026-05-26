@@ -92,6 +92,18 @@ func convertSingleCipher(cipher string) string {
 		return cipher
 	}
 
+	// Explicit mappings for ciphers that don't follow the generic pattern
+	// ChaCha20 TLS 1.2 ciphers require special handling
+	explicitMappings := map[string]string{
+		"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256":   "ECDHE-RSA-CHACHA20-POLY1305",
+		"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256": "ECDHE-ECDSA-CHACHA20-POLY1305",
+		"TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256":     "DHE-RSA-CHACHA20-POLY1305",
+	}
+
+	if mapped, ok := explicitMappings[cipher]; ok {
+		return mapped
+	}
+
 	// TLS 1.2 ciphers: IANA → OpenSSL conversion
 	// Example: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 → ECDHE-RSA-AES128-GCM-SHA256
 
@@ -101,8 +113,24 @@ func convertSingleCipher(cipher string) string {
 	// Replace _WITH_ with -
 	result = strings.Replace(result, "_WITH_", "-", 1)
 
-	// Replace remaining _ with -
-	result = strings.ReplaceAll(result, "_", "-")
+	// Convert remaining parts: remove _ before numbers, replace _ with - elsewhere
+	// Split by _ and rejoin intelligently
+	parts := strings.Split(result, "_")
+	var converted []string
+	for i, part := range parts {
+		if i > 0 {
+			// Check if current part starts with a digit
+			if len(part) > 0 && part[0] >= '0' && part[0] <= '9' {
+				// Append without separator (e.g., AES + 128 → AES128)
+				if len(converted) > 0 {
+					converted[len(converted)-1] += part
+					continue
+				}
+			}
+			// Otherwise use dash separator
+		}
+		converted = append(converted, part)
+	}
 
-	return result
+	return strings.Join(converted, "-")
 }
