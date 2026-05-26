@@ -75,6 +75,69 @@ type KbsDeploymentSpec struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 }
 
+// TlsConfig defines TLS protocol and cipher configuration for Trustee HTTPS server.
+//
+// The TLS profile determines which protocol versions and cipher suites are enabled:
+//   - old: TLS 1.0+ (legacy compatibility)
+//   - intermediate: TLS 1.2+ (default, balanced security)
+//   - modern: TLS 1.3 only (PQC-ready)
+//   - custom: user-defined configuration
+//
+// When using the custom profile, you must specify minVersion and may optionally
+// specify maxVersion, ciphers, and key exchange groups.
+//
+// Example - Modern profile for PQC:
+//
+//	tlsConfig:
+//	  profile: modern
+//
+// Example - Custom profile:
+//
+//	tlsConfig:
+//	  profile: custom
+//	  minVersion: "1.2"
+//	  ciphers:
+//	    - TLS_AES_128_GCM_SHA256
+//	  groups:
+//	    - x25519
+//
+// +kubebuilder:validation:XValidation:rule="!has(self.minVersion) || !has(self.maxVersion) || self.minVersion <= self.maxVersion",message="minVersion must not be greater than maxVersion"
+type TlsConfig struct {
+	// Profile defines the TLS security profile.
+	// Valid values: "old", "intermediate" (default), "modern", "custom"
+	// - old: TLS 1.0+ (legacy compatibility)
+	// - intermediate: TLS 1.2+ (balanced security, default)
+	// - modern: TLS 1.3 only (PQC-ready)
+	// - custom: user-defined versions and ciphers
+	// +kubebuilder:validation:Enum=old;intermediate;modern;custom
+	// +kubebuilder:default=intermediate
+	// +optional
+	Profile string `json:"profile,omitempty"`
+
+	// MinVersion specifies minimum TLS version (only for custom profile)
+	// Valid values: "1.0", "1.1", "1.2", "1.3"
+	// +kubebuilder:validation:Pattern=`^1\.[0-3]$`
+	// +optional
+	MinVersion string `json:"minVersion,omitempty"`
+
+	// MaxVersion specifies maximum TLS version (only for custom profile)
+	// Valid values: "1.0", "1.1", "1.2", "1.3"
+	// +kubebuilder:validation:Pattern=`^1\.[0-3]$`
+	// +optional
+	MaxVersion string `json:"maxVersion,omitempty"`
+
+	// Ciphers is a list of cipher suites (only for custom profile)
+	// Supports both IANA and OpenSSL formats
+	// Example: ["TLS_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"]
+	// +optional
+	Ciphers []string `json:"ciphers,omitempty"`
+
+	// Groups specifies TLS key exchange groups (only for custom profile)
+	// Example: ["x25519", "secp256r1"]
+	// +optional
+	Groups []string `json:"groups,omitempty"`
+}
+
 // KbsConfigSpec defines the desired state of KbsConfig
 type KbsConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -161,6 +224,11 @@ type KbsConfigSpec struct {
 
 	// KbsDeploymentSpec is the struct for trustee deployment options
 	KbsDeploymentSpec KbsDeploymentSpec `json:"KbsDeploymentSpec,omitempty"`
+
+	// TlsConfig defines TLS protocol and cipher configuration for Trustee HTTPS server
+	// If not specified, defaults to "intermediate" profile (TLS 1.2+)
+	// +optional
+	TlsConfig *TlsConfig `json:"tlsConfig,omitempty"`
 }
 
 // KbsConfigStatus defines the observed state of KbsConfig

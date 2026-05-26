@@ -6,7 +6,7 @@ metadata:
     capabilities: Basic Install
     categories: Security
     containerImage: quay.io/confidential-containers/trustee-operator:v0.19.0
-    createdAt: "2026-05-21T15:49:55Z"
+    createdAt: "2026-05-28T11:46:46Z"
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
     features.operators.openshift.io/proxy-aware: "true"
@@ -169,7 +169,7 @@ spec:
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/rvps:latest
-                image: quay.io/confidential-containers/trustee-operator:v0.19.0
+                image: controller:latest
                 livenessProbe:
                   httpGet:
                     path: /healthz
