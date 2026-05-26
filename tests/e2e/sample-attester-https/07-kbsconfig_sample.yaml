@@ -19,6 +19,6 @@ spec:
   kbsHttpsKeySecretName: kbs-https-key
   kbsHttpsCertSecretName: kbs-https-certificate
   kbsSecretResources:
-    - "kbsres1"
+    - "attestation-status"
   KbsEnvVars: 
     RUST_LOG: debug

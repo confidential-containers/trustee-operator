@@ -5,4 +5,4 @@ metadata:
   namespace: trustee-operator-system
 spec:
   kbsSecretResources:
-    - "kbsres1"
+    - "attestation-status"

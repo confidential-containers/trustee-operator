@@ -88,7 +88,7 @@ data:
     ]
 EOF
 
-kubectl create secret generic kbsres1 --from-literal key1=res1val1 --from-literal key2=res1val2 -n trustee-operator-system
+kubectl create secret generic attestation-status --from-literal status=success -n trustee-operator-system
 
 kubectl apply -f - << EOF
 apiVersion: v1
@@ -119,7 +119,7 @@ spec:
   kbsAuthSecretName: kbs-auth-public-key
   kbsDeploymentType: AllInOneDeployment
   kbsRvpsRefValuesConfigMapName: rvps-reference-values
-  kbsSecretResources: ["kbsres1"]
+  kbsSecretResources: ["attestation-status"]
   kbsResourcePolicyConfigMapName: resource-policy
 EOF
 ```
@@ -207,7 +207,7 @@ LOADBALANCER_IP=$(kubectl get services \
 Then run the following command while looking at the 2 trustee logs:
 
 ```
-for i in $(seq 1 4); do kubectl exec -n trustee-operator-system kbs-client -- kbs-client --url http://$LOADBALANCER_IP/ get-resource --path default/kbsres1/key1; done
+for i in $(seq 1 4); do kubectl exec -n trustee-operator-system kbs-client -- kbs-client --url http://$LOADBALANCER_IP/ get-resource --path default/attestation-status/status; done
 ```
 
 You should see that both trustee server instances are serving the requests.

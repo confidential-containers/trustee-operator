@@ -656,8 +656,7 @@ func (r *TrusteeConfigReconciler) generateKbsSampleSecret(ctx context.Context) (
 
 	// Prepare secret data
 	data := make(map[string][]byte)
-	data["key1"] = []byte("res1val1")
-	data["key2"] = []byte("res1val2")
+	data["status"] = []byte("success")
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -684,7 +683,7 @@ func (r *TrusteeConfigReconciler) getKbsAuthSecretName() string {
 
 // getKbsSampleSecretName returns the name for the KBS sample secret
 func (r *TrusteeConfigReconciler) getKbsSampleSecretName() string {
-	return "kbsres1"
+	return "attestation-status"
 }
 
 // createOrUpdateKbsAuthSecret creates or updates the KBS auth secret
