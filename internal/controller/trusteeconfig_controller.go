@@ -17,11 +17,13 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"fmt"
 	"os"
+	"text/template"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -245,6 +247,9 @@ func (r *TrusteeConfigReconciler) detectManualChanges(current, generated confide
 
 		// Custom IBM SE config
 		current.IbmSEConfigSpec.CertStorePvc != "" && current.IbmSEConfigSpec.CertStorePvc != generated.IbmSEConfigSpec.CertStorePvc,
+
+		// Custom TLS configuration
+		!r.tlsConfigsEqual(current.TlsConfig, generated.TlsConfig),
 	}
 
 	// Return true if any user-configurable field has been modified
@@ -295,6 +300,31 @@ func (r *TrusteeConfigReconciler) certCacheSpecsEqual(a, b confidentialcontainer
 	return true
 }
 
+// tlsConfigsEqual compares two TlsConfig pointers for equality
+func (r *TrusteeConfigReconciler) tlsConfigsEqual(a, b *confidentialcontainersorgv1alpha1.TlsConfig) bool {
+	// Both nil
+	if a == nil && b == nil {
+		return true
+	}
+	// One nil, one not
+	if a == nil || b == nil {
+		return false
+	}
+	// Compare fields
+	if a.Profile != b.Profile || a.MinVersion != b.MinVersion || a.MaxVersion != b.MaxVersion {
+		return false
+	}
+	// Compare cipher slices
+	if !r.stringSlicesEqual(a.Ciphers, b.Ciphers) {
+		return false
+	}
+	// Compare group slices
+	if !r.stringSlicesEqual(a.Groups, b.Groups) {
+		return false
+	}
+	return true
+}
+
 // mergeKbsConfigSpecs intelligently merges TrusteeConfig-generated spec with manually modified spec
 func (r *TrusteeConfigReconciler) mergeKbsConfigSpecs(generatedSpec, manualSpec confidentialcontainersorgv1alpha1.KbsConfigSpec) confidentialcontainersorgv1alpha1.KbsConfigSpec {
 	merged := generatedSpec
@@ -331,9 +361,14 @@ func (r *TrusteeConfigReconciler) mergeKbsConfigSpecs(generatedSpec, manualSpec 
 		merged.IbmSEConfigSpec.CertStorePvc = manualSpec.IbmSEConfigSpec.CertStorePvc
 	}
 
+	// Preserve manual TLS configuration
+	if manualSpec.TlsConfig != nil {
+		merged.TlsConfig = manualSpec.TlsConfig
+	}
+
 	r.log.Info("Merged KbsConfig specs", "preservedFields", []string{
 		"KbsDeploymentSpec", "KbsEnvVars",
-		"KbsSecretResources", "KbsLocalCertCacheSpec", "IbmSEConfigSpec",
+		"KbsSecretResources", "KbsLocalCertCacheSpec", "IbmSEConfigSpec", "TlsConfig",
 	})
 
 	return merged
@@ -401,7 +436,7 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 	}
 	spec.KbsEnvVars["RUST_LOG"] = "debug"
 
-	if err := r.createOrUpdateKbsConfigMap(ctx); err != nil {
+	if err := r.createOrUpdateKbsConfigMap(ctx, spec.TlsConfig); err != nil {
 		return spec, fmt.Errorf("KBS ConfigMap: %w", err)
 	}
 	if err := r.createOrUpdateKbsAuthSecret(ctx); err != nil {
@@ -448,7 +483,7 @@ func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context
 		spec.KbsEnvVars = make(map[string]string)
 	}
 
-	if err := r.createOrUpdateKbsConfigMap(ctx); err != nil {
+	if err := r.createOrUpdateKbsConfigMap(ctx, spec.TlsConfig); err != nil {
 		return spec, fmt.Errorf("KBS ConfigMap: %w", err)
 	}
 	if err := r.createOrUpdateKbsAuthSecret(ctx); err != nil {
@@ -524,7 +559,8 @@ func (r *TrusteeConfigReconciler) getHttpsCertSecretName() string {
 }
 
 // generateKbsTomlConfig generates the TOML configuration for KBS
-func (r *TrusteeConfigReconciler) generateKbsTomlConfig() (string, error) {
+// If tlsConfig is provided, it will be used; otherwise falls back to existing KbsConfig or defaults
+func (r *TrusteeConfigReconciler) generateKbsTomlConfig(ctx context.Context, tlsConfig *confidentialcontainersorgv1alpha1.TlsConfig) (string, error) {
 	var templateFile string
 
 	// Select template file based on profile type
@@ -541,18 +577,69 @@ func (r *TrusteeConfigReconciler) generateKbsTomlConfig() (string, error) {
 	}
 
 	// Read the template file
-	configBytes, err := os.ReadFile(templateFile)
+	templateContent, err := os.ReadFile(templateFile)
 	if err != nil {
 		r.log.Error(err, "Failed to read config template", "template", templateFile)
 		return "", err
 	}
 
-	return string(configBytes), nil
+	// Get TLS configuration data for template rendering
+	tlsData := r.getTLSConfigData(ctx, tlsConfig)
+
+	// Parse template
+	tmpl, err := template.New("kbs-config").Parse(string(templateContent))
+	if err != nil {
+		r.log.Error(err, "Failed to parse template")
+		return "", fmt.Errorf("failed to parse template: %w", err)
+	}
+
+	// Execute template with TLS data
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, tlsData); err != nil {
+		r.log.Error(err, "Failed to execute template")
+		return "", fmt.Errorf("failed to execute template: %w", err)
+	}
+
+	r.log.Info("Rendered KBS configuration", "tlsProfile", tlsData.TlsProfile)
+	return buf.String(), nil
+}
+
+// getTLSConfigData gets TLS configuration data for template rendering
+// Priority: 1) provided tlsConfig, 2) existing KbsConfig, 3) defaults
+func (r *TrusteeConfigReconciler) getTLSConfigData(ctx context.Context, tlsConfig *confidentialcontainersorgv1alpha1.TlsConfig) *KbsConfigTemplateData {
+	// If TlsConfig is explicitly provided, use it (e.g., from spec being built)
+	if tlsConfig != nil {
+		r.log.V(1).Info("Using provided TLS configuration")
+		tmpKbsConfig := &confidentialcontainersorgv1alpha1.KbsConfig{
+			Spec: confidentialcontainersorgv1alpha1.KbsConfigSpec{
+				TlsConfig: tlsConfig,
+			},
+		}
+		return GetTLSConfigFromKbsConfig(tmpKbsConfig)
+	}
+
+	// Try to get existing KbsConfig to preserve user settings
+	kbsConfigName := r.getKbsConfigName()
+	existingKbsConfig := &confidentialcontainersorgv1alpha1.KbsConfig{}
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: kbsConfigName}, existingKbsConfig)
+
+	if err == nil && existingKbsConfig.Spec.TlsConfig != nil {
+		// Use existing TLS configuration
+		r.log.V(1).Info("Using existing TLS configuration from KbsConfig")
+		return GetTLSConfigFromKbsConfig(existingKbsConfig)
+	}
+
+	// Use default TLS configuration (intermediate profile)
+	r.log.V(1).Info("Using default TLS configuration (intermediate profile)")
+	return &KbsConfigTemplateData{
+		TlsProfile: "intermediate",
+	}
 }
 
 // generateKbsConfigMap creates a ConfigMap for KBS configuration
-func (r *TrusteeConfigReconciler) generateKbsConfigMap(ctx context.Context) (*corev1.ConfigMap, error) {
-	configToml, err := r.generateKbsTomlConfig()
+// If tlsConfig is provided, it will be used for rendering the template
+func (r *TrusteeConfigReconciler) generateKbsConfigMap(ctx context.Context, tlsConfig *confidentialcontainersorgv1alpha1.TlsConfig) (*corev1.ConfigMap, error) {
+	configToml, err := r.generateKbsTomlConfig(ctx, tlsConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -581,14 +668,15 @@ func (r *TrusteeConfigReconciler) getKbsConfigMapName() string {
 }
 
 // createOrUpdateKbsConfigMap creates or updates the KBS ConfigMap
-func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context) error {
+// If tlsConfig is provided, it will be used for rendering the template
+func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context, tlsConfig *confidentialcontainersorgv1alpha1.TlsConfig) error {
 	configMapName := r.getKbsConfigMapName()
 	found := &corev1.ConfigMap{}
 	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
 
 	if err != nil && k8serrors.IsNotFound(err) {
 		r.log.Info("Creating KBS config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
-		configMap, err := r.generateKbsConfigMap(ctx)
+		configMap, err := r.generateKbsConfigMap(ctx, tlsConfig)
 		if err != nil {
 			return err
 		}

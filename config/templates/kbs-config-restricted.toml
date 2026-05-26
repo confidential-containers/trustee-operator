@@ -5,6 +5,21 @@ private_key = "/etc/https-key/privateKey"
 certificate = "/etc/https-cert/certificate"
 worker_count = 4
 
+[http_server.tls]
+tls_profile = "{{.TlsProfile}}"
+{{- if .TlsMinVersion}}
+tls_min_version = "{{.TlsMinVersion}}"
+{{- end}}
+{{- if .TlsMaxVersion}}
+tls_max_version = "{{.TlsMaxVersion}}"
+{{- end}}
+{{- if .TlsCiphers}}
+tls_ciphers = "{{.TlsCiphers}}"
+{{- end}}
+{{- if .TlsGroups}}
+tls_groups = "{{.TlsGroups}}"
+{{- end}}
+
 [admin]
 type = "DenyAll"
 insecure_api = false
