@@ -17,11 +17,13 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"fmt"
 	"os"
+	"text/template"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -541,13 +543,31 @@ func (r *TrusteeConfigReconciler) generateKbsTomlConfig() (string, error) {
 	}
 
 	// Read the template file
-	configBytes, err := os.ReadFile(templateFile)
+	templateContent, err := os.ReadFile(templateFile)
 	if err != nil {
 		r.log.Error(err, "Failed to read config template", "template", templateFile)
 		return "", err
 	}
 
-	return string(configBytes), nil
+	// Get TLS configuration data for template rendering
+	tlsData := GetTLSConfigFromTlsConfig(r.trusteeConfig.Spec.TlsConfig)
+
+	// Parse template
+	tmpl, err := template.New("kbs-config").Parse(string(templateContent))
+	if err != nil {
+		r.log.Error(err, "Failed to parse template")
+		return "", fmt.Errorf("failed to parse template: %w", err)
+	}
+
+	// Execute template with TLS data
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, tlsData); err != nil {
+		r.log.Error(err, "Failed to execute template")
+		return "", fmt.Errorf("failed to execute template: %w", err)
+	}
+
+	r.log.Info("Rendered KBS configuration", "tlsProfile", tlsData.TlsProfile)
+	return buf.String(), nil
 }
 
 // generateKbsConfigMap creates a ConfigMap for KBS configuration
