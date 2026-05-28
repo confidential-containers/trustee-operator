@@ -305,6 +305,11 @@ type TrusteeConfigSpec struct {
 	// Default value is ClusterIP
 	// +optional
 	KbsServiceType corev1.ServiceType `json:"kbsServiceType,omitempty"`
+
+	// TlsConfig defines TLS protocol and cipher configuration for KBS HTTPS server
+	// If not specified, defaults to "intermediate" profile (TLS 1.2+)
+	// +optional
+	TlsConfig *TlsConfig `json:"tlsConfig,omitempty"`
 }
 
 // TrusteeConfigStatus defines the observed state of TrusteeConfig
