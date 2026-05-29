@@ -32,12 +32,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	confidentialcontainersorgv1alpha1 "github.com/confidential-containers/trustee-operator/api/v1alpha1"
@@ -96,6 +92,9 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// KbsConfig instance is found, so continue with rest of the processing
+
+	// Use namespace from request so that we only reconcile resources relevant to the kbsConfig in the given namespace
+	r.namespace = req.Namespace
 
 	// Check if the KbsConfig object is marked to be deleted, which is
 	// indicated by the deletion timestamp being set.
@@ -176,7 +175,6 @@ func (r *KbsConfigReconciler) finalizeKbsConfig(ctx context.Context) error {
 // deployOrUpdateKbsService returns a new service for the KBS instance
 // Errors are logged by the callee and hence no error is logged in this method
 func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) error {
-
 	// Check if the service name kbs-service in r.namespace already exists
 	// If it does, update the service
 	// If it does not, create the service
@@ -268,7 +266,6 @@ func (r *KbsConfigReconciler) newKbsService(ctx context.Context) *corev1.Service
 // Returns (created, error) where created is true when a new deployment was just made.
 // Errors are logged by the callee and hence no error is logged in this method
 func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) (bool, error) {
-
 	// Check if the deployment name kbs-deployment in r.namespace already exists
 	// If it does, update the deployment
 	// If it does not, create the deployment
@@ -905,13 +902,6 @@ func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deploymen
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
-
-	// Get the namespace that the controller is running in
-	r.namespace = os.Getenv("POD_NAMESPACE")
-	if r.namespace == "" {
-		r.namespace = KbsOperatorNamespace
-	}
-
 	// Create a logr instance and assign it to r.log
 	r.log = ctrl.Log.WithName("kbsconfig-controller")
 	r.log = r.log.WithValues("kbsconfig", r.namespace)
@@ -930,7 +920,7 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	// Create a new controller and add a watch for KbsConfig including the following secondary resources:
-	// KbsConfigMap, KbsSecret, KbsAsConfigMap, KbsRvpsConfigMap in the same namespace as the controller
+	// KbsConfigMap, KbsSecret, KbsAsConfigMap, KbsRvpsConfigMap across all namespaces in the cluster
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&confidentialcontainersorgv1alpha1.KbsConfig{}).
 		// Watch externally-referenced ConfigMaps and Secrets (not owned by KbsConfig)
@@ -938,12 +928,10 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&corev1.ConfigMap{},
 			handler.EnqueueRequestsFromMapFunc(configMapMapper),
-			builder.WithPredicates(namespacePredicate(r.namespace)),
 		).
 		Watches(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(secretMapper),
-			builder.WithPredicates(namespacePredicate(r.namespace)),
 		).
 		// Watch ConfigMaps and Secrets owned by KbsConfig so that accidental
 		// deletion triggers reconciliation and the controller recreates them.
@@ -1051,24 +1039,6 @@ func secretToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFunc,
 	}
 
 	return mapperFunc, nil
-}
-
-// namespacePredicate is a custom predicate function that filters resources based on the namespace.
-func namespacePredicate(namespace string) predicate.Predicate {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			return isResourceInNamespace(e.Object, namespace)
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			return isResourceInNamespace(e.ObjectNew, namespace)
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			return isResourceInNamespace(e.Object, namespace)
-		},
-		GenericFunc: func(e event.GenericEvent) bool {
-			return isResourceInNamespace(e.Object, namespace)
-		},
-	}
 }
 
 // isResourceInNamespace checks if the resource is in the specified namespace.
