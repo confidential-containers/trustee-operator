@@ -617,8 +617,25 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context
 		return err
 	}
 
-	// ConfigMap already exists, preserve its content
-	r.log.Info("KBS config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	// ConfigMap exists - generate new config with current TLS settings
+	newConfigMap, err := r.generateKbsConfigMap(ctx)
+	if err != nil {
+		return err
+	}
+
+	newConfig := newConfigMap.Data["kbs-config.toml"]
+	existingConfig := found.Data["kbs-config.toml"]
+
+	// Merge TLS settings from new config into existing config
+	mergedConfig := mergeTlsSettings(existingConfig, newConfig)
+
+	if mergedConfig != existingConfig {
+		r.log.Info("Updating KBS config map with new TLS settings", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+		found.Data["kbs-config.toml"] = mergedConfig
+		return r.Update(ctx, found)
+	}
+
+	r.log.V(1).Info("KBS config map TLS settings unchanged", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
 	return nil
 }
 
