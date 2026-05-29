@@ -59,6 +59,7 @@ type KbsConfigReconciler struct {
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;update
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=config.openshift.io,resources=proxies,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -904,7 +905,6 @@ func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deploymen
 func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Create a logr instance and assign it to r.log
 	r.log = ctrl.Log.WithName("kbsconfig-controller")
-	r.log = r.log.WithValues("kbsconfig", r.namespace)
 
 	// Create an event recorder for emitting Kubernetes events
 	r.Recorder = mgr.GetEventRecorderFor("kbsconfig-controller")
