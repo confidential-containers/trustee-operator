@@ -1,0 +1,18 @@
+# Example RoleBinding to grant a user the trustee-config-creator role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: <user>-trustee-config-creator
+  namespace: <tenant-namespace>  # Replace with actual namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: trustee-config-creator
+subjects:
+- kind: User
+  name: <tenant-user>  # Replace with actual username
+  apiGroup: rbac.authorization.k8s.io
+# Or use ServiceAccount:
+# - kind: ServiceAccount
+#   name: <service-account-name>
+#   namespace: <tenant-namespace>
