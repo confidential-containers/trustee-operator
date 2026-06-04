@@ -1,0 +1,22 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |
+      # Update resource policy to permissive for client testing
+      kubectl create configmap trusteeconfig-restricted-resource-policy \
+        --from-literal=resource-policy.rego='package policy
+
+      import rego.v1
+
+      default allow = false
+
+      plugin = data.plugin
+
+      allow if {
+        plugin == "resource"
+      }' \
+        --dry-run=client -o yaml | kubectl apply -f - -n trustee-operator-system
+
+      # Restart the trustee deployment to pick up the new policy
+      kubectl rollout restart deployment/trustee-deployment -n trustee-operator-system
+      kubectl rollout status deployment/trustee-deployment -n trustee-operator-system --timeout=60s

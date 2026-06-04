@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: |
+      kubectl wait --for=condition=Available deployment/trustee-deployment -n trustee-operator-system --timeout=60s

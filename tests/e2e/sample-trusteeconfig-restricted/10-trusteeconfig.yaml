@@ -1,0 +1,20 @@
+apiVersion: confidentialcontainers.org/v1alpha1
+kind: TrusteeConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: trusteeconfig
+    app.kubernetes.io/instance: trusteeconfig-restricted
+    app.kubernetes.io/part-of: trustee-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: trustee-operator
+  name: trusteeconfig-restricted
+  namespace: trustee-operator-system
+spec:
+  profileType: Restricted
+  kbsServiceType: ClusterIP
+  httpsSpec:
+    tlsSecretName: kbs-tls-secret
+  attestationTokenVerificationSpec:
+    tlsSecretName: kbs-attestation-token-secret
+  tlsConfig:
+    profile: intermediate
