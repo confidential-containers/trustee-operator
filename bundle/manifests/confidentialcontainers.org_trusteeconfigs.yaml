@@ -67,6 +67,58 @@ spec:
                 description: ProfileType determines how to configure trustee, e.g.
                   in permissive/restricted mode etc.
                 type: string
+              tlsConfig:
+                description: |-
+                  TlsConfig defines TLS protocol and cipher configuration for KBS HTTPS server
+                  If not specified, defaults to "intermediate" profile (TLS 1.2+)
+                properties:
+                  ciphers:
+                    description: |-
+                      Ciphers is a list of cipher suites (only for custom profile)
+                      Supports both IANA and OpenSSL formats
+                      Example: ["TLS_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"]
+                    items:
+                      type: string
+                    type: array
+                  groups:
+                    description: |-
+                      Groups specifies TLS key exchange groups (only for custom profile)
+                      Example: ["x25519", "secp256r1"]
+                    items:
+                      type: string
+                    type: array
+                  maxVersion:
+                    description: |-
+                      MaxVersion specifies maximum TLS version (only for custom profile)
+                      Valid values: "1.0", "1.1", "1.2", "1.3"
+                    pattern: ^1\.[0-3]$
+                    type: string
+                  minVersion:
+                    description: |-
+                      MinVersion specifies minimum TLS version (only for custom profile)
+                      Valid values: "1.0", "1.1", "1.2", "1.3"
+                    pattern: ^1\.[0-3]$
+                    type: string
+                  profile:
+                    default: intermediate
+                    description: |-
+                      Profile defines the TLS security profile.
+                      Valid values: "old", "intermediate" (default), "modern", "custom"
+                      - old: TLS 1.0+ (legacy compatibility)
+                      - intermediate: TLS 1.2+ (balanced security, default)
+                      - modern: TLS 1.3 only (PQC-ready)
+                      - custom: user-defined versions and ciphers
+                    enum:
+                    - old
+                    - intermediate
+                    - modern
+                    - custom
+                    type: string
+                type: object
+                x-kubernetes-validations:
+                - message: minVersion must not be greater than maxVersion
+                  rule: '!has(self.minVersion) || !has(self.maxVersion) || self.minVersion
+                    <= self.maxVersion'
             type: object
           status:
             description: TrusteeConfigStatus defines the observed state of TrusteeConfig

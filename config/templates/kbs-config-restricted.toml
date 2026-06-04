@@ -4,6 +4,18 @@ insecure_http = false
 private_key = "/etc/https-key/privateKey"
 certificate = "/etc/https-cert/certificate"
 worker_count = 4
+{{if .TlsProfile}}
+# TLS configuration - Mozilla {{.TlsProfile}} profile
+{{if eq .TlsProfile "custom"}}
+tls_profile = "custom"
+{{if .TlsMinVersion}}tls_min_version = "{{.TlsMinVersion}}"{{end}}
+{{if .TlsMaxVersion}}tls_max_version = "{{.TlsMaxVersion}}"{{end}}
+{{if .TlsCiphers}}tls_ciphers = "{{.TlsCiphers}}"{{end}}
+{{if .TlsGroups}}tls_groups = "{{.TlsGroups}}"{{end}}
+{{else}}
+tls_profile = "{{.TlsProfile}}"
+{{end}}
+{{end}}
 
 [admin]
 type = "DenyAll"

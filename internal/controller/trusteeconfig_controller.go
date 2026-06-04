@@ -17,11 +17,13 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"fmt"
 	"os"
+	"text/template"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -541,13 +543,31 @@ func (r *TrusteeConfigReconciler) generateKbsTomlConfig() (string, error) {
 	}
 
 	// Read the template file
-	configBytes, err := os.ReadFile(templateFile)
+	templateContent, err := os.ReadFile(templateFile)
 	if err != nil {
 		r.log.Error(err, "Failed to read config template", "template", templateFile)
 		return "", err
 	}
 
-	return string(configBytes), nil
+	// Get TLS configuration data for template rendering
+	tlsData := GetTLSConfigFromTlsConfig(r.trusteeConfig.Spec.TlsConfig)
+
+	// Parse template
+	tmpl, err := template.New("kbs-config").Parse(string(templateContent))
+	if err != nil {
+		r.log.Error(err, "Failed to parse template")
+		return "", fmt.Errorf("failed to parse template: %w", err)
+	}
+
+	// Execute template with TLS data
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, tlsData); err != nil {
+		r.log.Error(err, "Failed to execute template")
+		return "", fmt.Errorf("failed to execute template: %w", err)
+	}
+
+	r.log.Info("Rendered KBS configuration", "tlsProfile", tlsData.TlsProfile)
+	return buf.String(), nil
 }
 
 // generateKbsConfigMap creates a ConfigMap for KBS configuration
@@ -597,8 +617,25 @@ func (r *TrusteeConfigReconciler) createOrUpdateKbsConfigMap(ctx context.Context
 		return err
 	}
 
-	// ConfigMap already exists, preserve its content
-	r.log.Info("KBS config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+	// ConfigMap exists - generate new config with current TLS settings
+	newConfigMap, err := r.generateKbsConfigMap(ctx)
+	if err != nil {
+		return err
+	}
+
+	newConfig := newConfigMap.Data["kbs-config.toml"]
+	existingConfig := found.Data["kbs-config.toml"]
+
+	// Merge TLS settings from new config into existing config
+	mergedConfig := mergeTlsSettings(existingConfig, newConfig)
+
+	if mergedConfig != existingConfig {
+		r.log.Info("Updating KBS config map with new TLS settings", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
+		found.Data["kbs-config.toml"] = mergedConfig
+		return r.Update(ctx, found)
+	}
+
+	r.log.V(1).Info("KBS config map TLS settings unchanged", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
 	return nil
 }
 
