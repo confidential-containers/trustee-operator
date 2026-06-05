@@ -1,0 +1,6 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: envsubst < "client.yaml.in" > "client.yaml"
+  - script: kubectl apply -f client.yaml
+  - script: rm client.yaml

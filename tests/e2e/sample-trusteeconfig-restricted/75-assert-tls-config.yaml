@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: |
+      kubectl get configmap trusteeconfig-restricted-kbs-config -n trustee-operator-system -o jsonpath='{.data.kbs-config\.toml}' | grep -q 'tls_profile = "intermediate"'
