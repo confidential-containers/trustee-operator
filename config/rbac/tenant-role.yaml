@@ -1,0 +1,21 @@
+# Example ClusterRole for tenant users to create and manage TrusteeConfigs
+# Use a RoleBinding to limit permissions to a single namespace, or ClusterRoleBinding for entire cluster scope
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: trustee-config-creator
+rules:
+# Permission to create and manage TrusteeConfigs
+- apiGroups: ["confidentialcontainers.org"]
+  resources: ["trusteeconfigs"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+# Permission to view generated resources
+- apiGroups: [""]
+  resources: ["secrets", "configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list", "watch"]

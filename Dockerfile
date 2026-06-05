@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.25 as builder
+FROM golang:1.25 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -35,7 +35,7 @@ COPY --from=builder /workspace/manager .
 COPY --from=builder /workspace/secret-converter .
 
 # Copy the config templates
-COPY --from=builder /workspace/config/templates/ /config/templates/
+COPY --from=builder --chown=65532:65532 /workspace/config/templates/ /config/templates/
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]
