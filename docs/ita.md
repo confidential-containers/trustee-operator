@@ -71,8 +71,8 @@ data:
           "trusted_certs_paths": ["https://portal.trustauthority.intel.com"]
         },
         "repository_config": {
-          "type": "LocalFs",
-          "dir_path": "/opt/confidential-containers/kbs/repository"
+          "type": "kvstorage",
+          "dir_path": "/opt/confidential-containers/storage"
         },
         "as_config": {
           "work_dir": "/opt/confidential-containers/attestation-service",
