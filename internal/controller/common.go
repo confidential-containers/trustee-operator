@@ -44,20 +44,26 @@ const (
 
 	confidentialContainers = "confidential-containers"
 
-	defaultRepository = "default"
-
 	confidentialContainersPath = rootPath + "/" + confidentialContainers
 
-	repositoryPath = confidentialContainersPath + "/storage/repository"
+	RepositoryPath = confidentialContainersPath + "/storage/repository"
 
-	// Default KBS Resources Path
-	kbsResourcesPath = repositoryPath + "/" + defaultRepository
+	// Base storage path
+	baseStoragePath = confidentialContainersPath + "/storage"
+
+	// Base storage directory volume name
+	baseStorageDirVolume = "base-storage-dir"
+
+	// Temporary path for mounting secrets before conversion
+	KbsSecretsMountPath = "/tmp/kbs-secrets"
 
 	// KBS storage path
 	kbsStoragePath = confidentialContainersPath + "/storage/kbs"
 
 	// Resource policy directory volume name
 	resourcePolicyDirVolume = "resource-policy-dir"
+
+	repositoryDir = "repository-dir"
 
 	// Resource policy filename
 	resourcePolicyFilename = "resource-policy.rego"

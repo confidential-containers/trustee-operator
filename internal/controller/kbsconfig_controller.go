@@ -356,25 +356,22 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	var asVM []corev1.VolumeMount
 	var rvpsVM []corev1.VolumeMount
 
-	// The paths /opt/confidential-containers and /opt/confidential-containers/storage/repository/default
-	// are mounted as a RW volume in memory to allow trustee components
-	// to have full access to the filesystem
-	// confidential-containers
-	volume, err := r.createEmptyDirVolume(confidentialContainers)
+	// kbs-config
+	volume, err := r.createConfigMapVolume(ctx, "kbs-config", r.kbsConfig.Spec.KbsConfigMapName)
 	if err != nil {
 		return nil, err
 	}
+	volumeMount := createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
 	volumes = append(volumes, *volume)
-	volumeMount := createVolumeMount(volume.Name, filepath.Join(rootPath, volume.Name))
 	kbsVM = append(kbsVM, volumeMount)
 
-	// kbs-config
-	volume, err = r.createConfigMapVolume(ctx, "kbs-config", r.kbsConfig.Spec.KbsConfigMapName)
+	// base storage directory - create empty writable directory for session storage
+	volume, err = r.createEmptyDirVolume(baseStorageDirVolume)
 	if err != nil {
 		return nil, err
 	}
-	volumeMount = createVolumeMount(volume.Name, filepath.Join(kbsDefaultConfigPath, volume.Name))
 	volumes = append(volumes, *volume)
+	volumeMount = createVolumeMount(volume.Name, baseStoragePath)
 	kbsVM = append(kbsVM, volumeMount)
 
 	// attestation policy directory - create empty writable directory
@@ -526,15 +523,29 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		kbsVM = append(kbsVM, volumeMount)
 	}
 
+	// repository directory - create empty writable directory for KBS resources
+	// This must exist before secret-converter tries to write to it
+	volume, err = r.createEmptyDirVolume(repositoryDir)
+	if err != nil {
+		return nil, err
+	}
+	volumes = append(volumes, *volume)
+	volumeMount = createVolumeMount(volume.Name, RepositoryPath)
+	kbsVM = append(kbsVM, volumeMount)
+
 	// kbs secret resources
+	// Mount secrets to /tmp/kbs-secrets/<secret-name> temporarily
+	// The secret-converter init container will copy them to the final location
 	kbsSecretVolumes, err := r.createKbsSecretResourcesVolume(ctx)
 	if err != nil {
 		return nil, err
 	}
 	volumes = append(volumes, kbsSecretVolumes...)
+	var secretConverterVM []corev1.VolumeMount
 	for _, vol := range kbsSecretVolumes {
-		volumeMount = createVolumeMount(vol.Name, filepath.Join(kbsResourcesPath, vol.Name))
-		kbsVM = append(kbsVM, volumeMount)
+		// Mount to temporary location for secret-converter to read
+		volumeMount = createVolumeMount(vol.Name, filepath.Join(KbsSecretsMountPath, vol.Name))
+		secretConverterVM = append(secretConverterVM, volumeMount)
 	}
 
 	// rvps directory - create empty writable directory for RVPS storage
@@ -601,7 +612,10 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 	}
 
 	// Build the secret converter init container (fails fast if OPERATOR_IMAGE_NAME is not set)
-	secretConverterContainer, err := r.buildSecretConverterInitContainer(kbsVM)
+	// Pass both the confidential-containers volume (for writing) and secret volumes (for reading)
+	allSecretConverterVM := append([]corev1.VolumeMount{}, kbsVM...)
+	allSecretConverterVM = append(allSecretConverterVM, secretConverterVM...)
+	secretConverterContainer, err := r.buildSecretConverterInitContainer(allSecretConverterVM)
 	if err != nil {
 		return nil, err
 	}
@@ -747,15 +761,10 @@ func (r *KbsConfigReconciler) buildSecretConverterInitContainer(volumeMounts []c
 			Capabilities: &corev1.Capabilities{
 				Drop: []corev1.Capability{"ALL"},
 			},
-			// Must run as root to write to emptyDir directories created by secret mounts.
-			// Security: This is safe because:
-			// - Init container only, runs once before main containers
-			// - AllowPrivilegeEscalation=false prevents gaining additional privileges
-			// - All capabilities dropped
-			// - Seccomp profile restricts syscalls
-			// - Only writes to emptyDir volumes, not host filesystem
-			RunAsNonRoot: pointer(false),
-			RunAsUser:    pointer(int64(0)),
+			// Run as non-root for OpenShift compatibility
+			// Secrets are mounted to /tmp which is writable by any user
+			// Output is written to emptyDir volume which is also writable
+			RunAsNonRoot: pointer(true),
 			SeccompProfile: &corev1.SeccompProfile{
 				Type: corev1.SeccompProfileTypeRuntimeDefault,
 			},
