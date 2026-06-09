@@ -36,13 +36,6 @@ const (
 	DeploymentTypeMicroservices DeploymentType = "MicroservicesDeployment"
 )
 
-// TdxConfigSpec defines the desired state for TDX configuration
-type TdxConfigSpec struct {
-	// kbsTdxConfigMapName is the name of the configmap containing sgx_default_qcnl.conf file
-	// +optional
-	KbsTdxConfigMapName string `json:"kbsTdxConfigMapName,omitempty"`
-}
-
 // IbmSEConfigSpec defines the desired state for IBMSE configuration
 type IbmSEConfigSpec struct {
 	// certStorePvc is the name of the PeristentVolumeClaim where certificates/keys are mounted
@@ -205,10 +198,6 @@ type KbsConfigSpec struct {
 	// KbsResourcePolicyConfigMapName is the name of the configmap that contains the Resource Policy
 	// +optional
 	KbsResourcePolicyConfigMapName string `json:"kbsResourcePolicyConfigMapName,omitempty"`
-
-	// TdxConfigSpec is the struct that hosts the TDX specific configuration
-	// +optional
-	TdxConfigSpec TdxConfigSpec `json:"tdxConfigSpec,omitempty"`
 
 	// IbmSEConfigSpec is the struct that hosts the IBMSE specific configuration
 	// +optional

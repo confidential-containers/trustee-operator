@@ -43,6 +43,9 @@ data:
         { type = "KDS" }
     ]
 
+    [attestation_service.verifier_config.dcap_verifier]
+    collateral_service = "https://api.trustedservices.intel.com/sgx/certification/v4/"
+
     [[plugins]]
     name = "resource"
     storage_backend_type = "kvstorage"
