@@ -4,3 +4,4 @@ testDirs:
 - tests/e2e/
 parallel: 1
 timeout: 480
+skipDelete: true
