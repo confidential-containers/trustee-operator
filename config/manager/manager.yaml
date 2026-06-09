@@ -87,7 +87,7 @@ spec:
           value: quay.io/confidential-containers/trustee-operator:v0.19.0
         - name: KBS_IMAGE_NAME
           # kbs image for AllInOneDeployment
-          value: ghcr.io/confidential-containers/key-broker-service:built-in-as-v0.19.0-trustee-operator
+          value: ghcr.io/confidential-containers/staged-images/kbs:b2442c222485b6ec5d6dee09d5a30bb561ff3622
           # kbs image for MicroserviceDeployment
         - name: KBS_IMAGE_NAME_MICROSERVICES
           value: ghcr.io/confidential-containers/key-broker-service:v0.19.0

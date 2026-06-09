@@ -18,12 +18,10 @@ tls_profile = "{{.TlsProfile}}"
 {{end}}
 
 [admin]
-type = "DenyAll"
-insecure_api = false
-auth_public_key = "/etc/auth-secret/publicKey"
+authorization_mode = "DenyAll"
 
 [attestation_token]
-insecure_key = false
+insecure_header_jwk = false
 attestation_token_type = "CoCo"
 trusted_certs_paths = ["/etc/attestation-cert/token.crt"]
 

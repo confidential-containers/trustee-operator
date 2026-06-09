@@ -13,12 +13,10 @@ data:
     worker_count = 4
 
     [admin]
-    type = "DenyAll"
-    insecure_api = false
-    auth_public_key = "/etc/auth-secret/publicKey"
+    authorization_mode = "DenyAll"
 
     [attestation_token]
-    insecure_key = true
+    insecure_header_jwk = true
 
     [attestation_service]
     type = "coco_as_builtin"
