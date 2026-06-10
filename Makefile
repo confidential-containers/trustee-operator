@@ -104,7 +104,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $(shell go list ./... | grep -v '/cmd$$' | grep -v '/cmd/') -coverprofile cover.out
 
 ##@ Build
 
@@ -182,7 +182,7 @@ CLIENT_IMAGE_NAME ?= quay.io/confidential-containers/kbs-client:v0.19.0
 test-e2e:
 	./tests/scripts/kind-with-registry.sh
 	trap 'kind delete cluster' EXIT; \
-	KBS_IMAGE_NAME=${KBS_IMAGE_NAME} CLIENT_IMAGE_NAME=${CLIENT_IMAGE_NAME} kubectl kuttl test || true
+	KBS_IMAGE_NAME=${KBS_IMAGE_NAME} CLIENT_IMAGE_NAME=${CLIENT_IMAGE_NAME} kubectl kuttl test
 
 ##@ Build Dependencies
 
