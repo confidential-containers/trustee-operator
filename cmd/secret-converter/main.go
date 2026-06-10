@@ -23,31 +23,35 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	controllers "github.com/confidential-containers/trustee-operator/internal/controller"
 )
 
-const (
-	repoDir    = "/opt/confidential-containers/storage/repository"
-	defaultDir = "/opt/confidential-containers/storage/repository/default"
+var (
+	// Source directory where Kubernetes mounts the secrets
+	sourceDir = controllers.KbsSecretsMountPath
+	// Destination directory where KBS expects flat files
+	repoDir = controllers.RepositoryPath
 )
 
 func main() {
 	log.Println("Converting secret directories to flat files...")
 
-	// Check if default directory exists
-	if _, err := os.Stat(defaultDir); os.IsNotExist(err) {
-		log.Printf("No secrets found in %s, skipping conversion", defaultDir)
+	// Check if source directory exists
+	if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
+		log.Printf("No secrets found in %s, skipping conversion", sourceDir)
 		return
 	} else if err != nil {
-		log.Fatalf("Error checking default directory: %v", err)
+		log.Fatalf("Error checking source directory: %v", err)
 	}
 
 	// Check if directory is empty
-	entries, err := os.ReadDir(defaultDir)
+	entries, err := os.ReadDir(sourceDir)
 	if err != nil {
-		log.Fatalf("Error reading default directory: %v", err)
+		log.Fatalf("Error reading source directory: %v", err)
 	}
 	if len(entries) == 0 {
-		log.Printf("No secrets found in %s, skipping conversion", defaultDir)
+		log.Printf("No secrets found in %s, skipping conversion", sourceDir)
 		return
 	}
 
@@ -58,7 +62,7 @@ func main() {
 		}
 
 		secretName := entry.Name()
-		secretPath := filepath.Join(defaultDir, secretName)
+		secretPath := filepath.Join(sourceDir, secretName)
 		log.Printf("Processing secret: %s", secretName)
 
 		if err := processSecretDir(secretName, secretPath); err != nil {
@@ -128,6 +132,12 @@ func copyFile(src, dst string) (err error) {
 			err = fmt.Errorf("closing source file: %w", cerr)
 		}
 	}()
+
+	// Ensure destination directory exists
+	destDir := filepath.Dir(dst)
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return fmt.Errorf("creating destination directory: %w", err)
+	}
 
 	destFile, err := os.Create(dst)
 	if err != nil {
