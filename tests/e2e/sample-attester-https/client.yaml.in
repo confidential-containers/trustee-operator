@@ -14,3 +14,12 @@ spec:
     env:
       - name: RUST_LOG
         value:  info
+    volumeMounts:
+      - name: ca-certs
+        mountPath: /etc/ssl/certs
+        readOnly: true
+  volumes:
+    - name: ca-certs
+      hostPath:
+        path: /etc/ssl/certs
+        type: Directory
