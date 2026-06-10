@@ -439,17 +439,6 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 		kbsVM = append(kbsVM, volumeMount)
 	}
 
-	// TDX specific configuration
-	if r.kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName != "" {
-		volume, err = r.createConfigMapVolume(ctx, "tdx-config", r.kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName)
-		if err != nil {
-			return nil, err
-		}
-		volumeMount = createVolumeMountWithSubpath(volume.Name, filepath.Join(kbsDefaultConfigPath, tdxConfigFile), tdxConfigFile)
-		volumes = append(volumes, *volume)
-		kbsVM = append(kbsVM, volumeMount)
-	}
-
 	// IBMSE specific configuration
 	if r.kbsConfig.Spec.IbmSEConfigSpec.CertStorePvc != "" {
 		volume, err := r.createPVCVolume(ctx, r.kbsConfig.Spec.IbmSEConfigSpec.CertStorePvc)
@@ -992,8 +981,7 @@ func configMapToKbsConfigMapper(c client.Client, log logr.Logger) (handler.MapFu
 				kbsConfig.Spec.KbsRvpsRefValuesConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsAttestationPolicyConfigMapName == configMap.Name ||
 				kbsConfig.Spec.KbsGpuAttestationPolicyConfigMapName == configMap.Name ||
-				kbsConfig.Spec.KbsResourcePolicyConfigMapName == configMap.Name ||
-				kbsConfig.Spec.TdxConfigSpec.KbsTdxConfigMapName == configMap.Name {
+				kbsConfig.Spec.KbsResourcePolicyConfigMapName == configMap.Name {
 
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{

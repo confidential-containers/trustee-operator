@@ -18,7 +18,6 @@ These fields are **always managed** by TrusteeConfig and will be overwritten:
 - `KbsDeploymentType` - Deployment type (always set to AllInOneDeployment)
 - `KbsResourcePolicyConfigMapName` - Resource policy
 - `KbsAttestationPolicyConfigMapName` - Attestation policy (generated based on profile type)
-- `TdxConfigSpec.KbsTdxConfigMapName` - TDX configuration
 - `KbsHttpsKeySecretName` - HTTPS key secret (generated when `HttpsSpec.TlsSecretName` is set)
 - `KbsHttpsCertSecretName` - HTTPS certificate secret (generated when `HttpsSpec.TlsSecretName` is set)
 

@@ -21,7 +21,6 @@ patches:
 - path: patch-ref-values.yaml
 - path: patch-attestation-policy.yaml
 - path: patch-resource-policy.yaml
-- path: patch-tdx-config.yaml
 # inject sample resources in kbs
 - path: patch-kbs-resources.yaml
 # uncomment the following line for enabling DEBUG logs
@@ -37,7 +36,6 @@ resources:
 - ibmse-attestation-policy.yaml
 - ibmse-resource-policy.yaml
 - resource-policy.yaml
-- tdx-config.yaml
 - ita-kbs-config.yaml
 - ita-resource-policy.yaml
 - ibmse-pv.yaml

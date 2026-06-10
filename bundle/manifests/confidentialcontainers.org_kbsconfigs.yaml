@@ -163,15 +163,6 @@ spec:
                   KbsServiceType is the type of service to create for KBS
                   Default value is ClusterIP
                 type: string
-              tdxConfigSpec:
-                description: TdxConfigSpec is the struct that hosts the TDX specific
-                  configuration
-                properties:
-                  kbsTdxConfigMapName:
-                    description: kbsTdxConfigMapName is the name of the configmap
-                      containing sgx_default_qcnl.conf file
-                    type: string
-                type: object
             type: object
           status:
             description: KbsConfigStatus defines the observed state of KbsConfig

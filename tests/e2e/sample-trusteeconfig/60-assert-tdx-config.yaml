@@ -1,5 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: trusteeconfig-sample-tdx-config
-  namespace: trustee-operator-system

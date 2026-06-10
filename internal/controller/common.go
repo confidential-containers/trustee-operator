@@ -80,9 +80,6 @@ const (
 	// Default RVPS reference values Path
 	rvpsReferenceValuesPath = confidentialContainersPath + "/storage/local_json"
 
-	// TDX config file
-	tdxConfigFile = "sgx_default_qcnl.conf"
-
 	// IBM SE path
 	ibmSePath = "/run/confidential-containers/ibmse/"
 

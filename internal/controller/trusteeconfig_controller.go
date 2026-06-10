@@ -426,11 +426,6 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 	}
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
 
-	if err := r.createOrUpdateTdxConfigMap(ctx); err != nil {
-		return spec, fmt.Errorf("TDX ConfigMap: %w", err)
-	}
-	spec.TdxConfigSpec.KbsTdxConfigMapName = r.getTdxConfigMapName()
-
 	if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
 		return spec, fmt.Errorf("CPU attestation policy ConfigMap: %w", err)
 	}
@@ -473,11 +468,6 @@ func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context
 		return spec, fmt.Errorf("RVPS reference values ConfigMap: %w", err)
 	}
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
-
-	if err := r.createOrUpdateTdxConfigMap(ctx); err != nil {
-		return spec, fmt.Errorf("TDX ConfigMap: %w", err)
-	}
-	spec.TdxConfigSpec.KbsTdxConfigMapName = r.getTdxConfigMapName()
 
 	if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
 		return spec, fmt.Errorf("CPU attestation policy ConfigMap: %w", err)
@@ -1212,58 +1202,6 @@ func (r *TrusteeConfigReconciler) createOrUpdateRvpsReferenceValuesConfigMap(ctx
 
 	// ConfigMap already exists, preserve its content
 	r.log.Info("RVPS reference values config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
-	return nil
-}
-
-// generateTdxConfigMap creates a ConfigMap for TDX configuration
-func (r *TrusteeConfigReconciler) generateTdxConfigMap(ctx context.Context) (*corev1.ConfigMap, error) {
-	tdxConfigJson, err := generateTdxConfigJson()
-	if err != nil {
-		return nil, err
-	}
-
-	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.getTdxConfigMapName(),
-			Namespace: r.namespace,
-		},
-		Data: map[string]string{
-			tdxConfigFile: tdxConfigJson,
-		},
-	}
-
-	err = ctrl.SetControllerReference(r.trusteeConfig, configMap, r.Scheme)
-	if err != nil {
-		return nil, err
-	}
-
-	return configMap, nil
-}
-
-// getTdxConfigMapName returns the name for the TDX config map
-func (r *TrusteeConfigReconciler) getTdxConfigMapName() string {
-	return r.trusteeConfig.Name + "-tdx-config"
-}
-
-// createOrUpdateTdxConfigMap creates or updates the TDX ConfigMap
-func (r *TrusteeConfigReconciler) createOrUpdateTdxConfigMap(ctx context.Context) error {
-	configMapName := r.getTdxConfigMapName()
-	found := &corev1.ConfigMap{}
-	err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: configMapName}, found)
-
-	if err != nil && k8serrors.IsNotFound(err) {
-		r.log.Info("Creating TDX config map", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
-		configMap, err := r.generateTdxConfigMap(ctx)
-		if err != nil {
-			return err
-		}
-		return r.Create(ctx, configMap)
-	} else if err != nil {
-		return err
-	}
-
-	// ConfigMap already exists, preserve its content
-	r.log.Info("TDX config map already exists, preserving existing content", "ConfigMap.Namespace", r.namespace, "ConfigMap.Name", configMapName)
 	return nil
 }
 
