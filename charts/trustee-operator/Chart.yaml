@@ -1,0 +1,21 @@
+apiVersion: v2
+name: trustee-operator
+description: Operator to manage the lifecycle of Trustee (KBS)
+type: application
+version: 0.1.0
+appVersion: "v0.5.0"
+
+keywords:
+  - confidential-containers
+  - trustee
+  - kbs
+  - operator
+
+home: https://github.com/confidential-containers/trustee-operator
+
+sources:
+  - https://github.com/confidential-containers/trustee-operator
+
+maintainers:
+  - name: Confidential Containers Community
+    url: https://github.com/confidential-containers
