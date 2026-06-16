@@ -31,7 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,7 +48,7 @@ import (
 type KbsConfigReconciler struct {
 	client.Client
 	Scheme    *runtime.Scheme
-	Recorder  record.EventRecorder
+	Recorder  events.EventRecorder
 	kbsConfig *confidentialcontainersorgv1alpha1.KbsConfig
 	log       logr.Logger
 	namespace string
@@ -198,11 +198,11 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 		}
 		err = r.Create(ctx, service)
 		if err != nil {
-			r.Recorder.Event(r.kbsConfig, corev1.EventTypeWarning, "ServiceCreateFailed", err.Error())
+			r.Recorder.Eventf(r.kbsConfig, nil, corev1.EventTypeWarning, "ServiceCreateFailed", "ServiceCreateFailed", err.Error())
 			return err
 		}
 		// Service created successfully - return and requeue
-		r.Recorder.Event(r.kbsConfig, corev1.EventTypeNormal, "ServiceCreated", "KBS service created successfully")
+		r.Recorder.Eventf(r.kbsConfig, nil, corev1.EventTypeNormal, "ServiceCreated", "ServiceCreated", "KBS service created successfully")
 		return nil
 	} else if err != nil {
 		return err
@@ -217,7 +217,7 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsService(ctx context.Context) erro
 	}
 	err = r.Update(ctx, service)
 	if err != nil {
-		r.Recorder.Event(r.kbsConfig, corev1.EventTypeWarning, "ServiceUpdateFailed", err.Error())
+		r.Recorder.Eventf(r.kbsConfig, nil, corev1.EventTypeWarning, "ServiceUpdateFailed", "ServiceUpdateFailed", err.Error())
 		return err
 	}
 	// Service updated successfully - ret
@@ -288,12 +288,12 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) (
 		}
 		err = r.Create(ctx, deployment)
 		if err != nil {
-			r.Recorder.Event(r.kbsConfig, corev1.EventTypeWarning, "DeploymentCreateFailed", err.Error())
+			r.Recorder.Eventf(r.kbsConfig, nil, corev1.EventTypeWarning, "DeploymentCreateFailed", "DeploymentCreateFailed", err.Error())
 			return false, err
 		}
 		// Deployment created successfully
 		r.log.Info("Created a new deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
-		r.Recorder.Event(r.kbsConfig, corev1.EventTypeNormal, "DeploymentCreated", "Trustee deployment created successfully")
+		r.Recorder.Eventf(r.kbsConfig, nil, corev1.EventTypeNormal, "DeploymentCreated", "DeploymentCreated", "Trustee deployment created successfully")
 		// Add the kbsFinalizer to the KbsConfig if it doesn't already exist
 		return true, r.addKbsConfigFinalizer(ctx)
 	} else if err != nil {
@@ -303,12 +303,12 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) (
 	// Update the found deployment and write the result back if there are any changes
 	err = r.updateKbsDeployment(ctx, found)
 	if err != nil {
-		r.Recorder.Event(r.kbsConfig, corev1.EventTypeWarning, "DeploymentUpdateFailed", err.Error())
+		r.Recorder.Eventf(r.kbsConfig, nil, corev1.EventTypeWarning, "DeploymentUpdateFailed", "DeploymentUpdateFailed", err.Error())
 		return false, err
 	}
 	// Deployment updated successfully
 	r.log.Info("Updated Deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
-	r.Recorder.Event(r.kbsConfig, corev1.EventTypeNormal, "DeploymentUpdated", "Trustee deployment updated successfully")
+	r.Recorder.Eventf(r.kbsConfig, nil, corev1.EventTypeNormal, "DeploymentUpdated", "DeploymentUpdated", "Trustee deployment updated successfully")
 
 	return false, nil
 }
@@ -915,7 +915,7 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.log = r.log.WithValues("kbsconfig", r.namespace)
 
 	// Create an event recorder for emitting Kubernetes events
-	r.Recorder = mgr.GetEventRecorderFor("kbsconfig-controller")
+	r.Recorder = mgr.GetEventRecorder("kbsconfig-controller")
 
 	configMapMapper, err := configMapToKbsConfigMapper(r.Client, r.log)
 	if err != nil {
@@ -1095,9 +1095,9 @@ func (r *KbsConfigReconciler) updateKbsConfigStatus(ctx context.Context) error {
 		newIsReady = deployment.Status.ReadyReplicas >= 1 && deployment.Status.ReadyReplicas == deployment.Status.Replicas
 		r.log.Info("Checked KbsConfig status", "IsReady", newIsReady, "ReadyReplicas", deployment.Status.ReadyReplicas, "Replicas", deployment.Status.Replicas, "AvailableReplicas", deployment.Status.AvailableReplicas, "UpdatedReplicas", deployment.Status.UpdatedReplicas)
 		if newIsReady && !oldIsReady {
-			r.Recorder.Event(r.kbsConfig, corev1.EventTypeNormal, "Ready", "Trustee deployment is ready")
+			r.Recorder.Eventf(r.kbsConfig, nil, corev1.EventTypeNormal, "Ready", "Ready", "Trustee deployment is ready")
 		} else if !newIsReady && oldIsReady {
-			r.Recorder.Event(r.kbsConfig, corev1.EventTypeWarning, "NotReady", "Trustee deployment is no longer ready")
+			r.Recorder.Eventf(r.kbsConfig, nil, corev1.EventTypeWarning, "NotReady", "NotReady", "Trustee deployment is no longer ready")
 		}
 	}
 
