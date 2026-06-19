@@ -626,7 +626,8 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
+					Labels:      labels,
+					Annotations: r.getConfigMapVersionAnnotations(ctx),
 				},
 				// Add the KBS container
 				Spec: corev1.PodSpec{
@@ -877,6 +878,61 @@ func (r *KbsConfigReconciler) isAttestationConfigPresent() bool {
 	return false
 }
 
+// getConfigMapVersionAnnotations collects ResourceVersions of all mounted ConfigMaps
+// and returns them as pod template annotations. When any ConfigMap changes, Kubernetes
+// increments its ResourceVersion, which updates the annotation and triggers a rolling
+// restart of the KBS pods.
+//
+// This ensures KBS pods automatically restart when ANY configuration changes:
+// - Trustee configuration (KbsConfigMapName)
+// - Attestation policies (KbsAttestationPolicyConfigMapName, KbsGpuAttestationPolicyConfigMapName)
+// - Reference values (KbsRvpsRefValuesConfigMapName)
+// - Resource policies (KbsResourcePolicyConfigMapName)
+func (r *KbsConfigReconciler) getConfigMapVersionAnnotations(ctx context.Context) map[string]string {
+	annotations := make(map[string]string)
+
+	// List of all ConfigMaps that Trustee mounts
+	// These must match the ConfigMaps used in newKbsDeployment()
+	configMapNames := []string{
+		r.kbsConfig.Spec.KbsConfigMapName,
+		r.kbsConfig.Spec.KbsRvpsRefValuesConfigMapName,
+		r.kbsConfig.Spec.KbsAttestationPolicyConfigMapName,
+		r.kbsConfig.Spec.KbsGpuAttestationPolicyConfigMapName,
+		r.kbsConfig.Spec.KbsResourcePolicyConfigMapName,
+	}
+
+	var versions []string
+	for _, cmName := range configMapNames {
+		// Skip empty ConfigMap names (optional ConfigMaps)
+		if cmName == "" {
+			continue
+		}
+
+		// Fetch the ConfigMap to get its ResourceVersion
+		configMap := &corev1.ConfigMap{}
+		err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: cmName}, configMap)
+		if err != nil {
+			// If ConfigMap doesn't exist, skip it (might be optional or not created yet)
+			r.log.V(1).Info("ConfigMap not found for version tracking", "name", cmName, "error", err)
+			continue
+		}
+
+		// Append "name:version" to the list
+		versions = append(versions, fmt.Sprintf("%s:%s", cmName, configMap.ResourceVersion))
+	}
+
+	// Combine all versions into a single annotation
+	// Format: "kbs-config:12345,reference-values:67890,..."
+	if len(versions) > 0 {
+		annotations["kbs.confidentialcontainers.org/configmap-versions"] = versions[0]
+		for _, v := range versions[1:] {
+			annotations["kbs.confidentialcontainers.org/configmap-versions"] += "," + v
+		}
+	}
+
+	return annotations
+}
+
 // updateKbsDeployment updates an existing deployment for the KBS instance
 // Errors are logged by the callee and hence no error is logged in this method
 func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deployment *appsv1.Deployment) error {
@@ -886,8 +942,10 @@ func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deploymen
 		return err
 	}
 
-	// overwrites the template spec, if any changes
-	deployment.Spec.Template.Spec = *newDeployment.Spec.Template.Spec.DeepCopy()
+	// Update the entire template (spec + metadata including annotations)
+	// This ensures that changes to pod template annotations (e.g., ConfigMap versions)
+	// trigger a rolling restart
+	deployment.Spec.Template = *newDeployment.Spec.Template.DeepCopy()
 	// Update replicas if changed
 	deployment.Spec.Replicas = newDeployment.Spec.Replicas
 
