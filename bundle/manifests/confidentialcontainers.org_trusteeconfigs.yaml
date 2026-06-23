@@ -58,6 +58,22 @@ spec:
                       that contains the TLS certificate and private key
                     type: string
                 type: object
+              ibmSE:
+                description: |-
+                  IbmSE enables IBM Secure Execution mode when set.
+                  The operator will create a PVC bound to the named PV and wire it into the KbsConfig.
+                  CPU/GPU attestation policy ConfigMaps are skipped when this field is set.
+                properties:
+                  pvName:
+                    description: |-
+                      PVName is the name of the pre-existing PersistentVolume that holds the IBM SE
+                      certificates and keys (mounted at /opt/confidential-containers/ibmse on worker nodes).
+                      The PV must be created by the cluster administrator before the TrusteeConfig is applied.
+                      The operator creates a PVC that binds to this PV and wires it into the KbsConfig.
+                    type: string
+                required:
+                - pvName
+                type: object
               kbsServiceType:
                 description: |-
                   KbsServiceType is the type of service to create for KBS
