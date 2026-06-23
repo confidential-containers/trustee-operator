@@ -67,6 +67,13 @@ spec:
                 description: ProfileType determines how to configure trustee, e.g.
                   in permissive/restricted mode etc.
                 type: string
+              teeType:
+                description: |-
+                  TeeType specifies the TEE platform type (e.g., IbmSel for IBM Secure Execution)
+                  When set to IbmSel, automatically creates PV/PVC and skips CPU/GPU attestation policies
+                enum:
+                - IbmSel
+                type: string
               tlsConfig:
                 description: |-
                   TlsConfig defines TLS protocol and cipher configuration for KBS HTTPS server

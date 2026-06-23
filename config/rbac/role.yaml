@@ -8,6 +8,8 @@ rules:
   - ""
   resources:
   - configmaps
+  - persistentvolumeclaims
+  - persistentvolumes
   - secrets
   - services
   verbs:
@@ -74,3 +76,4 @@ rules:
   - get
   - list
   - watch
+
