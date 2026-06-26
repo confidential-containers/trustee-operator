@@ -54,6 +54,8 @@ type TrusteeConfigReconciler struct {
 //+kubebuilder:rbac:groups=confidentialcontainers.org,resources=trusteeconfigs/finalizers,verbs=update
 //+kubebuilder:rbac:groups=confidentialcontainers.org,resources=kbsconfigs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=confidentialcontainers.org,resources=kbsconfigs/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=core,resources=persistentvolumes,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 
@@ -141,12 +143,13 @@ func (r *TrusteeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&confidentialcontainersorgv1alpha1.KbsConfig{},
 			handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &confidentialcontainersorgv1alpha1.TrusteeConfig{}),
 		).
-		// Watch owned ConfigMaps and Secrets so that accidental deletion triggers
-		// reconcile and the controller recreates them. Safe because all
+		// Watch owned ConfigMaps, Secrets, and PVCs so that accidental deletion
+		// triggers reconcile and the controller recreates them. Safe because all
 		// createOrUpdate helpers are create-once: they never call r.Update on
 		// an existing resource, so no update loop can form.
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Secret{}).
+		Owns(&corev1.PersistentVolumeClaim{}).
 		Complete(r)
 }
 
@@ -376,6 +379,17 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) (confi
 		return spec, err
 	}
 
+	// Configure IBM SE PV/PVC after profile configuration (applies to all profiles).
+	if r.isIBMSE() {
+		if err = r.createOrUpdateIBMSEPV(ctx); err != nil {
+			return spec, fmt.Errorf("IBM SE PV: %w", err)
+		}
+		if err = r.createOrUpdateIBMSEPVC(ctx); err != nil {
+			return spec, fmt.Errorf("IBM SE PVC: %w", err)
+		}
+		spec.IbmSEConfigSpec.CertStorePvc = r.getIBMSEPVCName()
+	}
+
 	// Configure HTTPS if specified
 	if r.trusteeConfig.Spec.HttpsSpec.TlsSecretName != "" {
 		if err = r.createOrUpdateHttpsSecrets(ctx); err != nil {
@@ -426,15 +440,18 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 	}
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
 
-	if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
-		return spec, fmt.Errorf("CPU attestation policy ConfigMap: %w", err)
+	// Only create CPU/GPU attestation policies for non-IBM SE deployments.
+	// For IBM SE (teeType: IbmSel), these policies are not applicable.
+	if !r.isIBMSE() {
+		if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
+			return spec, fmt.Errorf("CPU attestation policy ConfigMap: %w", err)
+		}
+		spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
+		if err := r.createOrUpdateGpuAttestationPolicyConfigMap(ctx); err != nil {
+			return spec, fmt.Errorf("GPU attestation policy ConfigMap: %w", err)
+		}
+		spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
 	}
-	spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
-
-	if err := r.createOrUpdateGpuAttestationPolicyConfigMap(ctx); err != nil {
-		return spec, fmt.Errorf("GPU attestation policy ConfigMap: %w", err)
-	}
-	spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
 
 	return spec, nil
 }
@@ -469,15 +486,18 @@ func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context
 	}
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
 
-	if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
-		return spec, fmt.Errorf("CPU attestation policy ConfigMap: %w", err)
+	// Only create CPU/GPU attestation policies for non-IBM SE deployments.
+	// For IBM SE (teeType: IbmSel), these policies are not applicable.
+	if !r.isIBMSE() {
+		if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
+			return spec, fmt.Errorf("CPU attestation policy ConfigMap: %w", err)
+		}
+		spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
+		if err := r.createOrUpdateGpuAttestationPolicyConfigMap(ctx); err != nil {
+			return spec, fmt.Errorf("GPU attestation policy ConfigMap: %w", err)
+		}
+		spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
 	}
-	spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
-
-	if err := r.createOrUpdateGpuAttestationPolicyConfigMap(ctx); err != nil {
-		return spec, fmt.Errorf("GPU attestation policy ConfigMap: %w", err)
-	}
-	spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
 
 	return spec, nil
 }
@@ -1103,7 +1123,7 @@ func (r *TrusteeConfigReconciler) generateAttestationKeySecret(keyData []byte) (
 
 // generateResourcePolicyConfigMap creates a ConfigMap for resource policy
 func (r *TrusteeConfigReconciler) generateResourcePolicyConfigMap(ctx context.Context) (*corev1.ConfigMap, error) {
-	policyRego, err := generateResourcePolicyRego(string(r.trusteeConfig.Spec.Profile))
+	policyRego, err := generateResourcePolicyRego(string(r.trusteeConfig.Spec.TeeType), string(r.trusteeConfig.Spec.Profile))
 	if err != nil {
 		return nil, err
 	}

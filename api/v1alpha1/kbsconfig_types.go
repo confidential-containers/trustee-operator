@@ -277,6 +277,16 @@ const (
 	ProfileTypeRestrictive ProfileType = "Restricted"
 )
 
+// TeeType string determines the TEE platform type
+// +enum
+type TeeType string
+
+const (
+	// TeeTypeIbmSel: IBM Secure Execution (SE) platform
+	// When specified, automatically creates PV/PVC and skips CPU/GPU attestation policies
+	TeeTypeIbmSel TeeType = "IbmSel"
+)
+
 // TrusteeConfigSpec defines the desired state of TrusteeConfig
 type TrusteeConfigSpec struct {
 	// HttpsSpec is the struct that hosts the HTTPS configuration
@@ -289,6 +299,12 @@ type TrusteeConfigSpec struct {
 
 	// ProfileType determines how to configure trustee, e.g. in permissive/restricted mode etc.
 	Profile ProfileType `json:"profileType,omitempty"`
+
+	// TeeType specifies the TEE platform type (e.g., IbmSel for IBM Secure Execution)
+	// When set to IbmSel, automatically creates PV/PVC and skips CPU/GPU attestation policies
+	// +kubebuilder:validation:Enum=IbmSel
+	// +optional
+	TeeType TeeType `json:"teeType,omitempty"`
 
 	// KbsServiceType is the type of service to create for KBS
 	// Default value is ClusterIP

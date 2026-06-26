@@ -20,18 +20,24 @@ import (
 	"os"
 )
 
-// generateResourcePolicyRego generates the Rego policy content based on profile type
-func generateResourcePolicyRego(profileType string) (string, error) {
+// generateResourcePolicyRego generates the Rego policy content based on tee type and profile type.
+// For IBM SE (teeType "IbmSel"), the IBM SE-specific template is always used regardless of profile.
+func generateResourcePolicyRego(teeType, profileType string) (string, error) {
 	var templateFile string
 
-	// Select template file based on profile type
-	switch profileType {
-	case "Restricted":
-		templateFile = "/config/templates/resource-policy-restrictive.rego"
-	case "Permissive":
-		templateFile = "/config/templates/resource-policy-permissive.rego"
-	default:
-		templateFile = "/config/templates/resource-policy-permissive.rego"
+	// IBM SE requires its own resource policy template regardless of profile.
+	if teeType == "IbmSel" {
+		templateFile = "/config/templates/resource-policy-ibm.rego"
+	} else {
+		// Select template file based on profile type
+		switch profileType {
+		case "Restricted":
+			templateFile = "/config/templates/resource-policy-restrictive.rego"
+		case "Permissive":
+			templateFile = "/config/templates/resource-policy-permissive.rego"
+		default:
+			templateFile = "/config/templates/resource-policy-permissive.rego"
+		}
 	}
 
 	// Read the template file
