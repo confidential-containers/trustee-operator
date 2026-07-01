@@ -277,6 +277,16 @@ const (
 	ProfileTypeRestrictive ProfileType = "Restricted"
 )
 
+// IbmSETeeConfig holds IBM Secure Execution specific configuration.
+// Its presence in the spec enables IBM SE mode.
+type IbmSETeeConfig struct {
+	// PVName is the name of the pre-existing PersistentVolume that holds the IBM SE
+	// certificates and keys (mounted at /opt/confidential-containers/ibmse on worker nodes).
+	// The PV must be created by the cluster administrator before the TrusteeConfig is applied.
+	// The operator creates a PVC that binds to this PV and wires it into the KbsConfig.
+	PVName string `json:"pvName"`
+}
+
 // TrusteeConfigSpec defines the desired state of TrusteeConfig
 type TrusteeConfigSpec struct {
 	// HttpsSpec is the struct that hosts the HTTPS configuration
@@ -289,6 +299,12 @@ type TrusteeConfigSpec struct {
 
 	// ProfileType determines how to configure trustee, e.g. in permissive/restricted mode etc.
 	Profile ProfileType `json:"profileType,omitempty"`
+
+	// IbmSE enables IBM Secure Execution mode when set.
+	// The operator will create a PVC bound to the named PV and wire it into the KbsConfig.
+	// CPU/GPU attestation policy ConfigMaps are skipped when this field is set.
+	// +optional
+	IbmSE *IbmSETeeConfig `json:"ibmSE,omitempty"`
 
 	// KbsServiceType is the type of service to create for KBS
 	// Default value is ClusterIP

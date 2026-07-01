@@ -54,8 +54,10 @@ type TrusteeConfigReconciler struct {
 //+kubebuilder:rbac:groups=confidentialcontainers.org,resources=trusteeconfigs/finalizers,verbs=update
 //+kubebuilder:rbac:groups=confidentialcontainers.org,resources=kbsconfigs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=confidentialcontainers.org,resources=kbsconfigs/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;delete
+//+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -68,8 +70,6 @@ func (r *TrusteeConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	err := r.Get(ctx, req.NamespacedName, r.trusteeConfig)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			r.log.Info("TrusteeConfig resource not found. Ignoring since object must be deleted.")
 			return ctrl.Result{}, nil
 		}
@@ -141,12 +141,13 @@ func (r *TrusteeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&confidentialcontainersorgv1alpha1.KbsConfig{},
 			handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &confidentialcontainersorgv1alpha1.TrusteeConfig{}),
 		).
-		// Watch owned ConfigMaps and Secrets so that accidental deletion triggers
-		// reconcile and the controller recreates them. Safe because all
-		// createOrUpdate helpers are create-once: they never call r.Update on
-		// an existing resource, so no update loop can form.
+		// Watch owned ConfigMaps, Secrets, and PVCs so that accidental deletion
+		// triggers reconcile and the controller recreates them. Updates may still
+		// occur (e.g., PVC adoption); reconciliation is idempotent so any watch-
+		// triggered update loops converge quickly.
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Secret{}).
+		Owns(&corev1.PersistentVolumeClaim{}).
 		Complete(r)
 }
 
@@ -245,8 +246,12 @@ func (r *TrusteeConfigReconciler) detectManualChanges(current, generated confide
 		// Custom local cert cache
 		len(current.KbsLocalCertCacheSpec.Secrets) > 0 && !r.certCacheSpecsEqual(current.KbsLocalCertCacheSpec, generated.KbsLocalCertCacheSpec),
 
-		// Custom IBM SE config
-		current.IbmSEConfigSpec.CertStorePvc != "" && current.IbmSEConfigSpec.CertStorePvc != generated.IbmSEConfigSpec.CertStorePvc,
+		// Custom IBM SE PVC: treat as a manual override only when the user has
+		// set a PVC name that is neither empty nor the one auto-provisioned by
+		// this operator, so our own writes are never mistaken for user edits.
+		current.IbmSEConfigSpec.CertStorePvc != "" &&
+			current.IbmSEConfigSpec.CertStorePvc != generated.IbmSEConfigSpec.CertStorePvc &&
+			current.IbmSEConfigSpec.CertStorePvc != r.getIBMSEPVCName(),
 	}
 
 	// Return true if any user-configurable field has been modified
@@ -328,8 +333,10 @@ func (r *TrusteeConfigReconciler) mergeKbsConfigSpecs(generatedSpec, manualSpec 
 		merged.KbsLocalCertCacheSpec.Secrets = manualSpec.KbsLocalCertCacheSpec.Secrets
 	}
 
-	// Preserve manual IBM SE configuration
-	if manualSpec.IbmSEConfigSpec.CertStorePvc != "" {
+	// Only preserve a user-supplied IBM SE PVC name — skip the auto-provisioned
+	// one so the operator can clear IBM SE wiring when ibmSE is removed from the spec.
+	if manualSpec.IbmSEConfigSpec.CertStorePvc != "" &&
+		manualSpec.IbmSEConfigSpec.CertStorePvc != r.getIBMSEPVCName() {
 		merged.IbmSEConfigSpec.CertStorePvc = manualSpec.IbmSEConfigSpec.CertStorePvc
 	}
 
@@ -374,6 +381,15 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) (confi
 	}
 	if err != nil {
 		return spec, err
+	}
+
+	// Configure IBM SE PVC after profile configuration (applies to all profiles).
+	// The PV must be pre-created by the cluster administrator and named in spec.ibmSEPVName.
+	if r.isIBMSE() {
+		if err = r.createOrUpdateIBMSEPVC(ctx); err != nil {
+			return spec, fmt.Errorf("IBM SE PVC: %w", err)
+		}
+		spec.IbmSEConfigSpec.CertStorePvc = r.getIBMSEPVCName()
 	}
 
 	// Configure HTTPS if specified
@@ -426,15 +442,17 @@ func (r *TrusteeConfigReconciler) configurePermissiveProfile(ctx context.Context
 	}
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
 
-	if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
-		return spec, fmt.Errorf("CPU attestation policy ConfigMap: %w", err)
+	// CPU/GPU attestation policies are not applicable to IBM SE deployments.
+	if !r.isIBMSE() {
+		if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
+			return spec, fmt.Errorf("CPU attestation policy ConfigMap: %w", err)
+		}
+		spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
+		if err := r.createOrUpdateGpuAttestationPolicyConfigMap(ctx); err != nil {
+			return spec, fmt.Errorf("GPU attestation policy ConfigMap: %w", err)
+		}
+		spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
 	}
-	spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
-
-	if err := r.createOrUpdateGpuAttestationPolicyConfigMap(ctx); err != nil {
-		return spec, fmt.Errorf("GPU attestation policy ConfigMap: %w", err)
-	}
-	spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
 
 	return spec, nil
 }
@@ -469,15 +487,17 @@ func (r *TrusteeConfigReconciler) configureRestrictedProfile(ctx context.Context
 	}
 	spec.KbsRvpsRefValuesConfigMapName = r.getRvpsReferenceValuesConfigMapName()
 
-	if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
-		return spec, fmt.Errorf("CPU attestation policy ConfigMap: %w", err)
+	// CPU/GPU attestation policies are not applicable to IBM SE deployments.
+	if !r.isIBMSE() {
+		if err := r.createOrUpdateAttestationPolicyConfigMap(ctx); err != nil {
+			return spec, fmt.Errorf("CPU attestation policy ConfigMap: %w", err)
+		}
+		spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
+		if err := r.createOrUpdateGpuAttestationPolicyConfigMap(ctx); err != nil {
+			return spec, fmt.Errorf("GPU attestation policy ConfigMap: %w", err)
+		}
+		spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
 	}
-	spec.KbsAttestationPolicyConfigMapName = r.getCpuAttestationPolicyConfigMapName()
-
-	if err := r.createOrUpdateGpuAttestationPolicyConfigMap(ctx); err != nil {
-		return spec, fmt.Errorf("GPU attestation policy ConfigMap: %w", err)
-	}
-	spec.KbsGpuAttestationPolicyConfigMapName = r.getGpuAttestationPolicyConfigMapName()
 
 	return spec, nil
 }
@@ -1103,7 +1123,7 @@ func (r *TrusteeConfigReconciler) generateAttestationKeySecret(keyData []byte) (
 
 // generateResourcePolicyConfigMap creates a ConfigMap for resource policy
 func (r *TrusteeConfigReconciler) generateResourcePolicyConfigMap(ctx context.Context) (*corev1.ConfigMap, error) {
-	policyRego, err := generateResourcePolicyRego(string(r.trusteeConfig.Spec.Profile))
+	policyRego, err := generateResourcePolicyRego(r.isIBMSE(), string(r.trusteeConfig.Spec.Profile))
 	if err != nil {
 		return nil, err
 	}

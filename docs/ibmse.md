@@ -24,21 +24,32 @@ By the end of the aforementioned procedure, you should end up having a directory
     └── encrypt_key.pub
 ```
 
-## Persistent Volume creation
+Place this directory at `/opt/confidential-containers/ibmse` on every worker node that will run the trustee pod, and ensure the correct permissions are set:
 
-For mounting the above directory to the trustee pod filesystem, we'd need to create a Persistent Volume (PV) and a Persistent Volume Claim (PVC).
-The configuration of PV/PVC is deployment specific (e.g. dependent on cloud provider), so it is not reported here in this guide.
+```bash
+sudo chmod -R 755 /opt/confidential-containers/ibmse/
+```
 
-In a development environment, you may want to create a PV/PVC that makes use of a local directory. This approach is not recommended for production environments:
+---
 
-PersistentVolume:
+## Configuring IBM SE via TrusteeConfig (recommended)
+
+The `TrusteeConfig` CR provides the simplest way to deploy trustee for IBM SE. When `ibmSE` is set, the operator:
+
+- Creates a `PersistentVolumeClaim` named `<trusteeconfig-name>-ibmse-certstore-pvc`, bound to the PV specified in `ibmSE.pvName`, and wires it into the generated `KbsConfig`
+- Skips CPU/GPU attestation policy ConfigMaps, which are not applicable to IBM SE
+
+> **Note:** The `PersistentVolume` is **not** created or deleted by the operator. It must be pre-created by the cluster administrator before applying the `TrusteeConfig` (see Step 1 below). `PersistentVolume` is a cluster-scoped Kubernetes resource and cannot be owned by a namespace-scoped CR.
+
+### Step 1 – Create the PersistentVolume
+
+Apply the following manifest once per cluster. You can use the sample at `config/samples/all-in-one/ibmse-pv.yaml` as a starting point.
 
 ```yaml
 apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: ibmse-pv
-  namespace: trustee-operator-system
 spec:
   capacity:
     storage: 100Mi
@@ -54,12 +65,66 @@ spec:
             - key: node-role.kubernetes.io/worker
               operator: Exists
 ```
-**Note:** the `path` has to match a local directory on the worker node, and the correct permission for this directory must be set:
-```bash
-sudo chmod -R 755 /opt/confidential-containers/ibmse/
+
+### Step 2 – Apply the TrusteeConfig
+
+Set `ibmSE.pvName` to the name of the PV created in Step 1. The operator will create a PVC named `trusteeconfig-ibmse-ibmse-certstore-pvc` that binds to it.
+
+```yaml
+apiVersion: confidentialcontainers.org/v1alpha1
+kind: TrusteeConfig
+metadata:
+  name: trusteeconfig-ibmse
+  namespace: trustee-operator-system
+spec:
+  ibmSE:
+    pvName: ibmse-pv
+  profileType: Restricted
+  httpsSpec:
+    tlsSecretName: kbs-https-certificate
+  kbsServiceType: NodePort
 ```
 
-PersistentVolumeClaim:
+### Step 3 – Update the IBM SE policy ConfigMap
+
+Update the resource policy ConfigMap by following the sample at `config/templates/resource-policy-ibm.rego`.
+
+> **Note:** Replace `<se.attestation_phkh>`, `<se.image_phkh>`, and `<se.tag>` with the values for your workload. Refer to [Retrieve-the-attestation-policy-fields-for-ibm-se](https://github.com/confidential-containers/trustee/blob/main/deps/verifier/src/se/README.md#retrive-the-attestation-policy-fields-for-ibm-se) for details.
+
+---
+
+## Configuring IBM SE via KbsConfig (advanced)
+
+If you manage the `KbsConfig` resource directly (without `TrusteeConfig`), you must create the PV, PVC, and all ConfigMaps manually.
+
+### Persistent Volume
+
+Create a `PersistentVolume` backed by the local IBM SE certificate directory (cluster-scoped, no namespace):
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ibmse-pv
+spec:
+  capacity:
+    storage: 100Mi
+  accessModes:
+    - ReadOnlyMany
+  storageClassName: ""
+  local:
+    path: /opt/confidential-containers/ibmse
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: node-role.kubernetes.io/worker
+              operator: Exists
+```
+
+### PersistentVolumeClaim
+
+Create the PVC in the same namespace as the `KbsConfig`. Setting `volumeName` ensures static binding to the PV above.
 
 ```yaml
 apiVersion: v1
@@ -71,83 +136,36 @@ spec:
   accessModes:
     - ReadOnlyMany
   storageClassName: ""
+  volumeName: ibmse-pv
   resources:
     requests:
       storage: 100Mi
 ```
 
-## KBS with ibmse specific configuration
-- Please update the `ibmse-attestation-policy` configmap with correct values
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ibmse-attestation-policy
-  namespace: trustee-operator-system
-data:
-  default.rego: |
-    package policy
-    import rego.v1
-    default allow = false
-    converted_version := sprintf("%v", [input["se.version"]])
-
-    allow if {
-        input["se.attestation_phkh"] == "<se.attestation_phkh>"
-        input["se.image_phkh"] == "<se.image_phkh>"
-        input["se.tag"] == "<se.tag>"
-        input["se.user_data"] == "00"
-        converted_version == "256"
-    }
-```
-**Note:** Retrieve the IBM SE fields `<se.attestation_phkh>`, `<se.image_phkh>` and `<se.tag>` for attestation policy from [here](https://github.com/confidential-containers/trustee/blob/main/deps/verifier/src/se/README.md#set-attestation-policy)
-
-- Please check the `ibmse-resource-policy` configmap
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ibmse-resource-policy
-  namespace: trustee-operator-system
-data:
-  policy.rego: |
-    package policy
-    default allow = false
-    path := split(data["resource-path"], "/")
-
-    allow {
-      count(path) == 3
-      input["tee"] == "se"
-    }
-```
-
-## KBS config CRD
-
-For enabling IBM specific configuration in trustee pod, the `KbsConfig` custom resource should have the `ibmSEConfigSpec` section populated as in the following example:
+### KbsConfig CR
 
 ```yaml
 apiVersion: confidentialcontainers.org/v1alpha1
 kind: KbsConfig
-metadata:  
+metadata:
   name: kbsconfig-sample
   namespace: trustee-operator-system
 spec:
   # omitted all the rest of config
   # ...
-  kbsAttestationPolicyConfigMapName: ibmse-attestation-policy
   kbsResourcePolicyConfigMapName: ibmse-resource-policy
   kbsServiceType: NodePort
   # IBMSE settings
   ibmSEConfigSpec:
     certStorePvc: ibmse-pvc
 ```
-**Note:**
 
-- The `kbsAttestationPolicyConfigMapName` has to use `ibmse-attestation-policy` instead of default `attestation-policy`.
-- The `kbsResourcePolicyConfigMapName` has to use `ibmse-resource-policy` instead of default `resource-policy`.
-- The `certStorePvc` has to match the aforementioned PVC name.
-- if the https is enabled, please make sure include the worker node ips to the `[alt_names]` section, here is the document about how to [generate a self signed certificate](https://github.com/confidential-containers/trustee/blob/main/kbs/docs/self-signed-https.md#generate-a-self-signed-certificate)
-  ```yaml
-  ...
+**Notes:**
+
+- `kbsResourcePolicyConfigMapName` must reference a ConfigMap whose `policy.rego` follows the `config/templates/resource-policy-ibm.rego` template.
+- `certStorePvc` must match the PVC name created above.
+- If HTTPS is enabled, include the worker node IPs in the `[alt_names]` section of your certificate. See [Generate a self-signed certificate](https://github.com/confidential-containers/trustee/blob/main/kbs/docs/self-signed-https.md#generate-a-self-signed-certificate) for details.
+  ```ini
   [alt_names]
   DNS.1 = kbs-service
   IP.1 = <ocp-worker-node-0-ip>
