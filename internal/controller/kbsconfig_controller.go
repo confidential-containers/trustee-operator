@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -858,10 +859,13 @@ func buildEnvVars(r *KbsConfigReconciler, ctx context.Context) []corev1.EnvVar {
 		}
 	}
 
-	// Convert map to array
+	// Convert map to array with stable ordering
 	for k, v := range envVarsMap {
 		env = append(env, corev1.EnvVar{Name: k, Value: v})
 	}
+	sort.Slice(env, func(i, j int) bool {
+		return env[i].Name < env[j].Name
+	})
 
 	return env
 }
