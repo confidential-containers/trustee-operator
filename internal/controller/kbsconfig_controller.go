@@ -21,11 +21,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -301,14 +303,15 @@ func (r *KbsConfigReconciler) deployOrUpdateKbsDeployment(ctx context.Context) (
 		return false, err
 	}
 	// Update the found deployment and write the result back if there are any changes
-	err = r.updateKbsDeployment(ctx, found)
+	updated, err := r.updateKbsDeployment(ctx, found)
 	if err != nil {
 		r.Recorder.Eventf(r.kbsConfig, nil, corev1.EventTypeWarning, "DeploymentUpdateFailed", "DeploymentUpdateFailed", err.Error())
 		return false, err
 	}
-	// Deployment updated successfully
-	r.log.Info("Updated Deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
-	r.Recorder.Eventf(r.kbsConfig, nil, corev1.EventTypeNormal, "DeploymentUpdated", "DeploymentUpdated", "Trustee deployment updated successfully")
+	if updated {
+		r.log.Info("Updated Deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", KbsDeploymentName)
+		r.Recorder.Eventf(r.kbsConfig, nil, corev1.EventTypeNormal, "DeploymentUpdated", "DeploymentUpdated", "Trustee deployment updated successfully")
+	}
 
 	return false, nil
 }
@@ -856,10 +859,13 @@ func buildEnvVars(r *KbsConfigReconciler, ctx context.Context) []corev1.EnvVar {
 		}
 	}
 
-	// Convert map to array
+	// Convert map to array with stable ordering
 	for k, v := range envVarsMap {
 		env = append(env, corev1.EnvVar{Name: k, Value: v})
 	}
+	sort.Slice(env, func(i, j int) bool {
+		return env[i].Name < env[j].Name
+	})
 
 	return env
 }
@@ -935,28 +941,29 @@ func (r *KbsConfigReconciler) getConfigMapVersionAnnotations(ctx context.Context
 
 // updateKbsDeployment updates an existing deployment for the KBS instance
 // Errors are logged by the callee and hence no error is logged in this method
-func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deployment *appsv1.Deployment) error {
+func (r *KbsConfigReconciler) updateKbsDeployment(ctx context.Context, deployment *appsv1.Deployment) (bool, error) {
 	// re-generates the deployment
 	newDeployment, err := r.newKbsDeployment(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	// Update the entire template (spec + metadata including annotations)
-	// This ensures that changes to pod template annotations (e.g., ConfigMap versions)
-	// trigger a rolling restart
-	deployment.Spec.Template = *newDeployment.Spec.Template.DeepCopy()
-	// Update replicas if changed
-	deployment.Spec.Replicas = newDeployment.Spec.Replicas
+	desiredTemplate := newDeployment.Spec.Template.DeepCopy()
+	desiredReplicas := newDeployment.Spec.Replicas
+
+	if apiequality.Semantic.DeepEqual(deployment.Spec.Template, *desiredTemplate) &&
+		apiequality.Semantic.DeepEqual(deployment.Spec.Replicas, desiredReplicas) {
+		return false, nil
+	}
+
+	deployment.Spec.Template = *desiredTemplate
+	deployment.Spec.Replicas = desiredReplicas
 
 	err = r.Update(ctx, deployment)
 	if err != nil {
-		return err
-	} else {
-		// Deployment updated successfully
-		r.log.Info("Updated Deployment", "Deployment.Namespace", r.namespace, "Deployment.Name", "kbs-deployment")
-		return nil
+		return false, err
 	}
+	return true, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
