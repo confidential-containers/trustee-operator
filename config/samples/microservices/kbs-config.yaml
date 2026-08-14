@@ -22,10 +22,17 @@ data:
     type = "coco_as_grpc"
     as_addr = "http://127.0.0.1:50004"
 
-    [[plugins]]
-    name = "resource"
-    type = "LocalFs"
-    dir_path = "/opt/confidential-containers/storage/repository"
+    [storage_backend]
+    storage_type = "LocalFs"
+
+    # Base path only — kvstorage namespace "repository" resolves to
+    # /opt/confidential-containers/storage/repository/ (see docs/kbs-kvstorage-storage.md).
+    [storage_backend.backends.local_fs]
+    dir_path = "/opt/confidential-containers/storage"
 
     [policy_engine]
     policy_path = "/opt/confidential-containers/storage/kbs/resource-policy.rego"
+
+    [[plugins]]
+    name = "resource"
+    storage_backend_type = "kvstorage"

@@ -127,17 +127,24 @@ data:
     type = "coco_as_grpc"
     as_addr = "http://127.0.0.1:50004"
 
+    [storage_backend]
+    storage_type = "LocalFs"
+
+    [storage_backend.backends.local_fs]
+    dir_path = "/opt/confidential-containers/storage"
+
     [[plugins]]
     name = "resource"
-    type = "LocalFs"
-    dir_path = "/opt/confidential-containers/kbs/repository"
+    storage_backend_type = "kvstorage"
 
     [policy_engine]
-    policy_path = "/opt/confidential-containers/opa/policy.rego"
+    policy_path = "/opt/confidential-containers/storage/kbs/resource-policy.rego"
 
 ```
 
 If HTTPS support is not needed, please set `insecure_http=true` and no need to specify the attributes `private_key` and `certificate`.
+
+See [docs/kbs-kvstorage-storage.md](docs/kbs-kvstorage-storage.md) for `dir_path` semantics with the kvstorage resource plugin.
 
 An example configmap for AS config looks like this:
 
