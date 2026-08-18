@@ -96,6 +96,24 @@ const (
 	kbsDefaultLocalCacheDir = "/opt/confidential-containers/attestation-service/kds-store/vcek"
 )
 
+func standardLabels(instanceName, component string) map[string]string {
+	return map[string]string{
+		"app.kubernetes.io/managed-by": "trustee-operator",
+		"app.kubernetes.io/part-of":    "trustee",
+		"app.kubernetes.io/instance":   instanceName,
+		"app.kubernetes.io/component":  component,
+	}
+}
+
+func hasStandardLabels(existing map[string]string, expected map[string]string) bool {
+	for k, v := range expected {
+		if existing[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
 func contains(list []string, s string) bool {
 	for _, v := range list {
 		if v == s {
