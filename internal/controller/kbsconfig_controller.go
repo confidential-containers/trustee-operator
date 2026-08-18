@@ -785,6 +785,39 @@ func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMoun
 		"/etc/kbs-config/kbs-config.toml",
 	}
 
+	probeScheme := corev1.URISchemeHTTP
+	if r.isHttpsConfigPresent() {
+		probeScheme = corev1.URISchemeHTTPS
+	}
+
+	healthProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path:   "/healthz",
+				Port:   intstr.FromInt32(8080),
+				Scheme: probeScheme,
+			},
+		},
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       10,
+		TimeoutSeconds:      5,
+		FailureThreshold:    3,
+	}
+
+	livenessProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path:   "/healthz",
+				Port:   intstr.FromInt32(8080),
+				Scheme: probeScheme,
+			},
+		},
+		InitialDelaySeconds: 15,
+		PeriodSeconds:       30,
+		TimeoutSeconds:      5,
+		FailureThreshold:    3,
+	}
+
 	return corev1.Container{
 		Name:  "kbs",
 		Image: imageName,
@@ -798,8 +831,10 @@ func (r *KbsConfigReconciler) buildKbsContainer(volumeMounts []corev1.VolumeMoun
 		Command:         command,
 		SecurityContext: securityContext,
 		// Add volume mount for KBS config
-		VolumeMounts: volumeMounts,
-		Env:          env,
+		VolumeMounts:   volumeMounts,
+		Env:            env,
+		ReadinessProbe: healthProbe,
+		LivenessProbe:  livenessProbe,
 	}
 }
 
