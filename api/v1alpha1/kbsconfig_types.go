@@ -285,6 +285,22 @@ type IbmSETeeConfig struct {
 	// The PV must be created by the cluster administrator before the TrusteeConfig is applied.
 	// The operator creates a PVC that binds to this PV and wires it into the KbsConfig.
 	PVName string `json:"pvName"`
+
+	// BundleSecretName is the name of the Secret that contains the ibmse.tar.gz bundle
+	// (key: ibmse.tar.gz) and its SHA-256 digest (key: sha256).
+	// When set, the operator deploys a DaemonSet that extracts the bundle onto every
+	// worker node at /opt/confidential-containers/ibmse before the PVC is created.
+	// The Secret is created by the ibmse-bundle-generator tool in hack/ibmse-bundle-generator/.
+	// +optional
+	BundleSecretName string `json:"bundleSecretName,omitempty"`
+
+	// SeMessageSecretName is the name of the Secret that contains the se-message JSON
+	// (key: se-message.json) produced by pvextract-hdr.
+	// When set, the operator automatically generates the ibmse-attestation-policy
+	// ConfigMap from the se.attestation_phkh, se.image_phkh, and se.tag values,
+	// replacing the manual copy-paste step.
+	// +optional
+	SeMessageSecretName string `json:"seMessageSecretName,omitempty"`
 }
 
 // TrusteeConfigSpec defines the desired state of TrusteeConfig
