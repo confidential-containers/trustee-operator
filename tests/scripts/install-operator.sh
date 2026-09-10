@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eo pipefail
+
 ALL_IN_ONE="${ALL_IN_ONE:-true}"
 
 if [[ "$ALL_IN_ONE" == "true" && $# -ne 2 ]]
