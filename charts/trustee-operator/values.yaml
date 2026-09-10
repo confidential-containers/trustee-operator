@@ -1,0 +1,121 @@
+# Default values for trustee-operator
+
+# Namespace where the operator will be deployed
+namespace: trustee-operator-system
+
+# Prefix prepended to all resource names
+namePrefix: trustee-operator-
+
+# Operator image configuration
+image:
+  repository: quay.io/confidential-containers/trustee-operator
+  tag: v0.5.0
+  pullPolicy: IfNotPresent
+
+#
+# KBS (Key Broker Service) Configuration
+#
+kbs:
+  image:
+    repository: ghcr.io/confidential-containers/key-broker-service
+    tag: v0.15.0
+
+  # Kubernetes service type for KBS
+  # Options: ClusterIP, NodePort, LoadBalancer
+  serviceType: ClusterIP
+
+  # Number of KBS replicas
+  replicas: 1
+
+  # HTTPS/TLS configuration for KBS
+  https:
+    enabled: false
+    # Name of Kubernetes TLS secret (type: kubernetes.io/tls)
+    # tlsSecretName: kbs-https-cert
+
+  # Authentication public key secret
+  # authSecretName: kbs-auth-public-key
+
+  # Secret resources that KBS will serve to clients
+  # List of secret names containing keys/credentials
+  secretResources: []
+    # - sealed-secret-1
+    # - encryption-key-1
+
+#
+# AS (Attestation Service) Configuration
+# Used for Microservices deployment
+#
+as:
+  image:
+    repository: ghcr.io/confidential-containers/staged-images/coco-as-grpc
+    tag: latest
+
+#
+# RVPS (Reference Value Provider Service) Configuration
+# Used for Microservices deployment
+#
+rvps:
+  image:
+    repository: ghcr.io/confidential-containers/staged-images/rvps
+    tag: latest
+
+#
+# Attestation Configuration
+#
+attestation:
+  # Attestation policy ConfigMap name
+  # policyConfigMapName: attestation-policy
+
+  # Resource policy ConfigMap name
+  # resourcePolicyConfigMapName: resource-policy
+
+  # Reference values ConfigMap name (for RVPS)
+  # referenceValuesConfigMapName: reference-values
+
+  # Attestation token verification
+  tokenVerification:
+    enabled: false
+    # Name of Kubernetes TLS secret for token verification
+    # tlsSecretName: attestation-token-cert
+
+#
+# TEE-specific Configuration
+#
+tee:
+  # Intel TDX (Trust Domain Extensions) configuration
+  tdx:
+    enabled: false
+    # ConfigMap name containing sgx_default_qcnl.conf
+    # configMapName: tdx-config
+
+  # IBM Secure Execution configuration
+  ibmSE:
+    enabled: false
+    # PVC name where certificates/keys are mounted
+    # certStorePvc: ibmse-certs
+
+  # Local certificate cache
+  # Mount additional certificates into Trustee filesystem
+  localCertCache:
+    secrets: []
+      # - secretName: custom-ca-certs
+      #   mountPath: /etc/kbs/certs/custom
+
+#
+# Trustee Configuration
+# This section controls whether to automatically create a TrusteeConfig CR
+# to deploy a Trustee instance managed by this operator
+#
+trustee:
+  # Enable automatic creation of TrusteeConfig CR
+  # Set to false if you want to manage the CR separately
+  enabled: true
+
+  # Name of the TrusteeConfig CR to create
+  name: trustee-sample
+
+  # Profile type: Permissive or Restrictive
+  # Permissive: Debug enabled, permissive policies
+  # Restrictive: HTTPS enforced, restrictive policies, secure mode
+  profileType: Permissive
