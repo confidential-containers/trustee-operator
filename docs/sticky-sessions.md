@@ -67,13 +67,18 @@ data:
         type = "LocalJson"
         file_path = "/opt/confidential-containers/rvps/reference-values/reference-values.json"
 
+    [storage_backend]
+    storage_type = "LocalFs"
+
+    [storage_backend.backends.local_fs]
+    dir_path = "/opt/confidential-containers/storage"
+
     [[plugins]]
     name = "resource"
-    type = "LocalFs"
-    dir_path = "/opt/confidential-containers/kbs/repository"
+    storage_backend_type = "kvstorage"
 
     [policy_engine]
-    policy_path = "/opt/confidential-containers/opa/policy.rego"
+    policy_path = "/opt/confidential-containers/storage/kbs/resource-policy.rego"
 EOF
 
 kubectl apply -f - << EOF

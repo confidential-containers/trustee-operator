@@ -18,5 +18,11 @@ data:
         },
         "attestation_token_config": {
           "duration_min": 5
+        },
+        "verifier_config": {
+          "nvidia_verifier": {
+            "type": "Remote",
+            "verifier_url": "https://nras.attestation.nvidia.com/v4/attest"
+          }
         }
     }
