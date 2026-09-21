@@ -22,7 +22,7 @@ jobs:
 
     - uses: actions/setup-go@v5
       with:
-        go-version: 1.24.6
+        go-version: 1.25.9
 
     - uses: actions/checkout@v4
 
@@ -40,6 +40,11 @@ jobs:
         sudo chmod +x kind
       env:
         RUNNING_INSTANCE: ${{ matrix.instance }}
+
+    # docker-build no longer depends on `test`, so run unit tests explicitly
+    # here to keep coverage in CI while decoupling it from the image build.
+    - name: "Run unit tests"
+      run: make test
 
     - name: "Run integration tests"
       run: KBS_IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY%/*}/staged-images/kbs:latest CLIENT_IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY%/*}/staged-images/kbs-client-image:latest make test-e2e

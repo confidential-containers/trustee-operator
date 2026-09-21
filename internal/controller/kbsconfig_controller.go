@@ -27,6 +27,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,6 +55,9 @@ type KbsConfigReconciler struct {
 	kbsConfig *confidentialcontainersorgv1alpha1.KbsConfig
 	log       logr.Logger
 	namespace string
+	// IsOpenShift toggles OpenShift-specific NetworkPolicy peers (openshift-dns
+	// namespace, ingress router). It defaults to false, i.e. vanilla Kubernetes behavior.
+	IsOpenShift bool
 }
 
 //+kubebuilder:rbac:groups=confidentialcontainers.org,resources=kbsconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -65,6 +69,7 @@ type KbsConfigReconciler struct {
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;update
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=config.openshift.io,resources=proxies,verbs=get;list;watch
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -123,6 +128,13 @@ func (r *KbsConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
+	}
+
+	// Create or update the NetworkPolicies that isolate the KBS operand pods
+	err = r.deployOrUpdateKbsNetworkPolicies(ctx)
+	if err != nil {
+		r.log.Info("Error in creating/updating KBS network policies", "err", err)
+		return ctrl.Result{}, err
 	}
 
 	// Create or update the KBS deployment
@@ -1050,6 +1062,9 @@ func (r *KbsConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// Watch Deployment and Service to trigger reconciliation when their status changes
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
+		// Watch NetworkPolicies owned by KbsConfig so that user edits/deletes
+		// self-heal on the next reconciliation.
+		Owns(&networkingv1.NetworkPolicy{}).
 		Complete(r)
 }
 

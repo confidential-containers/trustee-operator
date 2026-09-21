@@ -40,6 +40,7 @@ import (
 
 	confidentialcontainersorgv1alpha1 "github.com/confidential-containers/trustee-operator/api/v1alpha1"
 	controller "github.com/confidential-containers/trustee-operator/internal/controller"
+	utils "github.com/confidential-containers/trustee-operator/internal/controller/utils"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	//+kubebuilder:scaffold:imports
 )
@@ -125,6 +126,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Check if the environment is OpenShift
+	var isOpenShift bool
+	isOpenShift, err = utils.IsOpenShift(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "failed to check cluster type")
+		os.Exit(1)
+	}
+	if isOpenShift {
+		setupLog.Info("OpenShift cluster detected")
+	} else {
+		setupLog.Info("Vanilla Kubernetes cluster detected")
+	}
+
 	namespace := os.Getenv("POD_NAMESPACE")
 	if namespace == "" {
 		namespace = controller.KbsOperatorNamespace
@@ -137,8 +151,9 @@ func main() {
 	}
 
 	if err = (&controller.KbsConfigReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		IsOpenShift: isOpenShift,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KbsConfig")
 		os.Exit(1)
