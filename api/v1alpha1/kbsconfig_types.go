@@ -95,6 +95,7 @@ type KbsDeploymentSpec struct {
 //	    - x25519
 //
 // +kubebuilder:validation:XValidation:rule="!has(self.minVersion) || !has(self.maxVersion) || self.minVersion <= self.maxVersion",message="minVersion must not be greater than maxVersion"
+// +kubebuilder:validation:XValidation:rule="self.profile == 'custom' || (!has(self.minVersion) && !has(self.maxVersion) && !has(self.ciphers) && !has(self.groups))",message="minVersion, maxVersion, ciphers and groups may only be set when profile is custom"
 type TlsConfig struct {
 	// Profile defines the TLS security profile.
 	// Valid values: "old", "intermediate" (default), "modern", "custom"
