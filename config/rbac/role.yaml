@@ -47,6 +47,7 @@ rules:
 - apiGroups:
   - apps
   resources:
+  - daemonsets
   - deployments
   verbs:
   - create
@@ -55,6 +56,15 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - patch
   - watch
 - apiGroups:
   - confidentialcontainers.org

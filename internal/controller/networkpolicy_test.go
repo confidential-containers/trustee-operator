@@ -322,8 +322,6 @@ func TestDeployOrUpdateKbsNetworkPolicies_RevertsDrift(t *testing.T) {
 	}
 }
 
-// --- helpers ---
-
 func findPolicy(t *testing.T, policies []*networkingv1.NetworkPolicy, name string) *networkingv1.NetworkPolicy {
 	t.Helper()
 	for _, np := range policies {
