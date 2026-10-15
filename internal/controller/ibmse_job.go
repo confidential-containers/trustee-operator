@@ -260,11 +260,11 @@ echo "Node annotation written."
 //  3. For each worker node:
 //     a. If the node annotation already matches the current SHA → files are current, skip.
 //     b. Otherwise (annotation absent, stale, or node just rebooted):
-//   - If an existing Job for this node exists AND is for the same SHA AND is still
+//     - If an existing Job for this node exists AND is for the same SHA AND is still
 //     active (not Failed) → leave it running, just wait.
-//   - If an existing Job for this node exists but is for a different SHA (bundle
+//     - If an existing Job for this node exists but is for a different SHA (bundle
 //     rotation) OR has Failed → delete it and create a fresh Job.
-//   - If no Job exists → create one.
+//     - If no Job exists → create one.
 //  4. Return allReady=true only when every worker node's annotation matches the
 //     current SHA and no Job is still Running/Pending for any node.
 func (r *TrusteeConfigReconciler) reconcileIBMSEJobs(ctx context.Context) (bool, error) {
