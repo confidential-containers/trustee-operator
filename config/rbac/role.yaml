@@ -89,11 +89,30 @@ rules:
   - config.openshift.io
   resources:
   - apiservers
+  - clusterversions
   - proxies
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - console.openshift.io
+  resources:
+  - consoleplugins
+  verbs:
+  - create
+  - list
+  - watch
+- apiGroups:
+  - console.openshift.io
+  resourceNames:
+  - trustee-openshift-console-plugin
+  resources:
+  - consoleplugins
+  verbs:
+  - delete
+  - get
+  - update
 - apiGroups:
   - networking.k8s.io
   resources:
@@ -105,6 +124,29 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - operator.openshift.io
+  resources:
+  - consoles
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - operator.openshift.io
+  resourceNames:
+  - cluster
+  resources:
+  - consoles
+  verbs:
+  - get
+  - update
+- apiGroups:
+  - operators.coreos.com
+  resources:
+  - clusterserviceversions
+  verbs:
+  - list
   - watch
 - apiGroups:
   - route.openshift.io

@@ -14,6 +14,7 @@ metadata:
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "false"
     features.operators.openshift.io/csi: "false"
+    console.openshift.io/plugins: '["trustee-openshift-console-plugin"]'
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
     features.operators.openshift.io/proxy-aware: "true"
@@ -135,9 +136,63 @@ spec:
           - config.openshift.io
           resources:
           - apiservers
+          - clusterversions
           - proxies
           verbs:
           - get
+          - list
+          - watch
+        - apiGroups:
+          - console.openshift.io
+          resources:
+          - consoleplugins
+          verbs:
+          - create
+          - list
+          - watch
+        - apiGroups:
+          - console.openshift.io
+          resourceNames:
+          - trustee-openshift-console-plugin
+          resources:
+          - consoleplugins
+          verbs:
+          - delete
+          - get
+          - update
+        - apiGroups:
+          - networking.k8s.io
+          resources:
+          - networkpolicies
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - operator.openshift.io
+          resources:
+          - consoles
+          verbs:
+          - list
+          - watch
+        - apiGroups:
+          - operator.openshift.io
+          resourceNames:
+          - cluster
+          resources:
+          - consoles
+          verbs:
+          - get
+          - update
+        - apiGroups:
+          - operators.coreos.com
+          resources:
+          - clusterserviceversions
+          verbs:
           - list
           - watch
         - apiGroups:
@@ -164,18 +219,6 @@ spec:
           - subjectaccessreviews
           verbs:
           - create
-        - apiGroups:
-          - networking.k8s.io
-          resources:
-          - networkpolicies
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
         serviceAccountName: trustee-operator-controller-manager
       deployments:
       - label:
@@ -222,6 +265,8 @@ spec:
                   value: ghcr.io/confidential-containers/staged-images/coco-as-grpc:latest
                 - name: RVPS_IMAGE_NAME
                   value: ghcr.io/confidential-containers/staged-images/rvps:latest
+                - name: CONSOLE_PLUGIN_IMAGE
+                  value: quay.io/redhat-user-workloads/ose-osc-tenant/trustee/trustee-console-plugin@sha256:3afae34c7d99785f1d658e9f0170a4eadfb47d289fda4d55dd9016d67a18bfc9
                 image: "registry.redhat.io/build-of-trustee/trustee-rhel9-operator@sha256:91512d4fbd7fa2ee56449e54a2a5ebccf66184ad0e80fbc897b8a9ce6bd51a5d"
                 livenessProbe:
                   httpGet:
@@ -317,5 +362,7 @@ spec:
   relatedImages:
   - image: registry.redhat.io/build-of-trustee/trustee-rhel9@sha256:cd3f58c022a943ed79d6fdbb2e738104aaac48b0b68100dee8b51ba58e72835e
     name: trustee
+  - image: quay.io/redhat-user-workloads/ose-osc-tenant/trustee/trustee-console-plugin@sha256:b95ae4d78a2819073fb37d7a77856317ece9e5aa985d8d2572de2544ab5a1b41
+    name: trustee-console-plugin
   replaces: trustee-operator.v1.2.0
   version: 1.2.1

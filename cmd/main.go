@@ -27,14 +27,19 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	configv1 "github.com/openshift/api/config/v1"
+	consolev1 "github.com/openshift/api/console/v1"
+	operatorv1 "github.com/openshift/api/operator/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	openshifttls "github.com/openshift/controller-runtime-common/pkg/tls"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -59,6 +64,8 @@ func init() {
 
 	utilruntime.Must(confidentialcontainersorgv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(configv1.AddToScheme(scheme))
+	utilruntime.Must(consolev1.Install(scheme))
+	utilruntime.Must(operatorv1.Install(scheme))
 	utilruntime.Must(routev1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
@@ -179,6 +186,25 @@ func main() {
 		// if you are doing or is intended to do any operation such as perform cleanups
 		// after the manager stops then its usage might be unsafe.
 		// LeaderElectionReleaseOnCancel: true,
+		Cache: cache.Options{
+			ByObject: map[client.Object]cache.ByObject{
+				&appsv1.Deployment{}: {
+					Namespaces: map[string]cache.Config{
+						controller.KbsOperatorNamespace: {},
+					},
+				},
+				&corev1.Service{}: {
+					Namespaces: map[string]cache.Config{
+						controller.KbsOperatorNamespace: {},
+					},
+				},
+				&networkingv1.NetworkPolicy{}: {
+					Namespaces: map[string]cache.Config{
+						controller.KbsOperatorNamespace: {},
+					},
+				},
+			},
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -241,6 +267,32 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "TrusteeConfig")
 		os.Exit(1)
 	}
+
+	if isOpenShift {
+		var ocpVersion string
+		if caps.HasConfigAPI {
+			ver, err := utils.GetOpenshiftVersion(ctx, tempClient)
+			if err != nil {
+				setupLog.Info("Could not detect OCP version for console plugin, OCP_VERSION will be empty", "err", err)
+			} else {
+				ocpVersion = ver
+				setupLog.Info("Detected OCP version for console plugin", "version", ocpVersion)
+			}
+		}
+		if utils.IsConsolePluginSupported(ocpVersion) {
+			if err = (&controller.ConsolePluginReconciler{
+				Client:            mgr.GetClient(),
+				Scheme:            mgr.GetScheme(),
+				OperatorCSVPrefix: "trustee-operator",
+			}).SetupWithManager(mgr); err != nil {
+				setupLog.Error(err, "unable to create controller", "controller", "ConsolePlugin")
+				os.Exit(1)
+			}
+		} else {
+			setupLog.Info("OCP version < 4.22 — console plugin controller will not be registered",
+				"detectedVersion", ocpVersion)
+		}
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -253,8 +305,24 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctx); err != nil {
-		setupLog.Error(err, "problem running manager")
+	startErr := mgr.Start(ctx)
+
+	// The manager has stopped: if the operator is being uninstalled, remove the
+	// console plugin resources OLM cannot delete itself (cluster-scoped
+	// ConsolePlugin CRs and the Console operator configuration). OLM deletes
+	// the operator Deployment when the operator is removed, so this is the
+	// only point where cleanup is guaranteed to run while the process is alive.
+	// The Deployment name is needed to tell an uninstall from a restart under
+	// OLMv1, which creates no CSV to look at.
+	if isOpenShift {
+		if err := controller.CleanupConsolePluginsOnUninstall(cfg, scheme, namespace,
+			"trustee-operator", "trustee-operator-controller-manager", setupLog); err != nil {
+			setupLog.Error(err, "failed to clean up console plugin resources on uninstall")
+		}
+	}
+
+	if startErr != nil {
+		setupLog.Error(startErr, "problem running manager")
 		os.Exit(1)
 	}
 }
