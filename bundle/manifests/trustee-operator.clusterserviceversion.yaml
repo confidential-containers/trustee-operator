@@ -5,7 +5,7 @@ metadata:
     alm-examples: '[]'
     capabilities: Basic Install
     categories: "Security"
-    containerImage: "registry.redhat.io/build-of-trustee/trustee-rhel9-operator@sha256:91512d4fbd7fa2ee56449e54a2a5ebccf66184ad0e80fbc897b8a9ce6bd51a5d"
+    containerImage: "registry.redhat.io/build-of-trustee/trustee-rhel9-operator@sha256:fe0bd2bd9e698430bc3b27815a19c556b7573deb2196ded39d5695ffb0d69a65"
     createdAt: "2026-05-21T15:49:55Z"
     operatorframework.io/suggested-namespace: trustee-operator-system
     operators.operatorframework.io/builder: operator-sdk-v1.42.0
@@ -256,7 +256,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: OPERATOR_IMAGE_NAME
-                  value: registry.redhat.io/build-of-trustee/trustee-rhel9-operator@sha256:91512d4fbd7fa2ee56449e54a2a5ebccf66184ad0e80fbc897b8a9ce6bd51a5d
+                  value: registry.redhat.io/build-of-trustee/trustee-rhel9-operator@sha256:fe0bd2bd9e698430bc3b27815a19c556b7573deb2196ded39d5695ffb0d69a65
                 - name: KBS_IMAGE_NAME
                   value: "registry.redhat.io/build-of-trustee/trustee-rhel9@sha256:cd3f58c022a943ed79d6fdbb2e738104aaac48b0b68100dee8b51ba58e72835e"
                 - name: KBS_IMAGE_NAME_MICROSERVICES
@@ -267,7 +267,7 @@ spec:
                   value: ghcr.io/confidential-containers/staged-images/rvps:latest
                 - name: CONSOLE_PLUGIN_IMAGE
                   value: quay.io/redhat-user-workloads/ose-osc-tenant/trustee/trustee-console-plugin@sha256:3afae34c7d99785f1d658e9f0170a4eadfb47d289fda4d55dd9016d67a18bfc9
-                image: "registry.redhat.io/build-of-trustee/trustee-rhel9-operator@sha256:91512d4fbd7fa2ee56449e54a2a5ebccf66184ad0e80fbc897b8a9ce6bd51a5d"
+                image: "registry.redhat.io/build-of-trustee/trustee-rhel9-operator@sha256:fe0bd2bd9e698430bc3b27815a19c556b7573deb2196ded39d5695ffb0d69a65"
                 livenessProbe:
                   httpGet:
                     path: /healthz
