@@ -642,7 +642,7 @@ func (r *KbsConfigReconciler) newKbsDeployment(ctx context.Context) (*appsv1.Dep
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      labels,
-					Annotations: r.getConfigMapVersionAnnotations(ctx),
+					Annotations: r.getVersionAnnotations(ctx),
 				},
 				// Add the KBS container
 				Spec: corev1.PodSpec{
@@ -931,8 +931,9 @@ func (r *KbsConfigReconciler) isAttestationConfigPresent() bool {
 	return false
 }
 
-// getConfigMapVersionAnnotations collects ResourceVersions of all mounted ConfigMaps
-// and returns them as pod template annotations. When any ConfigMap changes, Kubernetes
+// getVersionAnnotations collects ResourceVersions of all mounted ConfigMaps
+// and Secrets whose contents are materialized into the KBS pod at startup, and returns
+// them as pod template annotations. When any of these objects changes, Kubernetes
 // increments its ResourceVersion, which updates the annotation and triggers a rolling
 // restart of the KBS pods.
 //
@@ -941,7 +942,14 @@ func (r *KbsConfigReconciler) isAttestationConfigPresent() bool {
 // - Attestation policies (KbsAttestationPolicyConfigMapName, KbsGpuAttestationPolicyConfigMapName)
 // - Reference values (KbsRvpsRefValuesConfigMapName)
 // - Resource policies (KbsResourcePolicyConfigMapName)
-func (r *KbsConfigReconciler) getConfigMapVersionAnnotations(ctx context.Context) map[string]string {
+// - Secret resources (KbsSecretResources)
+//
+// Secret resources need explicit tracking because they are not mounted live into the
+// KBS container: the secret-converter init container copies their contents into an
+// emptyDir once at pod startup. Without tracking their ResourceVersion, updating the
+// contents of an already-referenced secret would leave the pod template unchanged and
+// never roll out the new values.
+func (r *KbsConfigReconciler) getVersionAnnotations(ctx context.Context) map[string]string {
 	annotations := make(map[string]string)
 
 	// List of all ConfigMaps that Trustee mounts
@@ -980,6 +988,36 @@ func (r *KbsConfigReconciler) getConfigMapVersionAnnotations(ctx context.Context
 		annotations["kbs.confidentialcontainers.org/configmap-versions"] = versions[0]
 		for _, v := range versions[1:] {
 			annotations["kbs.confidentialcontainers.org/configmap-versions"] += "," + v
+		}
+	}
+
+	// Track Secrets whose contents are materialized into the pod at startup.
+	// The secret-converter init container copies KbsSecretResources into an emptyDir
+	// only once, so we must restart the pod whenever their contents change.
+	var secretVersions []string
+	for _, secretName := range r.kbsConfig.Spec.KbsSecretResources {
+		if secretName == "" {
+			continue
+		}
+
+		secret := &corev1.Secret{}
+		err := r.Get(ctx, client.ObjectKey{Namespace: r.namespace, Name: secretName}, secret)
+		if err != nil {
+			// A missing secret is handled (and reported) elsewhere during volume
+			// creation; just skip it here for version tracking.
+			r.log.V(1).Info("Secret not found for version tracking", "name", secretName, "error", err)
+			continue
+		}
+
+		secretVersions = append(secretVersions, fmt.Sprintf("%s:%s", secretName, secret.ResourceVersion))
+	}
+
+	// Combine all secret versions into a single annotation
+	// Format: "kbsres1:12345,kbsres2:67890,..."
+	if len(secretVersions) > 0 {
+		annotations["kbs.confidentialcontainers.org/secret-versions"] = secretVersions[0]
+		for _, v := range secretVersions[1:] {
+			annotations["kbs.confidentialcontainers.org/secret-versions"] += "," + v
 		}
 	}
 

@@ -135,6 +135,10 @@ spec:
                 - message: minVersion must not be greater than maxVersion
                   rule: '!has(self.minVersion) || !has(self.maxVersion) || self.minVersion
                     <= self.maxVersion'
+                - message: minVersion, maxVersion, ciphers and groups may only be
+                    set when profile is custom
+                  rule: self.profile == 'custom' || (!has(self.minVersion) && !has(self.maxVersion)
+                    && !has(self.ciphers) && !has(self.groups))
             type: object
           status:
             description: TrusteeConfigStatus defines the observed state of TrusteeConfig
