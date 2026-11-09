@@ -40,9 +40,7 @@ data:
     insecure_http = true
 
     [admin]
-    type = "DenyAll"
-    insecure_api = true
-    auth_public_key = "/etc/auth-secret/publicKey"
+    authorization_mode = "InsecureAllowAll"
 
     [attestation_token]
     insecure_header_jwk = true

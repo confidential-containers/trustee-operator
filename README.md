@@ -116,9 +116,7 @@ data:
     sockets = ["0.0.0.0:8080"]
     insecure_http = true
     [admin]
-    type = "DenyAll"
-    insecure_api = true
-    auth_public_key = "/etc/auth-secret/kbs.pem"
+    authorization_mode = "InsecureAllowAll"
 
     [attestation_token]
     insecure_header_jwk = true
