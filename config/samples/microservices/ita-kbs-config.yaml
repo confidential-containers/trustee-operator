@@ -11,9 +11,7 @@ data:
     worker_count = 4
 
     [admin]
-    type = "DenyAll"
-    insecure_api = true
-    auth_public_key = "/etc/auth-secret/kbs.pem"
+    authorization_mode = "InsecureAllowAll"
 
     [attestation_token]
     trusted_jwk_sets = ["https://portal.trustauthority.intel.com"]
@@ -27,8 +25,7 @@ data:
 
     [[plugins]]
     name = "resource"
-    type = "LocalFs"
-    dir_path = "/opt/confidential-containers/storage/repository"
+    storage_backend_type = "kvstorage"
 
     [policy_engine]
     policy_path = "/opt/confidential-containers/storage/kbs/resource-policy.rego"

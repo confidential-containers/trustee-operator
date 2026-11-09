@@ -18,12 +18,10 @@ data:
     worker_count = 4
 
     [admin]
-    type = "DenyAll"
-    insecure_api = true
-    auth_public_key = "/etc/auth-secret/publicKey"
+    authorization_mode = "InsecureAllowAll"
 
     [attestation_token]
-    insecure_key = true
+    insecure_header_jwk = true
     attestation_token_type = "CoCo"
 
     [attestation_service]
@@ -47,8 +45,7 @@ data:
 
     [[plugins]]
     name = "resource"
-    type = "LocalFs"
-    dir_path = "/opt/confidential-containers/kbs/repository"
+    storage_backend_type = "kvstorage"
 
     [policy_engine]
     policy_path = "/opt/confidential-containers/opa/policy.rego"

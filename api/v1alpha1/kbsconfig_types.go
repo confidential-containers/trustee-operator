@@ -274,7 +274,7 @@ const (
 	// - resource-policy is restricted
 	// - https configuration is enforced
 	// - insecure_api enforced to false
-	// - insecure_key enforced to false
+	// - insecure_header_jwk enforced to false
 	ProfileTypeRestrictive ProfileType = "Restricted"
 )
 
