@@ -23,7 +23,7 @@ data:
     auth_public_key = "/etc/auth-secret/publicKey"
 
     [attestation_token]
-    insecure_key = true
+    insecure_header_jwk = true
     attestation_token_type = "CoCo"
 
     [attestation_service]
