@@ -24,8 +24,7 @@ data:
 
     [[plugins]]
     name = "resource"
-    type = "LocalFs"
-    dir_path = "/opt/confidential-containers/storage/repository"
+    storage_backend_type = "kvstorage"
 
     [policy_engine]
     policy_path = "/opt/confidential-containers/storage/kbs/resource-policy.rego"
