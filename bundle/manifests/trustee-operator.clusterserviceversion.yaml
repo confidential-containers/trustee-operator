@@ -131,6 +131,13 @@ spec:
           - list
           - watch
         - apiGroups:
+          - events.k8s.io
+          resources:
+          - events
+          verbs:
+          - create
+          - patch
+        - apiGroups:
           - networking.k8s.io
           resources:
           - networkpolicies
