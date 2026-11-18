@@ -1,11 +1,25 @@
 #!/bin/sh
 set -o errexit
 
+# Detect container runtime (use same as KIND)
+if [ "${KIND_EXPERIMENTAL_PROVIDER}" = "podman" ]; then
+  CONTAINER_RUNTIME="podman"
+elif command -v docker >/dev/null 2>&1; then
+  CONTAINER_RUNTIME="docker"
+elif command -v podman >/dev/null 2>&1; then
+  CONTAINER_RUNTIME="podman"
+else
+  echo "Error: neither docker nor podman found"
+  exit 1
+fi
+
+echo "Using container runtime: ${CONTAINER_RUNTIME}"
+
 # 1. Create registry container unless it already exists
 reg_name='kind-registry'
 reg_port='5001'
-if [ "$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)" != 'true' ]; then
-  docker run \
+if [ "$(${CONTAINER_RUNTIME} inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)" != 'true' ]; then
+  ${CONTAINER_RUNTIME} run \
     -d --restart=always -p "127.0.0.1:${reg_port}:5000" --network bridge --name "${reg_name}" \
     registry:2
 fi
@@ -37,16 +51,16 @@ EOF
 # alias localhost:${reg_port} to the registry container when pulling images
 REGISTRY_DIR="/etc/containerd/certs.d/localhost:${reg_port}"
 for node in $(kind get nodes); do
-  docker exec "${node}" mkdir -p "${REGISTRY_DIR}"
-  cat <<EOF | docker exec -i "${node}" cp /dev/stdin "${REGISTRY_DIR}/hosts.toml"
+  ${CONTAINER_RUNTIME} exec "${node}" mkdir -p "${REGISTRY_DIR}"
+  cat <<EOF | ${CONTAINER_RUNTIME} exec -i "${node}" cp /dev/stdin "${REGISTRY_DIR}/hosts.toml"
 [host."http://${reg_name}:5000"]
 EOF
 done
 
 # 4. Connect the registry to the cluster network if not already connected
 # This allows kind to bootstrap the network but ensures they're on the same network
-if [ "$(docker inspect -f='{{json .NetworkSettings.Networks.kind}}' "${reg_name}")" = 'null' ]; then
-  docker network connect "kind" "${reg_name}"
+if [ "$(${CONTAINER_RUNTIME} inspect -f='{{json .NetworkSettings.Networks.kind}}' "${reg_name}")" = 'null' ]; then
+  ${CONTAINER_RUNTIME} network connect "kind" "${reg_name}"
 fi
 
 # 5. Document the local registry
