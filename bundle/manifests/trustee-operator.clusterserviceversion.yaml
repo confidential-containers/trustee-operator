@@ -334,6 +334,13 @@ spec:
           verbs:
           - create
           - patch
+        - apiGroups:
+          - events.k8s.io
+          resources:
+          - events
+          verbs:
+          - create
+          - patch
         serviceAccountName: trustee-operator-controller-manager
     strategy: deployment
   installModes:
