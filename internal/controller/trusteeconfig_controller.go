@@ -26,6 +26,7 @@ import (
 	"text/template"
 
 	"github.com/go-logr/logr"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -58,6 +59,8 @@ type TrusteeConfigReconciler struct {
 //+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;delete
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -141,13 +144,12 @@ func (r *TrusteeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&confidentialcontainersorgv1alpha1.KbsConfig{},
 			handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &confidentialcontainersorgv1alpha1.TrusteeConfig{}),
 		).
-		// Watch owned ConfigMaps, Secrets, and PVCs so that accidental deletion
-		// triggers reconcile and the controller recreates them. Updates may still
-		// occur (e.g., PVC adoption); reconciliation is idempotent so any watch-
-		// triggered update loops converge quickly.
+		// Watch owned ConfigMaps, Secrets, PVCs, and Jobs so that accidental
+		// deletion triggers reconcile and the controller recreates them.
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.PersistentVolumeClaim{}).
+		Owns(&batchv1.Job{}).
 		Complete(r)
 }
 
@@ -399,13 +401,39 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) (confi
 		return spec, err
 	}
 
-	// Configure IBM SE PVC after profile configuration (applies to all profiles).
-	// The PV must be pre-created by the cluster administrator and named in spec.ibmSEPVName.
+	// Configure IBM SE resources after profile configuration (applies to all profiles).
 	if r.isIBMSE() {
+		// Step 1 (optional): run per-node installer Jobs that extract the bundle onto
+		// every worker node's hostPath.  This must complete before the PVC is created
+		// so the hostPath PV is fully populated when KBS tries to mount it.
+		if r.trusteeConfig.Spec.IbmSE.BundleSecretName != "" {
+			ready, err := r.reconcileIBMSEJobs(ctx)
+			if err != nil {
+				return spec, fmt.Errorf("IBM SE node installer Jobs: %w", err)
+			}
+			if !ready {
+				r.log.Info("IBM SE node installer Jobs not yet complete; requeuing")
+				// Return a sentinel error so controller-runtime requeues the reconcile.
+				return spec, fmt.Errorf("IBM SE node installer Jobs not ready yet — waiting for worker nodes")
+			}
+		}
+
+		// Step 2: create the PVC that binds to the pre-existing (now populated) PV.
 		if err = r.createOrUpdateIBMSEPVC(ctx); err != nil {
 			return spec, fmt.Errorf("IBM SE PVC: %w", err)
 		}
 		spec.IbmSEConfigSpec.CertStorePvc = r.getIBMSEPVCName()
+
+		// Step 3 (optional): auto-generate the IBM SE attestation policy ConfigMap
+		// from the se-message Secret, replacing the manual copy-paste step.
+		if r.trusteeConfig.Spec.IbmSE.SeMessageSecretName != "" {
+			cmName, err := r.createOrUpdateIBMSEAttestationPolicy(ctx)
+			if err != nil {
+				return spec, fmt.Errorf("IBM SE attestation policy: %w", err)
+			}
+			spec.KbsAttestationPolicyConfigMapName = cmName
+			r.log.Info("IBM SE attestation policy ConfigMap set", "ConfigMap", cmName)
+		}
 	}
 
 	// Configure HTTPS if specified
