@@ -1,0 +1,41 @@
+---
+# Sample TrusteeConfig for IBM Secure Execution with automated bundle delivery.
+#
+# Prerequisites (run once on bastion before applying this):
+#   cd hack/ibmse-bundle-generator
+#   pip install -r requirements.txt
+#   python -m ibmse_bundle.cli \
+#     --worker-ips 192.168.1.10 192.168.1.11 \
+#     --hkd-cert /path/to/hkd.crt \
+#     --hdr-bin /path/to/hdr.bin \
+#     --se-message /path/to/se-message.json \
+#     --namespace trustee-operator-system
+#
+# Then create the PV (ibmse-pv.yaml) and apply this file.
+apiVersion: confidentialcontainers.org/v1alpha1
+kind: TrusteeConfig
+metadata:
+  name: trusteeconfig-ibmse
+  namespace: trustee-operator-system
+spec:
+  profileType: Permissive
+
+  ibmSE:
+    # Name of the pre-existing PersistentVolume that maps to
+    # /opt/confidential-containers/ibmse on worker nodes.
+    pvName: ibmse-pv
+
+    # Name of the Secret created by ibmse-bundle-generator containing
+    # ibmse.tar.gz and its SHA-256 digest.
+    # The operator will deploy a DaemonSet that extracts this bundle onto
+    # every worker node before binding the PVC.
+    bundleSecretName: ibmse-bundle
+
+    # Name of the Secret created by ibmse-bundle-generator containing
+    # se-message.json with se.attestation_phkh, se.image_phkh, se.tag.
+    # The operator will auto-generate the ibmse-attestation-policy ConfigMap
+    # from these values.
+    seMessageSecretName: ibmse-se-message
+
+  httpsSpec:
+    tlsSecretName: kbs-https-tls
