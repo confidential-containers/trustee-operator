@@ -17,6 +17,7 @@ limitations under the License.
 package controllers
 
 import (
+	"strings"
 	"testing"
 
 	confidentialcontainersorgv1alpha1 "github.com/confidential-containers/trustee-operator/api/v1alpha1"
@@ -53,5 +54,23 @@ func TestValidateProfileType(t *testing.T) {
 				t.Errorf("validateProfileType(%q) = %v, want nil", tc.profile, err)
 			}
 		})
+	}
+}
+
+// TestProfileTransitionDescription checks the status message written when an
+// in-place profileType change is detected: it must name both profiles and the
+// delete-and-recreate requirement.
+func TestProfileTransitionDescription(t *testing.T) {
+	got := profileTransitionDescription(
+		confidentialcontainersorgv1alpha1.ProfileTypePermissive,
+		confidentialcontainersorgv1alpha1.ProfileTypeRestrictive)
+	for _, want := range []string{
+		`profileType is "Restricted"`,
+		`generated for profile "Permissive"`,
+		"delete and recreate",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("profileTransitionDescription message %q does not contain %q", got, want)
+		}
 	}
 }

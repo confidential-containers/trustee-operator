@@ -335,6 +335,14 @@ type TrusteeConfigStatus struct {
 	// StatusDescription provides a human-readable description of the current status
 	// +optional
 	StatusDescription string `json:"statusDescription,omitempty"`
+
+	// AppliedProfile is the profile that was used to generate the currently
+	// deployed KbsConfig. In-place profileType transitions are not applied to an
+	// existing deployment: delete and recreate the TrusteeConfig to switch
+	// profiles. A mismatch between appliedProfile and spec.profileType is
+	// surfaced in statusDescription.
+	// +optional
+	AppliedProfile ProfileType `json:"appliedProfile,omitempty"`
 }
 
 //+kubebuilder:object:root=true
