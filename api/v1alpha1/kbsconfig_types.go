@@ -262,6 +262,7 @@ type AttestationTokenVerificationSpec struct {
 
 // Profile Type string determines the trustee profile
 // +enum
+// +kubebuilder:validation:Enum=Permissive;Restricted
 type ProfileType string
 
 const (
@@ -299,7 +300,11 @@ type TrusteeConfigSpec struct {
 	AttestationTokenVerificationSpec AttestationTokenVerificationSpec `json:"attestationTokenVerificationSpec,omitempty"`
 
 	// ProfileType determines how to configure trustee, e.g. in permissive/restricted mode etc.
-	Profile ProfileType `json:"profileType,omitempty"`
+	// It is required and must be exactly "Permissive" or "Restricted"; any other value,
+	// including an omitted field, is rejected by the CRD validation and by the reconciler.
+	// Changing profileType on an existing TrusteeConfig is not applied in place:
+	// delete and recreate the TrusteeConfig to switch profiles.
+	Profile ProfileType `json:"profileType"`
 
 	// IbmSE enables IBM Secure Execution mode when set.
 	// The operator will create a PVC bound to the named PV and wire it into the KbsConfig.

@@ -414,6 +414,22 @@ func (r *TrusteeConfigReconciler) ensureSecretLabels(ctx context.Context, secret
 	return r.Update(ctx, secret)
 }
 
+// validateProfileType rejects any profileType that is not exactly Permissive or
+// Restricted. The CRD schema enforces the same constraint at admission time;
+// this is the reconciler-side fail-closed check so that an unknown value can
+// never silently select the Permissive (test-only) configuration.
+func validateProfileType(profile confidentialcontainersorgv1alpha1.ProfileType) error {
+	switch profile {
+	case confidentialcontainersorgv1alpha1.ProfileTypePermissive, confidentialcontainersorgv1alpha1.ProfileTypeRestrictive:
+		return nil
+	default:
+		return fmt.Errorf("invalid profileType %q: must be exactly %q or %q",
+			profile,
+			confidentialcontainersorgv1alpha1.ProfileTypePermissive,
+			confidentialcontainersorgv1alpha1.ProfileTypeRestrictive)
+	}
+}
+
 // buildKbsConfigSpec builds the KbsConfigSpec based on TrusteeConfig.
 // Returns an error if any required resource cannot be created so that
 // Reconcile can return the error and let controller-runtime retry rather
@@ -442,8 +458,15 @@ func (r *TrusteeConfigReconciler) buildKbsConfigSpec(ctx context.Context) (confi
 		r.log.Info("Configuring KbsConfig for Restricted profile")
 		spec, err = r.configureRestrictedProfile(ctx, spec)
 	default:
-		r.log.Info("Unknown profile type, using default Permissive profile")
-		spec, err = r.configurePermissiveProfile(ctx, spec)
+		err = validateProfileType(r.trusteeConfig.Spec.Profile)
+		r.log.Error(err, "Refusing to configure TrusteeConfig with invalid profileType",
+			"profileType", r.trusteeConfig.Spec.Profile)
+		r.trusteeConfig.Status.IsReady = false
+		r.trusteeConfig.Status.StatusDescription = err.Error()
+		if statusErr := r.Status().Update(ctx, r.trusteeConfig); statusErr != nil {
+			r.log.Error(statusErr, "Failed to update TrusteeConfig status")
+		}
+		return spec, err
 	}
 	if err != nil {
 		return spec, err
@@ -614,8 +637,7 @@ func (r *TrusteeConfigReconciler) generateKbsTomlConfig(ctx context.Context) (st
 		templateFile = "/config/templates/kbs-config-permissive.toml"
 		r.log.Info("Using permissive configuration template")
 	default:
-		templateFile = "/config/templates/kbs-config-permissive.toml"
-		r.log.Info("Using default permissive configuration template")
+		return "", validateProfileType(r.trusteeConfig.Spec.Profile)
 	}
 
 	// Read the template file
