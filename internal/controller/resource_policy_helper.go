@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"os"
+
+	confidentialcontainersorgv1alpha1 "github.com/confidential-containers/trustee-operator/api/v1alpha1"
 )
 
 // generateResourcePolicyRego generates the Rego policy content based on tee type and profile type.
@@ -36,7 +38,7 @@ func generateResourcePolicyRego(isIBMSE bool, profileType string) (string, error
 		case "Permissive":
 			templateFile = "/config/templates/resource-policy-permissive.rego"
 		default:
-			templateFile = "/config/templates/resource-policy-permissive.rego"
+			return "", validateProfileType(confidentialcontainersorgv1alpha1.ProfileType(profileType))
 		}
 	}
 
