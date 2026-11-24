@@ -155,6 +155,23 @@ func (r *TrusteeConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.log.Info("KbsConfig not ready yet, waiting for KbsConfig status update")
 	}
 
+	// Surface in-place profileType transitions. Generated KbsConfig and
+	// resource-policy ConfigMaps are deliberately preserved during
+	// reconciliation, so changing profileType on an existing TrusteeConfig does
+	// not change the deployed profile. Record the applied profile only while it
+	// matches the spec, so that a transition keeps the warning in the status
+	// until the TrusteeConfig is deleted and recreated.
+	if r.trusteeConfig.Status.AppliedProfile != "" &&
+		r.trusteeConfig.Status.AppliedProfile != r.trusteeConfig.Spec.Profile {
+		r.trusteeConfig.Status.StatusDescription = profileTransitionDescription(
+			r.trusteeConfig.Status.AppliedProfile, r.trusteeConfig.Spec.Profile)
+		r.log.Info("Profile change detected; in-place transitions are not applied",
+			"appliedProfile", r.trusteeConfig.Status.AppliedProfile,
+			"desiredProfile", r.trusteeConfig.Spec.Profile)
+	} else {
+		r.trusteeConfig.Status.AppliedProfile = r.trusteeConfig.Spec.Profile
+	}
+
 	err = r.Status().Update(ctx, r.trusteeConfig)
 	if err != nil {
 		r.log.Error(err, "Failed to update TrusteeConfig status")
@@ -428,6 +445,17 @@ func validateProfileType(profile confidentialcontainersorgv1alpha1.ProfileType) 
 			confidentialcontainersorgv1alpha1.ProfileTypePermissive,
 			confidentialcontainersorgv1alpha1.ProfileTypeRestrictive)
 	}
+}
+
+// profileTransitionDescription builds the status message surfaced when
+// spec.profileType no longer matches the profile the deployed configuration
+// was generated for. In-place profile changes are not applied; the
+// TrusteeConfig must be deleted and recreated to switch profiles.
+func profileTransitionDescription(applied, desired confidentialcontainersorgv1alpha1.ProfileType) string {
+	return fmt.Sprintf(
+		"WARNING: profileType is %q but the deployed configuration was generated for profile %q. "+
+			"In-place profile changes are not applied: delete and recreate this TrusteeConfig to switch profiles",
+		desired, applied)
 }
 
 // buildKbsConfigSpec builds the KbsConfigSpec based on TrusteeConfig.
