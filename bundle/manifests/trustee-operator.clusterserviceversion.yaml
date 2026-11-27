@@ -6,7 +6,7 @@ metadata:
     capabilities: Basic Install
     categories: Security
     containerImage: quay.io/confidential-containers/trustee-operator:v0.22.0
-    createdAt: "2026-07-01T09:49:27Z"
+    createdAt: "2026-11-27T13:09:24Z"
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
     features.operators.openshift.io/proxy-aware: "true"
