@@ -80,8 +80,15 @@ spec:
                   Default value is ClusterIP
                 type: string
               profileType:
-                description: ProfileType determines how to configure trustee, e.g.
-                  in permissive/restricted mode etc.
+                description: |-
+                  ProfileType determines how to configure trustee, e.g. in permissive/restricted mode etc.
+                  It is required and must be exactly "Permissive" or "Restricted"; any other value,
+                  including an omitted field, is rejected by the CRD validation and by the reconciler.
+                  Changing profileType on an existing TrusteeConfig is not applied in place:
+                  delete and recreate the TrusteeConfig to switch profiles.
+                enum:
+                - Permissive
+                - Restricted
                 type: string
               tlsConfig:
                 description: |-
@@ -139,10 +146,23 @@ spec:
                     set when profile is custom
                   rule: self.profile == 'custom' || (!has(self.minVersion) && !has(self.maxVersion)
                     && !has(self.ciphers) && !has(self.groups))
+            required:
+            - profileType
             type: object
           status:
             description: TrusteeConfigStatus defines the observed state of TrusteeConfig
             properties:
+              appliedProfile:
+                description: |-
+                  AppliedProfile is the profile that was used to generate the currently
+                  deployed KbsConfig. In-place profileType transitions are not applied to an
+                  existing deployment: delete and recreate the TrusteeConfig to switch
+                  profiles. A mismatch between appliedProfile and spec.profileType is
+                  surfaced in statusDescription.
+                enum:
+                - Permissive
+                - Restricted
+                type: string
               isReady:
                 description: IsReady is true when the TrusteeConfig configuration
                   is ready
