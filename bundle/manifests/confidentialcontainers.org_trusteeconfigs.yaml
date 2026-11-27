@@ -152,6 +152,17 @@ spec:
           status:
             description: TrusteeConfigStatus defines the observed state of TrusteeConfig
             properties:
+              appliedProfile:
+                description: |-
+                  AppliedProfile is the profile that was used to generate the currently
+                  deployed KbsConfig. In-place profileType transitions are not applied to an
+                  existing deployment: delete and recreate the TrusteeConfig to switch
+                  profiles. A mismatch between appliedProfile and spec.profileType is
+                  surfaced in statusDescription.
+                enum:
+                - Permissive
+                - Restricted
+                type: string
               isReady:
                 description: IsReady is true when the TrusteeConfig configuration
                   is ready
